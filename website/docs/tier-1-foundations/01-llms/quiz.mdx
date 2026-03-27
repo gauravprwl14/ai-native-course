@@ -1,0 +1,83 @@
+---
+title: "Quiz 01: LLMs & How They Work"
+sidebar_position: 6
+description: "Test your understanding of large language models."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz 01 — LLMs & How They Work
+
+Test your understanding before moving to Chapter 02.
+
+<Quiz
+  chapterId="tier1-ch01"
+  passMark={70}
+  questions={[
+    {
+      id: "q1",
+      text: "How does an LLM generate text?",
+      points: 1,
+      options: [
+        "A) It retrieves answers from a database",
+        "B) It predicts the next token based on previous tokens",
+        "C) It looks up facts in its training data like a search engine",
+        "D) It runs a rule-based system trained on grammar"
+      ],
+      correct: 1,
+      explanation: "LLMs generate text token-by-token. At each step, the model predicts a probability distribution over the vocabulary and samples the next token. This is why responses stream — the model generates one token at a time."
+    },
+    {
+      id: "q2",
+      text: "What is the difference between training and inference?",
+      points: 2,
+      options: [
+        "A) Training is cheap, inference is expensive",
+        "B) Training updates model weights using data; inference runs fixed weights to produce outputs",
+        "C) Training is what you do with the API; inference is what the AI company does",
+        "D) They are the same thing with different names"
+      ],
+      correct: 1,
+      explanation: "Training adjusts billions of parameters (weights) using large datasets — it's expensive and done by AI companies. Inference runs those fixed weights to generate responses — it's what you do every time you call the API."
+    },
+    {
+      id: "q3",
+      text: "You're building a customer support bot. A user asks about your company's refund policy. The LLM gives a wrong answer. What is the most likely root cause?",
+      points: 3,
+      options: [
+        "A) The temperature was too high",
+        "B) The model is too small",
+        "C) The refund policy wasn't provided in the prompt — LLMs don't store company-specific facts",
+        "D) The API key has insufficient permissions"
+      ],
+      correct: 2,
+      explanation: "LLMs don't have access to your company's internal data. If the policy wasn't in the prompt (or retrieved via RAG), the model either guesses or says it doesn't know. The fix is RAG (Chapter 14) — retrieve the relevant policy chunk and inject it into the prompt."
+    },
+    {
+      id: "q4",
+      text: "Which model should you use for a task that classifies customer emails into 5 categories?",
+      points: 2,
+      options: [
+        "A) Always use the most powerful model available for best accuracy",
+        "B) A smaller, cheaper model like claude-haiku or gpt-4o-mini — classification is a simple task",
+        "C) You must fine-tune a model for classification tasks",
+        "D) LLMs can't do classification"
+      ],
+      correct: 1,
+      explanation: "Simple classification is well within the capability of small, cheap models. Claude Haiku costs $0.80/M tokens vs $15/M for Opus — 19x cheaper. Always match model capability to task complexity. Save big models for complex reasoning."
+    },
+    {
+      id: "q5",
+      text: "An LLM is stateless. What does this mean for multi-turn conversations?",
+      points: 2,
+      options: [
+        "A) The model can't do multi-turn conversations",
+        "B) You must resend the entire conversation history with every request",
+        "C) The API stores conversation history automatically",
+        "D) Each message is independent — the model never sees previous messages"
+      ],
+      correct: 1,
+      explanation: "LLM APIs are stateless — each request is independent. To have a multi-turn conversation, you must include the full message history in every API call. This is why conversation history management is an important consideration for context window usage and costs."
+    }
+  ]}
+/>
