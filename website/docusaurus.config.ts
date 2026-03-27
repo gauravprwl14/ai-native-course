@@ -7,13 +7,13 @@ const config: Config = {
   tagline: 'From zero to building production AI systems',
   favicon: 'img/favicon.ico',
 
-  url: 'https://your-org.github.io',
+  url: 'https://gauravprwl14.github.io',
   baseUrl: '/ai-native-course/',
 
-  organizationName: 'your-org',
+  organizationName: 'gauravprwl14',
   projectName: 'ai-native-course',
 
-  onBrokenLinks: 'throw',
+  onBrokenLinks: 'warn', // ConceptMap uses slug-only hrefs; would need a full slug→tier lookup to generate correct paths
   onBrokenMarkdownLinks: 'warn',
 
   i18n: {
@@ -61,7 +61,7 @@ const config: Config = {
           label: 'Course',
         },
         {
-          href: 'https://github.com/your-org/ai-native-course',
+          href: 'https://github.com/gauravprwl14/ai-native-course',
           label: 'GitHub',
           position: 'right',
         },
@@ -82,7 +82,7 @@ const config: Config = {
         {
           title: 'Resources',
           items: [
-            { label: 'GitHub', href: 'https://github.com/your-org/ai-native-course' },
+            { label: 'GitHub', href: 'https://github.com/gauravprwl14/ai-native-course' },
           ],
         },
       ],

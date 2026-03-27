@@ -10,6 +10,7 @@ sentence-transformers>=3.0.0
 # RAG utilities
 tiktoken>=0.7.0
 langchain-text-splitters>=0.3.0
+rank-bm25>=0.2.2
 
 # HTTP + async
 httpx>=0.27.0
