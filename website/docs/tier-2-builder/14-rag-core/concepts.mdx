@@ -138,6 +138,129 @@ The basic RAG pipeline described above is the right starting point, but it has k
 
 ---
 
+## How Retrieval Actually Works
+
+Understanding the mechanics behind each step helps you debug failures and tune performance. Here is the complete request lifecycle from raw user input to a cited response.
+
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant App as Application
+  participant EM as Embedding Model
+  participant VS as Vector Store
+  participant TF as Threshold Filter
+  participant CA as Context Assembler
+  participant LLM as LLM (Claude)
+
+  U->>App: "What is our refund policy for enterprise customers?"
+  App->>EM: Embed query text
+  EM-->>App: query_vector [0.12, -0.87, ..., 0.34] (1536 dims)
+  App->>VS: cosine_similarity(query_vector, top_k=5)
+  VS-->>App: [(chunk_A, score=0.91), (chunk_B, score=0.84), (chunk_C, score=0.76), (chunk_D, score=0.61), (chunk_E, score=0.52)]
+  App->>TF: Filter scores below threshold (0.70)
+  TF-->>App: [(chunk_A, 0.91), (chunk_B, 0.84), (chunk_C, 0.76)]
+  App->>CA: Assemble context with source labels
+  CA-->>App: "[Source: refund-policy-v2.pdf]\n...\n[Source: enterprise-sla.pdf]\n..."
+  App->>LLM: system_prompt + context + user_question
+  LLM-->>App: "Based on the Enterprise SLA (refund-policy-v2.pdf), customers are entitled to..."
+  App-->>U: Answer with inline citations
+```
+
+**What each step is doing:**
+
+- **Embed query** — The query string is converted into the same vector space as your indexed chunks. Semantic similarity becomes geometric proximity.
+- **Vector search** — The vector store computes cosine similarity between the query vector and every stored chunk vector. This is fast (milliseconds) even over millions of vectors because approximate nearest-neighbour indexes (HNSW, IVF) are used under the hood.
+- **Threshold filter** — Raw top-k results always return *something*, even when no chunk is relevant. The threshold filter discards results whose similarity score falls below a minimum (0.70 is a sensible default). Without this step, the LLM will confidently answer from irrelevant context.
+- **Context assembly** — Retrieved chunks are formatted with source labels before being inserted into the prompt. The label is what makes citations possible — the LLM can only reference sources it was told about.
+- **LLM call** — The LLM receives a prompt that contains the assembled context and the original question. It never "searches" anything itself; it only reads what you gave it and synthesises an answer.
+- **Response with citations** — Because each chunk is labelled, a well-prompted LLM will ground its answer in specific sources, making the output auditable.
+
+---
+
+## Design Decisions That Matter
+
+The naive pipeline works in a notebook demo. Production requires deliberate choices at each configuration point.
+
+### Chunk Size vs. Retrieval Precision
+
+Chunk size is the single most impactful tuning decision. Every chunk is embedded as one vector, so the vector represents the *average* semantic content of the whole chunk. Larger chunks average over more topics, which dilutes the signal.
+
+| Chunk Size | Behaviour | Best For |
+|------------|-----------|----------|
+| **256 tokens** | High precision — the retrieved chunk is tightly focused on one idea. Low recall — multi-part answers may be split across chunks that are never co-retrieved. | FAQ lookups, policy clauses, definitions |
+| **512 tokens** | Balanced — good precision with enough context for single-topic answers. The practical sweet spot for most knowledge bases. | General Q&A, support docs, runbooks |
+| **1024 tokens** | High recall — rarely misses the right passage. Low precision — the retrieved chunk contains extra noise that can distract the LLM or push you over token limits. | Long-form technical docs where answers require extended context |
+
+**Overlap matters too.** Use a 10–15% overlap between consecutive chunks (e.g., a 50-token overlap on a 512-token chunk). This prevents answers that happen to sit at a chunk boundary from being split across two chunks that may not both be retrieved.
+
+### Embedding Model Choice
+
+The embedding model determines the quality of your vector space. Every chunk and every query is mapped to a point in that space — the model decides how meaningful those positions are.
+
+| Model | Dimensions | Cost (approx.) | When to Use |
+|-------|------------|----------------|-------------|
+| `text-embedding-3-small` | 1536 | ~$0.02 / 1M tokens | Cost-effective default. Excellent for English-language corpora. Good starting point for any project. |
+| `text-embedding-3-large` | 3072 | ~$0.13 / 1M tokens | Higher quality representation. Worth the cost when retrieval precision is critical (legal, medical, compliance use cases) or when your corpus is multilingual. |
+
+For a 10,000-document corpus with average 500 tokens per document, the full indexing run costs roughly $0.10 with `text-embedding-3-small` and $0.65 with `text-embedding-3-large`. The query-time cost is negligible — one embedding call per user query.
+
+**Critical rule:** always use the same model for indexing and querying. Mixing models produces incompatible vector spaces and nonsensical similarity scores.
+
+### Top-k Selection
+
+Top-k controls how many chunks are retrieved and injected into the LLM prompt.
+
+**Why 3–5 is the sweet spot:**
+
+- At k=1, you have high precision but fragile recall. If the single retrieved chunk is slightly off, the whole answer fails.
+- At k=3–5, you get coverage for multi-part questions and resilience against one slightly-mismatched chunk, without overwhelming the LLM with noisy context.
+- Beyond k=7–10, the returns diminish rapidly. Empirically, the 6th-retrieved chunk rarely contains information not already covered by the top 5. More importantly, injecting 10+ chunks pushes you toward the "lost in the middle" problem — LLMs attend more strongly to the beginning and end of context, so middle chunks are often effectively ignored.
+
+**Tuning heuristic:** start at k=3, measure answer quality on a held-out evaluation set, increment by 1 until quality stops improving. For most corpora, quality plateaus between k=3 and k=5.
+
+### Similarity Threshold
+
+The similarity threshold is your quality gate. It prevents the system from answering questions when no relevant document exists.
+
+**0.70 as a starting point:** cosine similarity scores above 0.70 generally indicate genuine semantic overlap between the query and the chunk. Scores in the 0.50–0.69 range are often coincidental — the model found words in common but not shared meaning. Scores below 0.50 are essentially random matches.
+
+**How to calibrate:**
+
+1. Collect 50–100 representative questions from your domain.
+2. Run retrieval and record the similarity scores for the top-1 result.
+3. Manually label each result as "relevant" or "irrelevant".
+4. Find the score threshold that maximises F1 (or precision, if false positives are costly) on your labelled set.
+5. For most general knowledge bases, this lands between 0.68 and 0.75.
+
+**What to do when all chunks fall below the threshold:** return a controlled fallback — "I don't have information on that topic in the available documents." This is far better than confidently answering from irrelevant context.
+
+---
+
+## Mental Model: RAG vs. Fine-tuning
+
+Both RAG and fine-tuning are ways to make an LLM useful for a specific domain. They solve different problems and should not be seen as interchangeable.
+
+| Dimension | RAG | Fine-tuning |
+|-----------|-----|-------------|
+| **What you're changing** | What the model *sees* at inference time | What the model *knows* from training |
+| **Knowledge updates** | Real-time — update the vector store, no retraining | Slow — requires re-running (or re-running a portion of) training |
+| **Citeability** | Native — every answer can reference the exact source chunk | Hard — the model learned from examples, not retrievable documents |
+| **Cost** | Low upfront, pay per query for embeddings | High upfront (compute for training), lower per-query after |
+| **Data required** | Any documents in any format | Hundreds to thousands of labelled examples |
+| **Best for** | Dynamic, factual, citable knowledge — internal docs, product catalogs, support bases, legal corpora | Style, tone, format, task-specific behaviour — write like our brand, always respond in JSON, follow our triage protocol |
+
+**The practical decision rule:**
+
+- If the question is "how do I make the model *know* our documentation?" → use RAG.
+- If the question is "how do I make the model *behave* a certain way consistently?" → use fine-tuning.
+- If both are required (e.g., a customer support bot that must know your products AND always respond in a specific structured format) → combine them: fine-tune for behaviour, RAG for knowledge.
+
+**Why RAG beats fine-tuning for factual knowledge:**
+
+Fine-tuning encodes knowledge into model weights. Weights are static — the moment your policy document changes, the fine-tuned model is wrong. More subtly, fine-tuned models often fail to surface *which* training example informed a given output, making errors hard to trace. RAG keeps knowledge in a versioned, queryable store. When the policy changes, you re-index one document. When an answer is wrong, you inspect the retrieved chunks. The system is auditable by design.
+
+---
+
 ## Key Terms
 
 | Term | Definition |

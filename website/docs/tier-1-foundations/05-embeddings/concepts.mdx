@@ -30,6 +30,44 @@ You don't program this in. The model learns it from billions of text examples.
 
 ---
 
+## How Embeddings Are Created
+
+You don't need to understand the math to use embeddings effectively — but knowing what's happening under the hood helps you make better decisions about models, dimensions, and tradeoffs.
+
+Here is the pipeline that turns raw text into a vector:
+
+```mermaid
+graph LR
+  A["Raw Text\n'a puppy playing'"] --> B["Tokenizer\n→ token IDs"]
+  B --> C["Transformer Encoder\n(stacked attention layers)"]
+  C --> D["Token Vectors\none per token"]
+  D --> E["Mean Pooling\naverage all token vectors"]
+  E --> F["L2 Normalize\ndivide by magnitude"]
+  F --> G["Embedding Vector\n[0.23, -0.14, 0.87, ...]\n1536 floats"]
+
+  style A fill:#e0e7ff,stroke:#6366f1
+  style B fill:#fef9c3,stroke:#ca8a04
+  style C fill:#fef3c7,stroke:#f59e0b
+  style D fill:#ffedd5,stroke:#f97316
+  style E fill:#d1fae5,stroke:#10b981
+  style F fill:#cffafe,stroke:#0891b2
+  style G fill:#ede9fe,stroke:#7c3aed
+```
+
+**Step by step in plain terms:**
+
+1. **Tokenize** — The text is split into tokens (roughly words or word-pieces). "Playing" might become two tokens: "play" and "ing". Each token is mapped to an integer ID.
+
+2. **Transformer encoder layers** — Each token passes through many layers of self-attention. Attention lets every token look at every other token and update its meaning based on context. "Bank" near "river" and "bank" near "money" end up with different internal representations, even though the word is the same.
+
+3. **Mean pooling** — The encoder outputs one vector per token. To get a single vector for the whole sentence, you average them all together (mean pool). This is the simplest and most common strategy.
+
+4. **L2 normalize** — Divide the vector by its own magnitude (length) so that it lands on the surface of a unit sphere. After normalization, every vector has a magnitude of exactly 1. This is what makes cosine similarity equivalent to a simple dot product — and it's why scores reliably fall between −1 and 1.
+
+The final output is a dense vector of fixed length (e.g. 1536 floats). That's your embedding.
+
+---
+
 ## How It Works
 
 1. An embedding model reads your text and outputs a **vector** — a list of floating-point numbers. For `text-embedding-3-small`, that's 1536 numbers.
@@ -49,6 +87,36 @@ Where `A · B` is the dot product and `|A|`, `|B|` are the magnitudes.
 | **0.3–0.6** | Loosely related |
 | **0.0** | Unrelated |
 | **-1.0** | Opposite meaning |
+
+---
+
+## Why Cosine Similarity?
+
+You might wonder: why not just use plain Euclidean distance (the straight-line distance between two points)? The answer comes down to **direction vs. magnitude**.
+
+**The core insight:** after L2 normalization, two vectors with identical meaning point in exactly the same direction — regardless of how "long" the original vectors were. Cosine similarity measures the angle between vectors, which captures direction. Euclidean distance measures how far apart the tips of the vectors are, which also depends on magnitude.
+
+**A concrete 2D example:**
+
+Imagine two documents about dogs:
+- Document A (short): vector roughly `[2, 1]`
+- Document B (long, same topic): vector roughly `[6, 3]`
+
+Both vectors point in the same direction — Document B is just scaled up because it has more words. Euclidean distance says they are far apart (distance ≈ 4.5). Cosine similarity says they are identical (score = 1.0), because the angle between them is zero.
+
+```
+         ↑ dimension 2
+         |
+    B [6,3] •——————
+         |   ↗
+    A [2,1] •——
+         |↗
+         +————————→ dimension 1
+```
+
+Both arrows point in the same direction. The angle between them is 0°. cos(0°) = 1.0 — perfect similarity.
+
+**The practical rule:** use cosine similarity (or dot product on normalized vectors) for embedding comparisons. Euclidean distance is the wrong tool here because it conflates length with meaning.
 
 ---
 
@@ -97,6 +165,65 @@ graph TD
 ```
 
 "puppy" and "dog" are close together. "puppy" and "pizza" are far apart. This geometry is what semantic search exploits.
+
+---
+
+## Practical: Choosing an Embedding Model
+
+Not all embedding models are equal. Here is a quick comparison of the most common OpenAI options:
+
+| Model | Dimensions | Cost per 1M tokens | Best for |
+|-------|------------|--------------------|---------|
+| `text-embedding-3-small` | 1536 | $0.02 | Most use cases |
+| `text-embedding-3-large` | 3072 | $0.13 | Higher accuracy needed |
+| `text-embedding-ada-002` | 1536 | $0.10 | Legacy, avoid for new projects |
+
+**How to choose:**
+
+- **Start with `text-embedding-3-small`** for nearly everything. It is 5× cheaper than `ada-002`, faster, and more accurate on benchmarks.
+- **Upgrade to `text-embedding-3-large`** only when you measure a meaningful accuracy gap on your specific retrieval task. The higher dimension gives the model more room to encode nuance, but also costs 6.5× more.
+- **Avoid `text-embedding-ada-002`** for new projects. It is an older model, costs more than `3-small`, and performs worse. You will encounter it in legacy codebases — migrate when you can.
+
+> **Tip:** Dimension count is not the only signal of quality. A well-trained smaller model often beats a larger model from an earlier generation. Always evaluate on your own data.
+
+---
+
+## From Embeddings to Semantic Search
+
+Here is a minimal, working end-to-end example that shows the full loop: embed documents, embed a query, rank by cosine similarity, return the best match.
+
+```python
+import openai
+import numpy as np
+
+def embed(text, client):
+    return client.embeddings.create(model="text-embedding-3-small", input=text).data[0].embedding
+
+def cosine_sim(a, b):
+    a, b = np.array(a), np.array(b)
+    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+
+client = openai.OpenAI()
+docs = ["Cats are mammals.", "Python is a programming language.", "Dogs are loyal pets."]
+doc_embeddings = [embed(d, client) for d in docs]
+
+query = "What pets make good companions?"
+q_emb = embed(query, client)
+scores = [(docs[i], cosine_sim(q_emb, doc_embeddings[i])) for i in range(len(docs))]
+scores.sort(key=lambda x: x[1], reverse=True)
+print(scores[0])  # ('Dogs are loyal pets.', 0.87...)
+```
+
+**What this code does, step by step:**
+
+1. `embed()` calls the OpenAI API and returns the raw list of floats for a piece of text.
+2. `cosine_sim()` computes the cosine similarity between two vectors using NumPy.
+3. All three documents are embedded up front (do this once and cache the results).
+4. The query is embedded at request time.
+5. Similarity scores are computed against every document and sorted descending.
+6. The top result — "Dogs are loyal pets." — wins because it is semantically closest to the question about pet companions.
+
+This is the foundation of every RAG pipeline, semantic search engine, and recommendation system that uses embeddings. The only thing that changes at scale is the retrieval step: instead of a brute-force loop, you use a vector index (FAISS, pgvector, Pinecone) to find the top-k matches in sub-linear time.
 
 ---
 
