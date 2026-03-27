@@ -1,0 +1,92 @@
+---
+title: "Patterns: Working with Tokens"
+sidebar_position: 9
+description: "Practical patterns for token counting, cost estimation, and staying within limits."
+---
+
+# Patterns: Working with Tokens
+
+## Pattern 1: Pre-flight Token Check
+
+Always count tokens before sending large inputs.
+
+```python
+import tiktoken
+from shared.utils import estimate_cost_usd
+
+def check_before_send(system: str, user_message: str, max_allowed: int = 100_000) -> dict:
+    """Check token count and estimated cost before making an API call."""
+    enc = tiktoken.get_encoding("cl100k_base")
+
+    input_tokens = len(enc.encode(system)) + len(enc.encode(user_message))
+
+    if input_tokens > max_allowed:
+        raise ValueError(f"Input too long: {input_tokens} tokens (max {max_allowed})")
+
+    estimated_output = 500  # assume 500 output tokens
+    cost = estimate_cost_usd(input_tokens, estimated_output, "claude-haiku-4-5-20251001")
+
+    return {"input_tokens": input_tokens, "estimated_cost_usd": cost}
+```
+
+---
+
+## Pattern 2: Truncate to Fit Context
+
+When processing documents that might be too long:
+
+```python
+def truncate_to_tokens(text: str, max_tokens: int, encoding: str = "cl100k_base") -> str:
+    """Truncate text to a maximum number of tokens."""
+    enc = tiktoken.get_encoding(encoding)
+    token_ids = enc.encode(text)
+
+    if len(token_ids) <= max_tokens:
+        return text
+
+    # Truncate and decode back to string
+    truncated_ids = token_ids[:max_tokens]
+    return enc.decode(truncated_ids)
+```
+
+**When to use:** Document processing pipelines where input size is unpredictable.
+
+---
+
+## Pattern 3: Cost Tracker
+
+Track cumulative cost across multiple API calls.
+
+```python
+class CostTracker:
+    def __init__(self, model: str = "claude-haiku-4-5-20251001"):
+        self.model = model
+        self.total_input_tokens = 0
+        self.total_output_tokens = 0
+
+    def record(self, response) -> float:
+        """Record usage from an API response and return call cost."""
+        input_t = response.usage.input_tokens
+        output_t = response.usage.output_tokens
+        self.total_input_tokens += input_t
+        self.total_output_tokens += output_t
+        return estimate_cost_usd(input_t, output_t, self.model)
+
+    @property
+    def total_cost(self) -> float:
+        return estimate_cost_usd(self.total_input_tokens, self.total_output_tokens, self.model)
+```
+
+---
+
+## Anti-Patterns
+
+<div className="antipattern">
+
+**❌ Logging full prompts in production without token counts**
+You lose visibility into what's driving costs. Always log `input_tokens` and `output_tokens` from the API response.
+
+**❌ Setting max_tokens too low and getting cut-off responses**
+If `max_tokens=100` and the model needs 200 tokens to finish, it cuts off mid-sentence. Set `max_tokens` generously but monitor actual output lengths.
+
+</div>

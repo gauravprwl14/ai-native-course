@@ -1,0 +1,81 @@
+---
+title: "Quiz 02: Tokens & Tokenization"
+sidebar_position: 11
+description: "Test your understanding of tokens, tokenization, and cost estimation."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz 02 — Tokens & Tokenization
+
+<Quiz
+  chapterId="tier1-ch02"
+  passMark={70}
+  questions={[
+    {
+      id: "q1",
+      text: "Approximately how many tokens is the sentence: 'The quick brown fox jumps over the lazy dog'?",
+      points: 1,
+      options: [
+        "A) 9 tokens (one per word)",
+        "B) 10 tokens",
+        "C) 40 tokens (one per character)",
+        "D) 3 tokens"
+      ],
+      correct: 1,
+      explanation: "This 9-word sentence is about 10 tokens. The rule of thumb is ~0.75 tokens per word (or ~4 characters per token) for English text. Punctuation and spaces add extra tokens."
+    },
+    {
+      id: "q2",
+      text: "You're building a RAG pipeline that sends 3,000 input tokens and receives 500 output tokens per request. Using claude-haiku-4-5-20251001 ($0.80 input, $4.00 output per 1M tokens), what is the cost per request?",
+      points: 3,
+      options: [
+        "A) $0.0024 + $0.002 = $0.0044",
+        "B) $0.0024 + $0.0002 = $0.0026",
+        "C) $0.003 + $0.005 = $0.008",
+        "D) $0.00024 + $0.002 = $0.00224"
+      ],
+      correct: 0,
+      explanation: "Input: (3000/1,000,000) × $0.80 = $0.0024. Output: (500/1,000,000) × $4.00 = $0.002. Total = $0.0044. Answer A is correct."
+    },
+    {
+      id: "q3",
+      text: "Why are output tokens more expensive than input tokens in LLM APIs?",
+      points: 2,
+      options: [
+        "A) Output tokens are longer on average",
+        "B) Generation (autoregressive decoding) requires more compute than encoding the input",
+        "C) AI companies charge more for output to discourage verbose responses",
+        "D) Output tokens use a different, more complex tokenizer"
+      ],
+      correct: 1,
+      explanation: "Input tokens are processed in parallel (one forward pass). Output tokens are generated one at a time — each token requires a full forward pass through the model. This serial generation is computationally expensive, hence the higher price."
+    },
+    {
+      id: "q4",
+      text: "You're processing Japanese text. Compared to English text of the same meaning, Japanese will typically use:",
+      points: 2,
+      options: [
+        "A) Fewer tokens — Japanese is more compact",
+        "B) The same number of tokens",
+        "C) More tokens — non-English scripts have fewer common subword pieces in the tokenizer",
+        "D) It depends on the sentence length"
+      ],
+      correct: 2,
+      explanation: "BPE tokenizers are trained predominantly on English text. Non-English characters appear less frequently, so they get split into more subword pieces. Japanese, Chinese, Arabic, etc. typically use 2-5x more tokens per character than English. This significantly increases costs for multilingual applications."
+    },
+    {
+      id: "q5",
+      text: "What happens if you set max_tokens=50 but the model needs 200 tokens to complete its response?",
+      points: 1,
+      options: [
+        "A) The API returns an error",
+        "B) The model generates 200 tokens and you're billed for all of them",
+        "C) The response is cut off at 50 tokens — often mid-sentence",
+        "D) The model automatically summarises to fit within 50 tokens"
+      ],
+      correct: 2,
+      explanation: "max_tokens is a hard limit on output length. The model generates tokens until it either finishes naturally or hits the limit. If it hits the limit, the response is truncated — often mid-sentence. Always set max_tokens high enough for expected response length, and monitor actual output lengths in production."
+    }
+  ]}
+/>

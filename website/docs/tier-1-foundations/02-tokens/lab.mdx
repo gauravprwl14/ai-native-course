@@ -1,0 +1,40 @@
+---
+title: "Lab 02: Token Counter & Cost Estimator"
+sidebar_position: 10
+description: "Build a CLI tool that counts tokens, estimates costs, and truncates text to fit context limits."
+---
+
+# Lab 02 — Token Counter & Cost Estimator
+
+## What You're Building
+
+A Python module with utilities for working with tokens:
+
+1. **Count tokens** in any string using tiktoken
+2. **Estimate cost** for a planned API call
+3. **Truncate text** to fit within a token limit
+4. **Tokenize and visualize** — show each token as a separate item
+
+## Files
+
+| File | Purpose |
+|------|---------|
+| `starter/solution.py` | Your starting point — fill in the TODOs |
+| `solution/solution.py` | Reference solution |
+| `tests/test_solution.py` | Verify your implementation |
+
+## Getting Started
+
+```bash
+cd curriculum/tier-1-foundations/02-tokens/lab/starter
+pip install tiktoken  # if not already installed
+python solution.py
+```
+
+## Acceptance Criteria
+
+- [ ] `count_tokens(text)` returns an integer
+- [ ] `estimate_cost(input_tokens, output_tokens, model)` returns a float
+- [ ] `truncate_to_tokens(text, max_tokens)` returns a string ≤ max_tokens long
+- [ ] `tokenize(text)` returns a list of token strings
+- [ ] All tests pass: `pytest tests/ -v`
