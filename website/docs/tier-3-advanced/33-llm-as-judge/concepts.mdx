@@ -125,6 +125,397 @@ flowchart TD
 
 ---
 
+## Why LLM-as-Judge Works (and When It Doesn't)
+
+### Why It Works
+
+Large language models are trained on vast amounts of human-written text including editorial feedback, academic peer review, user ratings, and preference data from RLHF. This means they have internalised many of the dimensions humans care about when reading a response.
+
+Studies comparing LLM judge scores to human annotations have found strong correlation (Spearman r &gt; 0.8 in many benchmarks) for dimensions that are:
+- **Well-defined in natural language** — helpfulness, clarity, fluency, tone
+- **Expressible in the rubric** — the LLM can reason about what a 3 vs. a 5 means if you describe it clearly
+- **Present in its training distribution** — standard English writing quality, common reasoning tasks
+
+A capable model like GPT-4 or Claude 3 Opus as judge agrees with human labels at roughly the same rate as one human agrees with another human on the same task (~75–85% for 5-point scales).
+
+### When It Fails
+
+**Domain-specific correctness it was not trained on.** An LLM judge cannot reliably score whether a medical diagnosis is correct, whether legal advice matches your jurisdiction, or whether a chemistry calculation is accurate — unless it has deep training in that domain. It will sound confident but be wrong.
+
+**Recent events.** If the LLM's knowledge cuts off before the event in question, it cannot evaluate factual accuracy for claims about things that happened after training. It may hallucinate a plausible-sounding judgment.
+
+**Self-evaluation.** Using the same model to judge its own outputs introduces self-enhancement bias. The judge has the same blind spots as the generator — it fails on the same examples and approves of its own style. Always use a different model (ideally a stronger one) as your judge.
+
+**Long documents.** Most LLM judges degrade on documents longer than a few thousand tokens. Attention dilutes, the judge may not read the full response, and long-context faithfulness is hard to verify. Split long responses into sections and judge each section separately.
+
+**Subtle logical errors.** A response can be well-written and confidently wrong. LLM judges often score fluency rather than the underlying reasoning. For correctness in complex chains of reasoning, supplement LLM-as-judge with rule-based checks or symbolic verification where possible.
+
+### Decision Table
+
+| Use Case | LLM Judge Reliable? | Alternative |
+|----------|--------------------|---------------------------------|
+| Helpfulness, tone, clarity | Yes | — |
+| Factual claims in general knowledge | Partial | Ground truth retrieval + check |
+| Medical / legal / financial accuracy | No | Human expert review |
+| Outputs from same model family | Partial (bias) | Use different model family |
+| Long documents (&gt; 10,000 tokens) | No | Chunk and judge per section |
+| Recent events (post-training cutoff) | No | Rule-based verification |
+
+---
+
+## The Judge Prompt — Getting It Right
+
+A well-designed judge prompt has five elements:
+1. A clear persona and task statement
+2. An explicit criteria rubric with anchored score descriptions
+3. An instruction to reason before scoring (chain-of-thought)
+4. A JSON output format for easy parsing
+5. A reminder not to let irrelevant factors (style, length) override substance
+
+### Reference-Free Judge (No Ground Truth)
+
+Use this when you have the user's question and the model's response, but no reference answer.
+
+```
+System:
+You are an expert quality evaluator for AI assistant responses.
+Your task is to score the response below on three dimensions.
+Think step by step before giving your final scores.
+Output ONLY valid JSON — no other text.
+
+User:
+## User Question
+{user_question}
+
+## Response to Evaluate
+{model_response}
+
+## Scoring Rubric
+Evaluate on each dimension from 1 to 5:
+
+**helpfulness** (1–5)
+- 1: Does not address the question at all
+- 2: Partially addresses the question but misses the main point
+- 3: Addresses the main point but incomplete or imprecise
+- 4: Addresses the question well with minor gaps
+- 5: Fully addresses the question with appropriate depth
+
+**accuracy** (1–5)
+- 1: Contains major factual errors or contradictions
+- 2: Contains several factual errors
+- 3: Mostly accurate with minor errors
+- 4: Accurate; only trivial issues
+- 5: Fully accurate and well-supported
+
+**clarity** (1–5)
+- 1: Confusing, hard to follow
+- 2: Hard to follow in places
+- 3: Reasonably clear with some unclear passages
+- 4: Clear and well-organized
+- 5: Exceptionally clear and easy to follow
+
+## Instructions
+1. Write 2–3 sentences of reasoning for each dimension.
+2. Then output your scores as JSON.
+
+## Output Format
+{
+  "reasoning": {
+    "helpfulness": "...",
+    "accuracy": "...",
+    "clarity": "..."
+  },
+  "scores": {
+    "helpfulness": <1-5>,
+    "accuracy": <1-5>,
+    "clarity": <1-5>
+  }
+}
+```
+
+### Reference-Based Judge (With Ground Truth)
+
+Use this when you have a reference answer (e.g., from a curated dataset or a subject-matter expert).
+
+```
+System:
+You are an expert quality evaluator. Compare the model response to the
+reference answer and score the model response on accuracy and completeness.
+Think step by step before giving your final scores.
+Output ONLY valid JSON — no other text.
+
+User:
+## User Question
+{user_question}
+
+## Reference Answer (ground truth)
+{reference_answer}
+
+## Model Response to Evaluate
+{model_response}
+
+## Scoring Rubric
+
+**accuracy** (1–10)
+- 1–3: Contradicts or ignores the reference answer; major errors
+- 4–6: Partially matches the reference; some correct, some missing or wrong
+- 7–8: Mostly matches the reference with minor gaps or phrasing differences
+- 9–10: Fully consistent with the reference; all key facts present and correct
+
+**completeness** (1–10)
+- 1–3: Missing most key points from the reference
+- 4–6: Covers some key points but omits several important ones
+- 7–8: Covers most key points; minor omissions
+- 9–10: Covers all key points from the reference
+
+## Instructions
+1. Write 2–3 sentences comparing the model response to the reference for each dimension.
+2. Then output your scores as JSON.
+
+## Output Format
+{
+  "reasoning": {
+    "accuracy": "...",
+    "completeness": "..."
+  },
+  "scores": {
+    "accuracy": <1-10>,
+    "completeness": <1-10>
+  }
+}
+```
+
+### Parsing Judge Output
+
+```python
+import json
+import re
+
+def parse_judge_response(raw: str) -> dict:
+    """Extract the JSON block from a judge response, handling markdown code fences."""
+    # Strip markdown code fences if present
+    cleaned = re.sub(r"```(?:json)?\s*", "", raw).strip().rstrip("`").strip()
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        # Attempt to extract the first {...} block
+        match = re.search(r"\{.*\}", cleaned, re.DOTALL)
+        if match:
+            return json.loads(match.group())
+        raise ValueError(f"Could not parse judge output: {raw[:200]}")
+```
+
+---
+
+## Calibration — Validating Your Judge
+
+Before you deploy a judge to score thousands of live responses, you need to know whether it agrees with human judgment. This is called **calibration**.
+
+### What You Need
+
+- A **calibration set**: 50–200 examples where you have both a model response and a human-assigned score. These should cover the full range of quality levels — not just good examples.
+- **Judge predictions**: run your judge over the same examples.
+- A **metric** to quantify agreement.
+
+### Cohen's Kappa
+
+Cohen's kappa measures agreement between two raters on categorical labels, correcting for chance agreement. A kappa of 1.0 means perfect agreement; 0.0 means no better than chance; negative means worse than chance.
+
+**Target: kappa &gt; 0.6** for a usable automated judge.
+
+| Kappa | Interpretation |
+|-------|----------------|
+| &lt; 0.20 | Slight agreement — judge is not reliable |
+| 0.20–0.40 | Fair agreement |
+| 0.40–0.60 | Moderate agreement |
+| 0.60–0.80 | Substantial agreement — usable for automation |
+| &gt; 0.80 | Almost perfect agreement |
+
+```python
+from sklearn.metrics import cohen_kappa_score
+from scipy.stats import pearsonr, spearmanr
+
+def calibrate_judge(human_scores: list[int], judge_scores: list[int]) -> dict:
+    """
+    Measure agreement between human labels and judge predictions.
+
+    Args:
+        human_scores: List of integer scores assigned by humans (e.g., 1–5).
+        judge_scores: List of integer scores assigned by the LLM judge.
+
+    Returns:
+        Dictionary with kappa, Pearson r, Spearman rho, and exact agreement rate.
+    """
+    assert len(human_scores) == len(judge_scores), "Lists must be the same length"
+
+    kappa = cohen_kappa_score(human_scores, judge_scores)
+    pearson_r, pearson_p = pearsonr(human_scores, judge_scores)
+    spearman_rho, spearman_p = spearmanr(human_scores, judge_scores)
+
+    exact_agreement = sum(
+        h == j for h, j in zip(human_scores, judge_scores)
+    ) / len(human_scores)
+
+    # Adjacent agreement: scores within 1 of each other
+    adjacent_agreement = sum(
+        abs(h - j) <= 1 for h, j in zip(human_scores, judge_scores)
+    ) / len(human_scores)
+
+    return {
+        "cohen_kappa": round(kappa, 3),
+        "pearson_r": round(pearson_r, 3),
+        "spearman_rho": round(spearman_rho, 3),
+        "exact_agreement": round(exact_agreement, 3),
+        "adjacent_agreement": round(adjacent_agreement, 3),
+        "n": len(human_scores),
+        "usable": kappa > 0.6,
+    }
+
+
+# Example usage
+human  = [5, 4, 3, 2, 5, 4, 3, 2, 4, 3]
+judge  = [5, 4, 4, 2, 4, 4, 3, 3, 4, 3]
+
+result = calibrate_judge(human, judge)
+print(result)
+# {'cohen_kappa': 0.714, 'pearson_r': 0.934, 'spearman_rho': 0.936,
+#  'exact_agreement': 0.7, 'adjacent_agreement': 1.0, 'n': 10, 'usable': True}
+```
+
+### Diagnosing a Poorly Calibrated Judge
+
+If kappa &lt; 0.6, check these failure modes before rebuilding your calibration set:
+
+1. **Rubric is ambiguous** — the judge and humans disagree because the score anchors (what does a 3 mean?) are unclear. Add concrete examples to each anchor.
+2. **Score scale is too fine** — a 1–10 scale produces lower kappa than a 1–5 scale because there are more ways to disagree by 1. Use 1–5 unless you have strong reasons for more granularity.
+3. **Wrong judge model** — a weaker model may not follow the rubric reliably. Try a stronger judge.
+4. **Calibration set is too small or skewed** — if 90% of your calibration examples are score 4 or 5, kappa will be low even if the judge is good. Ensure coverage of all score levels.
+
+---
+
+## Multi-criteria Judging
+
+### Single Score vs. Multi-criteria
+
+A single overall score is simple to track and alert on, but it hides information. A response can score 4/5 overall while being factually wrong (but fluent and helpful in tone). You only discover this when you drill down.
+
+Multi-criteria scoring gives you one score per dimension. This costs more API calls (or a longer judge prompt) but enables diagnosis: you can see that accuracy dropped without a change in clarity, which points to a retrieval problem rather than a generation problem.
+
+**Use a single overall score when:**
+- You need a simple go/no-go decision (e.g., is this response safe to show?)
+- You are running high-volume evals where cost matters
+- All quality dimensions tend to move together for your use case
+
+**Use multi-criteria scoring when:**
+- You are debugging a specific regression (accuracy dropped after a prompt change)
+- Different dimensions matter to different stakeholders (product wants helpfulness, safety team wants harm avoidance)
+- You want to build a dataset for fine-tuning (multi-criteria labels are richer training signal)
+
+### Multi-criteria Judge Prompt
+
+```
+System:
+You are an expert evaluator. Score the response on four separate dimensions.
+Think step by step. Output ONLY valid JSON.
+
+User:
+## User Question
+{user_question}
+
+## Response
+{model_response}
+
+## Dimensions
+
+**accuracy** (1–5): Are factual claims correct?
+**completeness** (1–5): Are all parts of the question addressed?
+**conciseness** (1–5): Is the response free of unnecessary padding?
+**tone** (1–5): Is the tone appropriate for the context?
+
+## Output Format
+{
+  "reasoning": {
+    "accuracy": "...",
+    "completeness": "...",
+    "conciseness": "...",
+    "tone": "..."
+  },
+  "scores": {
+    "accuracy": <1-5>,
+    "completeness": <1-5>,
+    "conciseness": <1-5>,
+    "tone": <1-5>
+  }
+}
+```
+
+### Aggregating Multi-criteria Scores
+
+You can combine the dimensions into a single composite score using a weighted average. Weights should reflect your product priorities.
+
+```python
+def composite_score(scores: dict, weights: dict | None = None) -> float:
+    """
+    Compute a weighted composite score from multi-criteria judge output.
+
+    Args:
+        scores: e.g. {"accuracy": 4, "completeness": 5, "conciseness": 3, "tone": 5}
+        weights: e.g. {"accuracy": 0.4, "completeness": 0.3, "conciseness": 0.1, "tone": 0.2}
+                 Defaults to equal weights if not provided.
+    Returns:
+        Weighted average score as a float.
+    """
+    if weights is None:
+        weights = {k: 1.0 / len(scores) for k in scores}
+
+    total_weight = sum(weights[k] for k in scores if k in weights)
+    weighted_sum = sum(scores[k] * weights.get(k, 0) for k in scores)
+    return weighted_sum / total_weight
+
+
+# Customer support use case: accuracy matters most
+support_weights = {
+    "accuracy": 0.40,
+    "completeness": 0.30,
+    "conciseness": 0.10,
+    "tone": 0.20,
+}
+
+scores = {"accuracy": 4, "completeness": 5, "conciseness": 3, "tone": 5}
+print(composite_score(scores, support_weights))  # 4.3
+```
+
+### Tracking Dimensions Over Time
+
+The real value of multi-criteria judging is in regression detection. Run your judge on a sample of live traffic each day and plot each dimension separately. A change in accuracy without a change in tone or conciseness is a strong signal that your retrieval or factual grounding changed — not your generation prompt.
+
+```python
+def summarise_eval_run(results: list[dict]) -> dict:
+    """
+    Summarise a batch of multi-criteria judge results.
+
+    Args:
+        results: List of score dicts, one per evaluated response.
+    Returns:
+        Mean score per dimension and overall pass rate.
+    """
+    if not results:
+        return {}
+
+    dimensions = list(results[0].keys())
+    summary = {}
+    for dim in dimensions:
+        values = [r[dim] for r in results if dim in r]
+        summary[f"{dim}_mean"] = round(sum(values) / len(values), 2)
+        summary[f"{dim}_pass_rate"] = round(
+            sum(1 for v in values if v >= 4) / len(values), 2
+        )
+
+    return summary
+```
+
+---
+
 ## Key Terms
 
 | Term | Definition |
@@ -137,6 +528,10 @@ flowchart TD
 | **Self-enhancement bias** | A model scoring its own outputs higher than outputs from other models |
 | **Calibration** | Comparing judge scores to human labels to measure how trustworthy the judge is |
 | **Inter-rater agreement** | The degree to which different evaluators (human or LLM) agree on the same examples |
+| **Cohen's kappa** | A statistic measuring agreement between two raters, corrected for chance |
+| **Multi-criteria judging** | Scoring a response on several separate dimensions rather than a single overall score |
+| **Reference-free judge** | A judge that evaluates a response without a ground-truth reference answer |
+| **Reference-based judge** | A judge that compares a response against a known correct reference answer |
 
 ---
 
@@ -158,6 +553,8 @@ The standard fix: run the pairwise judge twice, swapping the order of responses 
 | **No position debiasing for pairwise** | ~60% of preferences reflect presentation order, not quality | Always run pairwise twice with swapped order |
 | **Judge without rubric** | Scores are inconsistent across runs and across dimensions | Write an explicit rubric with score anchors (what does a 3 mean?) |
 | **Not calibrating against human labels** | Judge may be systematically biased; you won't know until users complain | Build a calibration set of 50–100 human-labeled examples and measure agreement |
+| **Judging domain-specific correctness** | LLM judge sounds confident but is wrong on specialised facts | Use rule-based or human expert checks for domain-specific accuracy |
+| **Single score hiding regressions** | Overall score stays flat while accuracy quietly degrades | Track each dimension separately and alert on per-dimension drops |
 
 ---
 

@@ -99,6 +99,158 @@ graph LR
 
 ---
 
+## Foundation Model Family Tree
+
+The major commercial and open-source model families share a common evolutionary structure: each generation builds on the last, and instruction-tuned or RLHF-aligned variants branch off from each base release.
+
+```mermaid
+graph TD
+  GPT2["GPT-2\n(2019, base)"]
+  GPT3["GPT-3\n(2020, base)"]
+  InstructGPT["InstructGPT\n(2022, RLHF-tuned)"]
+  GPT4["GPT-4\n(2023, base + RLHF)"]
+  GPT4o["GPT-4o\n(fine-tuned variant)"]
+
+  Llama1["Llama 1\n(2023, base)"]
+  Llama2["Llama 2\n(2023, base)"]
+  Llama2Chat["Llama 2 Chat\n(RLHF fine-tuned)"]
+  Llama3["Llama 3\n(2024, base)"]
+  Llama3Instruct["Llama 3 Instruct\n(instruction-tuned)"]
+
+  Claude1["Claude 1\n(2023)"]
+  Claude2["Claude 2\n(2023)"]
+  Claude3["Claude 3\n(2024)"]
+  Claude35["Claude 3.5\n(2024)"]
+  Claude4["Claude 4\n(2025)"]
+
+  GPT2 --> GPT3 --> InstructGPT --> GPT4
+  GPT4 --> GPT4o
+
+  Llama1 --> Llama2 --> Llama3
+  Llama2 --> Llama2Chat
+  Llama3 --> Llama3Instruct
+
+  Claude1 --> Claude2 --> Claude3 --> Claude35 --> Claude4
+
+  style GPT2 fill:#e0e7ff,stroke:#6366f1
+  style GPT3 fill:#e0e7ff,stroke:#6366f1
+  style InstructGPT fill:#fef3c7,stroke:#f59e0b
+  style GPT4 fill:#d1fae5,stroke:#10b981
+  style GPT4o fill:#fce7f3,stroke:#ec4899
+  style Llama1 fill:#e0e7ff,stroke:#6366f1
+  style Llama2 fill:#e0e7ff,stroke:#6366f1
+  style Llama2Chat fill:#fce7f3,stroke:#ec4899
+  style Llama3 fill:#d1fae5,stroke:#10b981
+  style Llama3Instruct fill:#fce7f3,stroke:#ec4899
+  style Claude1 fill:#e0e7ff,stroke:#6366f1
+  style Claude2 fill:#e0e7ff,stroke:#6366f1
+  style Claude3 fill:#e0e7ff,stroke:#6366f1
+  style Claude35 fill:#d1fae5,stroke:#10b981
+  style Claude4 fill:#d1fae5,stroke:#10b981
+```
+
+**Key pattern:** Every deployed assistant model is a fine-tuned variant of a base model. The base model provides raw capability; instruction tuning and RLHF provide alignment and usability. Domain fine-tuning then narrows the model further toward a specific task.
+
+---
+
+## What RLHF Does to a Foundation Model
+
+RLHF is the most misunderstood step in modern LLM training. Here is what actually happens at each stage.
+
+### Stage 1 — Pre-training: raw capability
+
+The model reads the internet. Trillions of tokens. The only signal is: "predict the next word correctly." After this stage, the model is extraordinarily capable — it has absorbed vast amounts of knowledge — but it is also unpredictable. Ask it a question and it might answer, might continue the question, or might generate a plausible-sounding paragraph that has nothing to do with what you asked.
+
+### Stage 2 — SFT (Supervised Fine-Tuning): instruction following
+
+Human contractors write thousands of example conversations: a prompt and an ideal response. The model is fine-tuned on these demonstrations. It learns that prompts should be followed and responses should be coherent and helpful. This is the step that turns a language model into a proto-assistant.
+
+### Stage 3 — RLHF: alignment
+
+Human annotators are now shown pairs of SFT model outputs and asked "which is better?" Those preference rankings train a separate **reward model** — a classifier that predicts which response a human would prefer. The SFT model is then optimised via reinforcement learning (PPO) to maximise the reward model's score.
+
+The result: the model learns to be not just capable but **aligned** — it becomes more honest, appropriately declines harmful requests, gives more useful answers, and adjusts tone to context.
+
+```mermaid
+graph LR
+  PT["Pre-training\non internet text\n(trillions of tokens)"]
+  BM["Base model\nHigh capability\nLow controllability"]
+  SFT["SFT\nHuman demonstrations\n(thousands of examples)"]
+  SM["SFT model\nFollows instructions\nStill inconsistent values"]
+  RM["Reward model training\nHuman preference pairs\n(A is better than B)"]
+  RLHF["RLHF optimisation\nPPO against reward model"]
+  AM["Aligned model\nHelpful, harmless, honest\n(Claude, GPT-4o, Gemini)"]
+
+  PT --> BM --> SFT --> SM --> RM --> RLHF --> AM
+
+  style PT fill:#e0e7ff,stroke:#6366f1
+  style BM fill:#fef3c7,stroke:#f59e0b
+  style SM fill:#fef3c7,stroke:#f59e0b
+  style AM fill:#d1fae5,stroke:#10b981
+```
+
+**The key insight:** RLHF does not add new knowledge. The base capability — the knowledge of facts, code, language — comes from pre-training. RLHF reshapes *how* the model uses that capability: it learns which outputs humans consider good and steers toward them.
+
+---
+
+## Foundation vs. Fine-tuned — Decision Guide
+
+Before reaching for fine-tuning, work through this flowchart. Most use cases do not need it.
+
+```mermaid
+flowchart TD
+  Start([What does your task need?])
+
+  Start --> Q1{Consistent style,\nformat, or persona?}
+  Q1 -->|Yes| FT1["Fine-tune on\ncurated style examples"]
+
+  Start --> Q2{Factual accuracy\non a specific domain?}
+  Q2 -->|Yes| RAG["Try RAG first\n(retrieval-augmented generation)"]
+  RAG --> Q2b{RAG sufficient?}
+  Q2b -->|Yes| UseRAG["Use RAG — done"]
+  Q2b -->|No| FT2["Fine-tune on\ndomain data + RAG"]
+
+  Start --> Q3{General task?\n(writing, coding,\nanalysis)}
+  Q3 -->|Yes| Prompt["Foundation model\nwith a strong system prompt\nand few-shot examples"]
+
+  Start --> Q4{Must run offline\nor privately?}
+  Q4 -->|Yes| SelfHost["Self-host Llama 3\nor Mistral via Ollama"]
+
+  Start --> Q5{Needs latest\ninformation?}
+  Q5 -->|Yes| RAG2["RAG, not fine-tuning\nFine-tuning has a knowledge cutoff"]
+
+  style FT1 fill:#fce7f3,stroke:#ec4899
+  style FT2 fill:#fce7f3,stroke:#ec4899
+  style UseRAG fill:#d1fae5,stroke:#10b981
+  style Prompt fill:#d1fae5,stroke:#10b981
+  style SelfHost fill:#fef3c7,stroke:#f59e0b
+  style RAG2 fill:#d1fae5,stroke:#10b981
+```
+
+**The default answer is always:** start with a foundation model and a well-crafted system prompt. Only escalate to fine-tuning when you have clear evidence that prompting alone cannot close the performance gap, and you have at least 1,000 high-quality labelled examples.
+
+---
+
+## Model Capability vs. Size
+
+Larger models are more capable — but cost scales super-linearly with size. A model twice as large costs more than twice as much to run. The practical question is: at what point do you stop paying for capability you don't need?
+
+| Model | Relative Parameters | Relative Cost per 1M tokens | Typical Capability Index* | Best for |
+|-------|--------------------|-----------------------------|--------------------------|----------|
+| Claude Haiku / GPT-4o mini | ~8B–20B | 1× (baseline) | ~85% | High-volume tasks, classification, extraction |
+| Claude Sonnet / GPT-4o | ~70B–200B | 8× | ~95% | Complex reasoning, code generation, analysis |
+| Claude Opus / GPT-4 (full) | ~500B+ | 12× | 100% | Hardest tasks, research-grade reasoning |
+| Llama 3 8B (self-hosted) | 8B | ~0.1× (compute only) | ~70% | Privacy-sensitive, offline, cost-critical |
+| Llama 3 70B (self-hosted) | 70B | ~1× (compute only) | ~90% | Strong open-source alternative to mid-tier APIs |
+
+*Capability index is a rough composite across coding, reasoning, and instruction-following benchmarks. Real-world performance varies significantly by task type.
+
+**The key insight:** Haiku / GPT-4o mini at roughly 8% of Opus cost delivers around 85% of the capability for most production tasks — classification, summarisation, extraction, simple Q&A. Reserve the large flagship models for the genuinely hard problems: multi-step reasoning, novel code architecture, or tasks where a wrong answer has high stakes.
+
+**Super-linear cost scaling explained:** Inference cost scales roughly with the square of the attention window and linearly with parameter count. Doubling parameters more than doubles latency and memory. This is why a 500B model costs 12× more than a 20B model, not just 25×.
+
+---
+
 ## Key Terms
 
 | Term | Meaning |
@@ -109,6 +261,8 @@ graph LR
 | **Instruction tuning** | Fine-tuning on (instruction, output) pairs to teach the model to follow directions |
 | **RLHF** | Reinforcement Learning from Human Feedback — alignment step using human preference rankings |
 | **DPO** | Direct Preference Optimisation — a simpler alternative to RLHF |
+| **SFT** | Supervised Fine-Tuning — training on human demonstrations of good responses |
+| **Reward model** | A classifier trained on human preference pairs to score model outputs |
 | **Fine-tuning** | Any additional training on top of a pre-trained model |
 | **Catastrophic forgetting** | When a model loses general capabilities after being fine-tuned too narrowly |
 
@@ -143,6 +297,9 @@ Fine-tuning on a small domain dataset with a high learning rate overwrites gener
 
 **Fine-tuning on too little data**
 Fewer than ~100 high-quality labelled examples rarely produces reliable improvements. You may see the model overfit to surface patterns in your examples. The sweet spot for most domain fine-tuning tasks is 1,000–10,000 diverse, high-quality examples.
+
+**Confusing RLHF with adding knowledge**
+RLHF does not inject new information into the model. It reshapes the model's output distribution toward responses humans prefer. If a model lacks domain knowledge, RLHF will not fix that — RAG or domain fine-tuning on a factual dataset will.
 
 </div>
 

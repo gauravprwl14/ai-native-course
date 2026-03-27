@@ -116,6 +116,360 @@ flowchart TD
 
 ---
 
+## What a Trace Looks Like
+
+Below is a concrete JSON trace for a 3-step RAG + agent call. The root span represents the full request. Each child span represents one unit of work: embedding the query, searching the vector store, calling the LLM, and calling a tool.
+
+```json
+{
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+  "spans": [
+    {
+      "span_id": "00f067aa0ba902b7",
+      "parent_span_id": null,
+      "name": "rag_agent_request",
+      "start_time": "2024-11-15T10:23:01.000Z",
+      "end_time": "2024-11-15T10:23:06.847Z",
+      "status": "ok",
+      "attributes": {
+        "user_id": "u_8821",
+        "session_id": "sess_4412",
+        "total_tokens": 1843,
+        "total_cost_usd": 0.00092
+      }
+    },
+    {
+      "span_id": "a3ce929d0e0e4736",
+      "parent_span_id": "00f067aa0ba902b7",
+      "name": "embed_query",
+      "start_time": "2024-11-15T10:23:01.012Z",
+      "end_time": "2024-11-15T10:23:01.089Z",
+      "status": "ok",
+      "attributes": {
+        "llm.model": "text-embedding-3-small",
+        "llm.input_tokens": 18,
+        "llm.output_tokens": 0,
+        "embedding.dimensions": 1536
+      }
+    },
+    {
+      "span_id": "b7e4c9d2f1a30521",
+      "parent_span_id": "00f067aa0ba902b7",
+      "name": "vector_search",
+      "start_time": "2024-11-15T10:23:01.091Z",
+      "end_time": "2024-11-15T10:23:01.154Z",
+      "status": "ok",
+      "attributes": {
+        "db.system": "pinecone",
+        "db.query.top_k": 5,
+        "db.results_returned": 5
+      }
+    },
+    {
+      "span_id": "c2f10a9e83b74d61",
+      "parent_span_id": "00f067aa0ba902b7",
+      "name": "llm_generate",
+      "start_time": "2024-11-15T10:23:01.160Z",
+      "end_time": "2024-11-15T10:23:05.902Z",
+      "status": "ok",
+      "attributes": {
+        "llm.model": "claude-3-haiku-20240307",
+        "llm.input_tokens": 1412,
+        "llm.output_tokens": 341,
+        "llm.temperature": 0.2,
+        "llm.cost_usd": 0.00087
+      }
+    },
+    {
+      "span_id": "d9e5f6071c2a4b38",
+      "parent_span_id": "c2f10a9e83b74d61",
+      "name": "tool_call.get_order_status",
+      "start_time": "2024-11-15T10:23:05.910Z",
+      "end_time": "2024-11-15T10:23:06.841Z",
+      "status": "ok",
+      "attributes": {
+        "tool.name": "get_order_status",
+        "tool.input": "{\"order_id\": \"ORD-9182\"}",
+        "tool.output_length": 87
+      }
+    }
+  ]
+}
+```
+
+Key structural rules:
+- **`trace_id`** is shared by all spans in the same request — it is the correlation key
+- **`parent_span_id: null`** marks the root span
+- **`parent_span_id`** on the tool call points to the LLM span that triggered it — preserving the call tree
+- **`attributes`** are free-form key-value pairs; use namespaced keys (`llm.*`, `db.*`, `tool.*`) for consistency
+- **`status`** is either `ok`, `error`, or `unset`
+
+---
+
+## Instrumenting Your Agent — Code
+
+### The Tracer Class
+
+A minimal `Tracer` wraps the context manager pattern so spans automatically close and record errors even if exceptions bubble up.
+
+```python
+import time
+import uuid
+import functools
+from contextlib import contextmanager
+from dataclasses import dataclass, field
+from typing import Optional, Any
+
+@dataclass
+class Span:
+    trace_id: str
+    span_id: str
+    name: str
+    parent_span_id: Optional[str] = None
+    start_time: float = field(default_factory=time.time)
+    end_time: Optional[float] = None
+    status: str = "unset"
+    attributes: dict = field(default_factory=dict)
+    exception: Optional[Exception] = None
+
+    def set_attribute(self, key: str, value: Any) -> None:
+        self.attributes[key] = value
+
+    def record_exception(self, exc: Exception) -> None:
+        self.exception = exc
+        self.attributes["exception.type"] = type(exc).__name__
+        self.attributes["exception.message"] = str(exc)
+        self.status = "error"
+
+    def finish(self) -> None:
+        self.end_time = time.time()
+        if self.status == "unset":
+            self.status = "ok"
+
+
+class Tracer:
+    def __init__(self, exporter=None):
+        self._active_trace_id: Optional[str] = None
+        self._active_span_id: Optional[str] = None
+        self._exporter = exporter  # callable(span) — e.g. write to DB or send to Langfuse
+
+    @contextmanager
+    def start_span(self, name: str, trace_id: Optional[str] = None):
+        # Reuse an existing trace_id or start a new trace
+        tid = trace_id or self._active_trace_id or uuid.uuid4().hex
+        sid = uuid.uuid4().hex
+        parent_sid = self._active_span_id
+
+        span = Span(
+            trace_id=tid,
+            span_id=sid,
+            name=name,
+            parent_span_id=parent_sid,
+        )
+
+        # Push context
+        prev_trace_id = self._active_trace_id
+        prev_span_id = self._active_span_id
+        self._active_trace_id = tid
+        self._active_span_id = sid
+
+        try:
+            yield span
+        except Exception as e:
+            span.record_exception(e)
+            raise
+        finally:
+            span.finish()
+            # Pop context
+            self._active_trace_id = prev_trace_id
+            self._active_span_id = prev_span_id
+            if self._exporter:
+                self._exporter(span)
+
+
+# Module-level tracer — import this in your agent code
+tracer = Tracer()
+```
+
+### Adding Attributes and Recording Errors
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+def call_llm(prompt: str, model: str = "claude-3-haiku-20240307") -> str:
+    with tracer.start_span("llm_generate") as span:
+        span.set_attribute("llm.model", model)
+        span.set_attribute("llm.prompt_length", len(prompt))
+        try:
+            response = client.messages.create(
+                model=model,
+                max_tokens=512,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            span.set_attribute("llm.input_tokens", response.usage.input_tokens)
+            span.set_attribute("llm.output_tokens", response.usage.output_tokens)
+            return response.content[0].text
+        except Exception as e:
+            span.record_exception(e)   # records type, message, sets status=error
+            raise
+```
+
+### Decorator for Automatic Span Creation
+
+For functions you want traced without changing their bodies, use a decorator:
+
+```python
+import functools
+
+def traced(name: Optional[str] = None):
+    """Decorator that wraps a function in a span. Uses the function name if no name given."""
+    def decorator(fn):
+        span_name = name or fn.__name__
+
+        @functools.wraps(fn)
+        def wrapper(*args, **kwargs):
+            with tracer.start_span(span_name) as span:
+                try:
+                    return fn(*args, **kwargs)
+                except Exception as e:
+                    span.record_exception(e)
+                    raise
+        return wrapper
+    return decorator
+
+
+# Usage — no changes to the function body needed
+@traced("embed_query")
+def embed(text: str) -> list:
+    # ... call embedding API ...
+    pass
+
+@traced("vector_search")
+def search(embedding: list, top_k: int = 5) -> list:
+    # ... call vector DB ...
+    pass
+```
+
+### Wiring the Full Agent
+
+```python
+def run_rag_agent(user_query: str) -> str:
+    # The outermost span becomes the root span (parent_span_id = null)
+    with tracer.start_span("rag_agent_request") as root:
+        root.set_attribute("user_query_length", len(user_query))
+
+        # Child spans nest automatically via the tracer's context stack
+        query_embedding = embed(user_query)
+        chunks = search(query_embedding)
+        answer = call_llm(build_prompt(user_query, chunks))
+
+        root.set_attribute("answer_length", len(answer))
+        return answer
+```
+
+---
+
+## The Four Golden Signals for LLM Apps
+
+The classic SRE four golden signals (latency, traffic, errors, saturation) map cleanly onto LLM-specific concerns. These are the four metrics you should alert on from day one.
+
+| Signal | What to Measure | Alert Threshold | Why It Matters |
+|--------|----------------|-----------------|----------------|
+| **Latency** | p95 end-to-end response time | &gt; 5 seconds | Users abandon slow responses; p95 catches long-tail outliers that mean averages miss |
+| **Error rate** | % of requests with `status = error` | &gt; 1% | Above 1% users notice; LLM APIs can throw rate-limit and context-length errors silently |
+| **Token usage** | Tokens per request (cost proxy) | &gt; 150% of baseline | Token spikes signal runaway context accumulation or prompt injection; they also drive cost spikes |
+| **Quality** | Eval score (LLM-as-judge pass rate) | &lt; 80% pass rate | The one signal unique to AI — response quality can degrade without any errors or latency change |
+
+### Why Each Threshold
+
+**Latency &gt; 5s:** Frontier models typically respond in 1–3 seconds for short completions. A p95 above 5 seconds usually means a stuck tool call, a rate-limit retry loop, or runaway context.
+
+**Error rate &gt; 1%:** At 1,000 requests/hour, 1% = 10 failed requests per hour. Most teams find this is the practical threshold where user-visible failures become a support burden.
+
+**Token usage &gt; 150% of baseline:** Establish a per-endpoint baseline in your first week of production. A 50% spike over that baseline is an early warning — investigate before the billing alarm fires.
+
+**Quality &lt; 80% pass rate:** For an LLM-as-judge eval suite, 80% is a reasonable minimum bar for most use cases. Below this, the model is failing on more than 1 in 5 requests by a human-quality standard.
+
+### Implementing the Quality Signal
+
+```python
+# Run your LLM-as-judge eval on a sample of live traffic each hour
+def compute_quality_signal(recent_traces: list[dict]) -> float:
+    """Returns pass rate (0.0 to 1.0) for recent traces."""
+    if not recent_traces:
+        return 1.0
+
+    scores = []
+    for trace in recent_traces:
+        score = llm_judge_score(
+            prompt=trace["user_query"],
+            response=trace["answer"],
+        )
+        scores.append(1 if score >= 4 else 0)  # 4/5 = pass
+
+    return sum(scores) / len(scores)
+```
+
+---
+
+## OpenTelemetry vs. LLM-Specific Tools
+
+### OpenTelemetry: The Universal Standard
+
+[OpenTelemetry](https://opentelemetry.io/) (OTel) is the CNCF-standard SDK for producing spans, metrics, and logs in any language. It gives you:
+- A vendor-neutral wire format (OTLP)
+- Exporters to Datadog, Jaeger, Grafana Tempo, Honeycomb, and dozens more
+- Auto-instrumentation for HTTP libraries, databases, and frameworks
+
+**What OTel does not give you:** LLM-specific semantics. There is no built-in concept of `llm.input_tokens`, `llm.model`, prompt text, or eval scores. You can add these as custom span attributes, but there is no standard schema — every team invents their own.
+
+### LLM-Specific Tools: Langfuse, Phoenix, Arize
+
+These platforms extend the OTel model with first-class LLM semantics:
+
+| Feature | OpenTelemetry | Langfuse | Phoenix (Arize) |
+|---------|--------------|----------|-----------------|
+| Spans & traces | Yes | Yes | Yes |
+| Custom attributes | Yes (manual) | Yes | Yes |
+| Prompt / completion capture | No | Yes | Yes |
+| Token count + cost dashboards | No | Yes | Yes |
+| Eval scores (LLM-as-judge) | No | Yes | Yes |
+| Dataset management | No | Yes | Yes |
+| Open-source | Yes | Yes | Yes (Phoenix) |
+
+**Rule of thumb:** if you already run Datadog or Grafana, start with OTel and add LLM attributes manually. If you are starting fresh or want eval scoring out of the box, use Langfuse or Phoenix.
+
+### Exporting to Langfuse — 3 Lines of Code
+
+```python
+# pip install langfuse
+from langfuse import Langfuse
+
+langfuse = Langfuse(
+    public_key="pk-lf-...",
+    secret_key="sk-lf-...",
+    host="https://cloud.langfuse.com",   # or your self-hosted URL
+)
+
+# Replace the Tracer exporter with a Langfuse flush
+def export_to_langfuse(span: Span) -> None:
+    langfuse.trace(
+        id=span.trace_id,
+        name=span.name,
+        input=span.attributes.get("llm.prompt"),
+        output=span.attributes.get("llm.completion"),
+        metadata=span.attributes,
+    )
+
+tracer = Tracer(exporter=export_to_langfuse)
+```
+
+After that, every span your agent produces flows into the Langfuse UI with token counts, latency, and cost — no other changes to your agent code.
+
+---
+
 ## Key Terms
 
 | Term | Definition |
@@ -128,6 +482,8 @@ flowchart TD
 | **Observability** | The ability to understand a system's internal state from its external outputs |
 | **LangFuse** | An open-source LLM observability platform that captures traces, scores, and dashboards |
 | **Instrumentation** | Adding tracing/logging code to capture runtime behaviour |
+| **OpenTelemetry** | Vendor-neutral CNCF standard for traces, metrics, and logs |
+| **Four Golden Signals** | Latency, error rate, token usage, and quality — the four metrics to alert on for LLM apps |
 
 ---
 
@@ -153,6 +509,7 @@ In production, use LangFuse or LangSmith to get this automatically. For internal
 | Not capturing input/output tokens | Cannot calculate cost or diagnose runaway token usage | Always record `usage.input_tokens` and `usage.output_tokens` from the API response |
 | Flat logging (no trace grouping) | Individual log lines but no way to correlate them to a single request | Group spans under a trace ID (UUID per request) |
 | Capturing in production but not staging | Surprises in production that staging would have caught | Instrument all environments — latency and cost surprises are common in dev too |
+| No quality signal | Error rate is 0% but users are unhappy | Add an LLM-as-judge pass rate metric sampled from live traffic |
 
 ---
 
