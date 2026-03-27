@@ -1,0 +1,180 @@
+/**
+ * AI-Native Course — Custom Docusaurus Theme
+ */
+
+:root {
+  --ifm-color-primary: #6366f1;
+  --ifm-color-primary-dark: #4f52e8;
+  --ifm-color-primary-darker: #4347e4;
+  --ifm-color-primary-darkest: #2d30d4;
+  --ifm-color-primary-light: #777af4;
+  --ifm-color-primary-lighter: #8385f5;
+  --ifm-color-primary-lightest: #a5a7f8;
+
+  --ifm-code-font-size: 90%;
+  --ifm-font-family-base: 'Inter', system-ui, -apple-system, sans-serif;
+  --ifm-heading-font-weight: 700;
+  --ifm-navbar-height: 60px;
+  --ifm-toc-border-color: var(--ifm-color-primary-lightest);
+
+  --docusaurus-highlighted-code-line-bg: rgba(99, 102, 241, 0.1);
+}
+
+[data-theme='dark'] {
+  --ifm-color-primary: #818cf8;
+  --ifm-color-primary-dark: #6872f6;
+  --ifm-color-primary-darker: #5d67f5;
+  --ifm-color-primary-darkest: #3d43f2;
+  --ifm-color-primary-light: #9aa2fa;
+  --ifm-color-primary-lighter: #a5adfb;
+  --ifm-color-primary-lightest: #bfc3fc;
+  --ifm-background-color: #0f0f1a;
+  --ifm-background-surface-color: #1a1a2e;
+  --docusaurus-highlighted-code-line-bg: rgba(129, 140, 248, 0.15);
+}
+
+/* Chapter cards on tier index pages */
+.chapter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.25rem;
+  margin: 2rem 0;
+}
+
+.chapter-card {
+  border: 1px solid var(--ifm-toc-border-color);
+  border-radius: 8px;
+  padding: 1.25rem;
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+.chapter-card:hover {
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+  border-color: var(--ifm-color-primary);
+}
+
+.chapter-card .badge-passed {
+  background: #10b981;
+  color: white;
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  float: right;
+}
+
+/* Concept callout boxes */
+.concept-intuition {
+  background: var(--ifm-color-primary-lightest);
+  border-left: 4px solid var(--ifm-color-primary);
+  padding: 1rem 1.25rem;
+  border-radius: 0 8px 8px 0;
+  margin: 1.5rem 0;
+}
+
+[data-theme='dark'] .concept-intuition {
+  background: rgba(129, 140, 248, 0.1);
+}
+
+.interview-angle {
+  background: #fef3c7;
+  border-left: 4px solid #f59e0b;
+  padding: 1rem 1.25rem;
+  border-radius: 0 8px 8px 0;
+  margin: 1.5rem 0;
+}
+
+[data-theme='dark'] .interview-angle {
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.antipattern {
+  background: #fee2e2;
+  border-left: 4px solid #ef4444;
+  padding: 1rem 1.25rem;
+  border-radius: 0 8px 8px 0;
+  margin: 1.5rem 0;
+}
+
+[data-theme='dark'] .antipattern {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* Mermaid diagram container */
+.mermaid-wrapper {
+  overflow-x: auto;
+  border: 1px solid var(--ifm-toc-border-color);
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 1.5rem 0;
+}
+
+/* Quiz component */
+.quiz-container {
+  border: 1px solid var(--ifm-toc-border-color);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin: 2rem 0;
+}
+
+.quiz-question {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--ifm-toc-border-color);
+}
+
+.quiz-question:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.quiz-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--ifm-toc-border-color);
+  border-radius: 6px;
+  margin: 0.4rem 0;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.quiz-option:hover {
+  border-color: var(--ifm-color-primary);
+  background: rgba(99, 102, 241, 0.05);
+}
+
+.quiz-option.correct {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.quiz-option.incorrect {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.quiz-explanation {
+  font-size: 0.875rem;
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 6px;
+  background: var(--ifm-background-surface-color);
+}
+
+.quiz-score {
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  padding: 1.5rem;
+}
+
+/* Token visualizer */
+.token-chip {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin: 1px;
+  font-family: monospace;
+  font-size: 0.85rem;
+}
