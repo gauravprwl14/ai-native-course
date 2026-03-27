@@ -120,6 +120,335 @@ flowchart TD
 
 ---
 
+## The Model Selection Decision Tree
+
+This task-first flowchart routes you to the right model family based on what you're actually building — not just cost or benchmark score alone.
+
+```mermaid
+flowchart TD
+    Start([What is the task?]) --> T1{Coding / code generation?}
+    T1 -->|Yes| R1[Claude Sonnet 4 or GPT-4o\nStrong HumanEval scores]
+
+    T1 -->|No| T2{Long document analysis\nor summarization?}
+    T2 -->|Yes| R2[Claude family\n200k context window]
+
+    T2 -->|No| T3{Image or vision input?}
+    T3 -->|Yes| R3[GPT-4o or Claude 3\nNative multimodal support]
+
+    T3 -->|No| T4{Speed-critical or\nsimple classification?}
+    T4 -->|Yes| R4[Claude Haiku 3.5 or GPT-4o mini\n400 tok/s, lowest cost]
+
+    T4 -->|No| T5{Complex multi-step\nreasoning or research?}
+    T5 -->|Yes| R5[Claude Opus 4 or GPT-4o\nHighest capability tier]
+
+    T5 -->|No| T6{Privacy or offline\nrequirement?}
+    T6 -->|Yes| R6[Llama 3 70B self-hosted\nNo data leaves your infra]
+    T6 -->|No| R7[Claude Sonnet 4\nBest cost-to-capability default]
+
+    style R1 fill:#dbeafe,stroke:#3b82f6,color:#1e3a8a
+    style R2 fill:#dbeafe,stroke:#3b82f6,color:#1e3a8a
+    style R3 fill:#dbeafe,stroke:#3b82f6,color:#1e3a8a
+    style R4 fill:#d1fae5,stroke:#10b981,color:#064e3b
+    style R5 fill:#fee2e2,stroke:#ef4444,color:#450a0a
+    style R6 fill:#fef9c3,stroke:#ca8a04,color:#713f12
+    style R7 fill:#dbeafe,stroke:#3b82f6,color:#1e3a8a
+```
+
+Use this as a first-pass filter. Then validate with the benchmark table below.
+
+---
+
+## Benchmark Numbers That Matter
+
+Real benchmark data as of early 2025. Use these numbers as a starting point, not a final answer — always validate on your own task.
+
+| Model | MMLU | HumanEval | Context | Cost/1M input tokens | Speed (tok/s) |
+|-------|------|-----------|---------|---------------------|---------------|
+| Claude Opus 4 | ~88% | ~85% | 200k | $15 | ~50 |
+| Claude Sonnet 4 | ~85% | ~80% | 200k | $3 | ~150 |
+| Claude Haiku 3.5 | ~75% | ~65% | 200k | $0.25 | ~400 |
+| GPT-4o | ~88% | ~90% | 128k | $2.50 | ~100 |
+| GPT-4o mini | ~82% | ~87% | 128k | $0.15 | ~200 |
+| Llama 3 70B | ~82% | ~81% | 8k | self-hosted | variable |
+
+**How to read this table:**
+
+- **MMLU** is a general knowledge proxy. High MMLU ≠ good at your domain.
+- **HumanEval** is coding-specific. If you are building a code assistant, this is the first number to check.
+- **Context** determines if the model can hold your entire document. Claude's 200k window is a genuine differentiator for long-doc workflows.
+- **Cost** matters at scale. At 10M tokens/day, the difference between $15 and $3 per 1M is $43,800/month.
+- **Speed** matters for real-time use cases. Haiku at 400 tok/s feels instant; Opus at 50 tok/s is noticeable.
+
+**Key insight:** GPT-4o mini and Claude Haiku 3.5 are not just cheap — they score well. GPT-4o mini at 87% HumanEval outperforms Claude Opus 4 on raw coding benchmarks at 1/100th the cost. Match the benchmark to your task.
+
+---
+
+## Cost Optimization — Model Cascading
+
+### The Pattern
+
+**Model cascading** routes easy requests to a cheap, fast model and only escalates to an expensive model when the cheap model's output is insufficient. Most production systems discover that 70–80% of requests can be handled by the cheap model.
+
+```
+Cheap model (Haiku / GPT-4o mini)  ← handles 70–80% of requests
+         ↓ if quality check fails
+Expensive model (Sonnet / GPT-4o)  ← handles remaining 20–30%
+```
+
+The quality check is the key engineering decision. Common approaches:
+
+1. **Length check** — if the cheap model returns fewer than N tokens, it may have given up
+2. **Format check** — did it return valid JSON / follow the schema?
+3. **Confidence check** — ask the model to rate its own confidence; escalate below a threshold
+4. **LLM-as-judge** — use a fast judge model to score the output; escalate if score &lt; threshold
+
+### Implementation
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+CHEAP_MODEL = "claude-haiku-3-5-20241022"
+EXPENSIVE_MODEL = "claude-sonnet-4-5"
+CONFIDENCE_THRESHOLD = 0.75
+
+
+def quality_check(response_text: str, original_prompt: str) -> float:
+    """
+    Use a fast model to judge whether the response adequately answers the prompt.
+    Returns a confidence score from 0.0 to 1.0.
+    """
+    judge_prompt = f"""Rate how well this response answers the question.
+Return ONLY a number from 0.0 to 1.0. Nothing else.
+
+Question: {original_prompt}
+
+Response: {response_text}
+
+Score:"""
+
+    result = client.messages.create(
+        model=CHEAP_MODEL,  # use cheap model for judging too
+        max_tokens=10,
+        messages=[{"role": "user", "content": judge_prompt}],
+    )
+
+    try:
+        return float(result.content[0].text.strip())
+    except ValueError:
+        return 0.0  # if parsing fails, escalate
+
+
+def cascading_completion(prompt: str) -> dict:
+    """
+    Try cheap model first. Escalate to expensive model if quality check fails.
+    Returns dict with response text, model used, and whether escalation occurred.
+    """
+    # Step 1: Try the cheap model
+    cheap_response = client.messages.create(
+        model=CHEAP_MODEL,
+        max_tokens=1024,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    cheap_text = cheap_response.content[0].text
+
+    # Step 2: Quality check
+    score = quality_check(cheap_text, prompt)
+
+    if score >= CONFIDENCE_THRESHOLD:
+        return {
+            "response": cheap_text,
+            "model_used": CHEAP_MODEL,
+            "escalated": False,
+            "quality_score": score,
+        }
+
+    # Step 3: Escalate to expensive model
+    expensive_response = client.messages.create(
+        model=EXPENSIVE_MODEL,
+        max_tokens=1024,
+        messages=[{"role": "user", "content": prompt}],
+    )
+
+    return {
+        "response": expensive_response.content[0].text,
+        "model_used": EXPENSIVE_MODEL,
+        "escalated": True,
+        "quality_score": score,
+    }
+
+
+# Example usage
+result = cascading_completion(
+    "Explain the difference between a hash table and a binary search tree."
+)
+
+print(f"Model used: {result['model_used']}")
+print(f"Escalated: {result['escalated']}")
+print(f"Quality score from cheap model: {result['quality_score']:.2f}")
+print(f"\nResponse:\n{result['response']}")
+```
+
+### Expected Cost Impact
+
+| Traffic split | Avg cost per 1M tokens |
+|--------------|----------------------|
+| 100% Sonnet 4 | $3.00 |
+| 75% Haiku + 25% Sonnet (cascade) | ~$0.94 |
+| 100% Haiku | $0.25 |
+
+A cascade that handles 75% of requests with Haiku reduces cost by ~69% compared to always using Sonnet, while maintaining quality for hard cases.
+
+**Note:** The quality check itself consumes tokens. Keep your judge prompt short. If your judge prompt is longer than your original prompt, reconsider whether LLM-as-judge is the right quality signal for your case.
+
+---
+
+## Building Your Own Benchmark
+
+### Why Public Benchmarks Are Not Enough
+
+MMLU tests 57 academic subjects. HumanEval tests Python function generation from docstrings. Neither tests your RAG pipeline, your domain-specific extraction, or your particular user population.
+
+Build a task-specific eval set from real data before committing to a model in production.
+
+### The Process
+
+1. **Collect 20–50 real examples** from your use case — actual user queries, actual documents, actual edge cases that have caused problems.
+2. **Write expected outputs** — not exact strings, but rubrics: "should contain the correct date," "should return valid JSON with these keys," "should decline to answer."
+3. **Run all examples against each candidate model.**
+4. **Score automatically where possible** (exact match, JSON validity, regex) and manually where not.
+5. **Pick the cheapest model that hits your quality threshold.**
+
+### Implementation
+
+```python
+import json
+import anthropic
+
+client = anthropic.Anthropic()
+
+
+# Your eval set — replace with real examples from your use case
+EVAL_SET = [
+    {
+        "id": "q1",
+        "prompt": "Extract the invoice number from: 'Invoice #INV-2024-0042 dated March 1'",
+        "expected_contains": "INV-2024-0042",
+    },
+    {
+        "id": "q2",
+        "prompt": "What is the capital of France?",
+        "expected_contains": "Paris",
+    },
+    {
+        "id": "q3",
+        "prompt": "Summarize in one sentence: 'The quick brown fox jumps over the lazy dog.'",
+        "expected_contains": "fox",  # loose check — just verify it mentions the fox
+    },
+    # Add 17–47 more examples from your real use case...
+]
+
+CANDIDATE_MODELS = [
+    "claude-haiku-3-5-20241022",
+    "claude-sonnet-4-5",
+]
+
+
+def run_eval(model: str, eval_set: list) -> dict:
+    """Run all eval examples against a model and return results."""
+    results = []
+    total_input_tokens = 0
+    total_output_tokens = 0
+
+    for example in eval_set:
+        response = client.messages.create(
+            model=model,
+            max_tokens=256,
+            messages=[{"role": "user", "content": example["prompt"]}],
+        )
+
+        output_text = response.content[0].text
+        passed = example["expected_contains"].lower() in output_text.lower()
+
+        total_input_tokens += response.usage.input_tokens
+        total_output_tokens += response.usage.output_tokens
+
+        results.append(
+            {
+                "id": example["id"],
+                "passed": passed,
+                "output": output_text[:100],  # truncate for display
+            }
+        )
+
+    pass_count = sum(1 for r in results if r["passed"])
+    pass_rate = pass_count / len(results)
+
+    return {
+        "model": model,
+        "pass_rate": pass_rate,
+        "pass_count": pass_count,
+        "total": len(results),
+        "total_input_tokens": total_input_tokens,
+        "total_output_tokens": total_output_tokens,
+        "results": results,
+    }
+
+
+def compare_models(models: list, eval_set: list):
+    """Run eval across all candidate models and print a comparison table."""
+    print(f"Running eval on {len(eval_set)} examples across {len(models)} models...\n")
+
+    all_results = []
+    for model in models:
+        result = run_eval(model, eval_set)
+        all_results.append(result)
+        print(f"  {model}: {result['pass_rate']:.0%} pass rate ({result['pass_count']}/{result['total']})")
+
+    print("\n--- Model Comparison ---")
+    print(f"{'Model':<35} {'Pass Rate':<12} {'Input Tokens':<15} {'Output Tokens'}")
+    print("-" * 75)
+    for r in all_results:
+        print(
+            f"{r['model']:<35} {r['pass_rate']:<12.0%} "
+            f"{r['total_input_tokens']:<15} {r['total_output_tokens']}"
+        )
+
+    # Recommend cheapest model above 80% threshold
+    print("\n--- Recommendation ---")
+    QUALITY_THRESHOLD = 0.80
+    qualified = [r for r in all_results if r["pass_rate"] >= QUALITY_THRESHOLD]
+    if qualified:
+        # Haiku is cheaper, so if it qualifies, recommend it
+        best = qualified[0]  # first in list = cheapest (assuming ordered cheap-to-expensive)
+        print(f"Cheapest model above {QUALITY_THRESHOLD:.0%} threshold: {best['model']}")
+        print(f"Pass rate: {best['pass_rate']:.0%}")
+    else:
+        print(f"No model reached {QUALITY_THRESHOLD:.0%}. Review your eval set or consider fine-tuning.")
+
+    return all_results
+
+
+if __name__ == "__main__":
+    results = compare_models(CANDIDATE_MODELS, EVAL_SET)
+    # Optionally save for tracking over time
+    with open("eval_results.json", "w") as f:
+        json.dump(results, f, indent=2)
+    print("\nFull results saved to eval_results.json")
+```
+
+### What to Track Over Time
+
+Run your eval set every time you:
+- Switch model versions (e.g., Haiku 3 → Haiku 3.5)
+- Change your system prompt significantly
+- See a spike in support tickets or error rates
+
+A 5-point drop in pass rate on your eval set is a strong signal that something regressed. Public benchmarks will never catch that — only your eval set will.
+
+---
+
 ## Key Terms
 
 | Term | Definition |
