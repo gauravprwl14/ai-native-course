@@ -1,0 +1,90 @@
+.tracker {
+  border: 1px solid var(--ifm-toc-border-color);
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin: 1.5rem 0;
+}
+
+.summary {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.summaryText {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.progressBar {
+  flex: 1;
+  min-width: 120px;
+  height: 10px;
+  background: var(--ifm-toc-border-color);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--ifm-color-primary);
+  border-radius: 9999px;
+  transition: width 0.4s ease;
+}
+
+.pct {
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-600);
+  white-space: nowrap;
+}
+
+.tierSection {
+  margin-bottom: 0.75rem;
+}
+
+.tierLabel {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ifm-color-emphasis-600);
+  margin: 0 0 0.4rem;
+}
+
+.chapterList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: default;
+}
+
+.chipPending {
+  composes: chip;
+  background: var(--ifm-toc-border-color);
+  color: var(--ifm-color-emphasis-600);
+}
+
+.chipPassed {
+  composes: chip;
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.chipFailed {
+  composes: chip;
+  background: rgba(239, 68, 68, 0.08);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}

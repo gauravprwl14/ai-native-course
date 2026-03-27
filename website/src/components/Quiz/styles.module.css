@@ -1,0 +1,131 @@
+.quizContainer {
+  border: 1px solid var(--ifm-toc-border-color);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin: 2rem 0;
+}
+
+.question {
+  margin-bottom: 1.75rem;
+  padding-bottom: 1.75rem;
+  border-bottom: 1px solid var(--ifm-toc-border-color);
+}
+
+.question:last-of-type {
+  border-bottom: none;
+}
+
+.questionText {
+  font-size: 1rem;
+  margin-bottom: 0.75rem;
+  line-height: 1.5;
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.7rem 1rem;
+  border: 1px solid var(--ifm-toc-border-color);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.option:hover:not(:disabled) {
+  border-color: var(--ifm-color-primary);
+  background: rgba(99, 102, 241, 0.05);
+}
+
+.selected {
+  composes: option;
+  border-color: var(--ifm-color-primary);
+  background: rgba(99, 102, 241, 0.08);
+}
+
+.correct {
+  composes: option;
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.08);
+  cursor: default;
+}
+
+.incorrect {
+  composes: option;
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+  cursor: default;
+}
+
+.explanation {
+  margin-top: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.explanationCorrect {
+  composes: explanation;
+  background: rgba(16, 185, 129, 0.06);
+  border-left: 3px solid #10b981;
+}
+
+.explanationIncorrect {
+  composes: explanation;
+  background: rgba(239, 68, 68, 0.06);
+  border-left: 3px solid #ef4444;
+}
+
+.scoreBox {
+  text-align: center;
+  padding: 1.5rem;
+  border-top: 1px solid var(--ifm-toc-border-color);
+  margin-top: 1rem;
+}
+
+.scoreNumber {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--ifm-color-primary);
+  margin-bottom: 0.5rem;
+}
+
+.passed {
+  color: #10b981;
+  font-weight: 600;
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+}
+
+.failed {
+  color: #ef4444;
+  font-weight: 600;
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+}
+
+.retakeBtn {
+  padding: 0.6rem 1.5rem;
+  border: 2px solid var(--ifm-color-primary);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ifm-color-primary);
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.15s, color 0.15s;
+}
+
+.retakeBtn:hover {
+  background: var(--ifm-color-primary);
+  color: white;
+}
