@@ -1,0 +1,47 @@
+.container {
+  border: 1px solid var(--ifm-toc-border-color);
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 1.5rem 0;
+  font-family: monospace;
+}
+
+.header {
+  display: flex;
+  gap: 1.25rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.stat {
+  font-size: 0.9rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.note {
+  font-size: 0.75rem;
+  color: var(--ifm-color-emphasis-500);
+  font-family: var(--ifm-font-family-base);
+}
+
+.tokenArea {
+  line-height: 2.2;
+  font-size: 0.9rem;
+}
+
+.token {
+  display: inline-block;
+  padding: 1px 3px;
+  border-radius: 3px;
+  margin: 1px;
+  font-family: monospace;
+  font-size: 0.88rem;
+  cursor: default;
+  transition: transform 0.1s;
+}
+
+.token:hover {
+  transform: scale(1.05);
+  filter: brightness(0.95);
+}
