@@ -6,37 +6,59 @@ description: "Production AI systems: APIs, hosting, caching, gateways, GraphRAG,
 
 # 🏗️ Tier 4 — Architect
 
-**Prerequisites:** Tier 3 complete
-**Duration:** ~18 hours (12 chapters)
-**Goal:** Design and operate production-grade AI systems
+**Pre-requisite:** Tier 3 complete. You can build multi-agent systems, fine-tune models, and run evaluations.
 
-## What You'll Master
+**Goal:** By the end of Tier 4, you can design, deploy, and operate production-grade AI systems — with the cost controls, reliability, and observability that real products require.
 
-By the end of Tier 4, you will:
-- Deep-dive LLM APIs and build cost-estimation tools
-- Select models based on benchmarked trade-offs
-- Build MCP servers and agent-to-agent protocols
-- Run LLMs locally with Ollama
-- Add caching, gateways, and latency optimizations
-- Build GraphRAG and durable agentic workflows
-- Complete a full capstone AI system
+---
+
+## Concept Map
+
+```mermaid
+graph TD
+  A["39 · LLM APIs"] --> B["40 · Model Selection"]
+  B --> C["41 · MCP"]
+  C --> D["42 · A2A/ACP"]
+  D --> E["43 · LLM Hosting"]
+  E --> F["44 · LLM Caching"]
+  F --> G["45 · Latency Opt."]
+  G --> H["46 · AI Gateway"]
+  H --> I["47 · GraphRAG"]
+  I --> J["48 · Durable Workflows"]
+  J --> K["49 · Computer Use"]
+  K --> L["50 · Capstone"]
+
+  style H fill:#fee2e2,stroke:#ef4444,color:#450a0a
+  style L fill:#fee2e2,stroke:#ef4444,color:#450a0a
+```
 
 ## Chapters
 
-| Ch | Topic | Lab |
-|---|---|---|
-| 39 | LLM APIs Deep-dive | Cost estimator CLI |
-| 40 | Model Selection Trade-offs | Benchmark across models |
-| 41 | MCP (Model Context Protocol) | Build an MCP server |
-| 42 | A2A & ACP Protocols | Agent-to-agent delegation |
-| 43 | LLM Hosting | Run Llama locally with Ollama |
-| 44 | LLM Caching | Add caching to RAG pipeline |
-| 45 | Latency Optimization | Benchmark + optimize agent |
-| 46 | AI Gateway / Proxy | Build a simple LLM gateway |
-| 47 | Knowledge Graphs (GraphRAG) | GraphRAG vs flat RAG |
-| 48 | Agentic Workflows (Durable) | Durable workflow with checkpoints |
-| 49 | Computer Use / UI Agents | Simple browser agent |
-| 50 | Capstone — Build an AI System | Full agent system from scratch |
+| # | Chapter | Time | Lab |
+|---|---------|------|-----|
+| 39 | LLM APIs Deep-dive | 35 min | Cost estimator CLI |
+| 40 | Model Selection Trade-offs | 35 min | Benchmark across models |
+| 41 | MCP (Model Context Protocol) | 40 min | Build an MCP server |
+| 42 | A2A & ACP Protocols | 35 min | Agent-to-agent delegation |
+| 43 | LLM Hosting | 35 min | Run Llama locally with Ollama |
+| 44 | LLM Caching | 35 min | Add caching to RAG pipeline |
+| 45 | Latency Optimization | 40 min | Benchmark + optimize agent |
+| 46 | AI Gateway / Proxy | 40 min | Build a simple LLM gateway |
+| 47 | Knowledge Graphs (GraphRAG) | 45 min | GraphRAG vs flat RAG |
+| 48 | Durable Agentic Workflows | 40 min | Workflow with checkpoints |
+| 49 | Computer Use / UI Agents | 35 min | Simple browser agent |
+| 50 | Capstone — Build an AI System | 3–4 hrs | Full production AI system |
+
+**Total estimated time:** ~18 hours
+
+## Milestone Project
+
+The capstone (Ch50) asks you to build a production AI system from scratch that demonstrates everything from Tier 4:
+- An **LLM gateway** with provider fallback and caching (Ch44, Ch46)
+- **GraphRAG** retrieval for a knowledge domain you choose (Ch47)
+- A **multi-step durable workflow** with checkpointed state (Ch48)
+- **Cost tracking** and latency monitoring (Ch39, Ch45)
+- **Evals** validating output quality (Ch32, from Tier 3)
 
 import DocCardList from '@theme/DocCardList';
 
