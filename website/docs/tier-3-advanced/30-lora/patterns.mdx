@@ -1,0 +1,176 @@
+---
+title: "Patterns: LoRA / QLoRA"
+sidebar_position: 3
+description: "LoRA config with PEFT, QLoRA quantization setup, dataset formatting for HuggingFace Trainer, and common anti-patterns."
+---
+
+# Patterns: LoRA / QLoRA
+
+## Pattern 1: LoRA Config with PEFT
+
+The `LoraConfig` object is the central configuration for a LoRA run. Key decisions: rank, alpha, and which modules to target.
+
+```python
+from peft import LoraConfig, TaskType
+
+config = LoraConfig(
+    # Rank: controls adapter capacity. Start at 8; go higher for complex tasks.
+    r=8,
+
+    # Alpha: scaling factor. Convention: alpha = r (scaling = 1.0)
+    lora_alpha=8,
+
+    # Which attention projection layers to add adapters to.
+    # These names are model-specific — check the model's architecture.
+    target_modules=["q_proj", "v_proj", "k_proj", "o_proj"],
+
+    # Dropout regularisation on adapter layers
+    lora_dropout=0.1,
+
+    # Whether to train bias terms (usually "none" or "all")
+    bias="none",
+
+    # Task type affects how the adapter interacts with the model head
+    task_type=TaskType.CAUSAL_LM,
+)
+
+# Apply to a loaded model:
+# from peft import get_peft_model
+# peft_model = get_peft_model(base_model, config)
+# peft_model.print_trainable_parameters()
+```
+
+**Choosing target modules**:
+- For Llama/Mistral: `["q_proj", "v_proj", "k_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]`
+- For minimal memory use: start with just `["q_proj", "v_proj"]`
+
+---
+
+## Pattern 2: QLoRA Quantization Config
+
+Load the base model in 4-bit with BitsAndBytes before applying LoRA adapters.
+
+```python
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+import torch
+
+# Step 1: Configure 4-bit quantization
+bnb_config = BitsAndBytesConfig(
+    load_in_4bit=True,
+    bnb_4bit_quant_type="nf4",          # NormalFloat 4-bit (best quality)
+    bnb_4bit_compute_dtype=torch.float16,  # compute in fp16 for speed
+    bnb_4bit_use_double_quant=True,      # double quantization saves ~0.4 bits/param more
+)
+
+# Step 2: Load base model in 4-bit
+# model = AutoModelForCausalLM.from_pretrained(
+#     "meta-llama/Meta-Llama-3-8B",
+#     quantization_config=bnb_config,
+#     device_map="auto",
+# )
+
+# Step 3: Prepare for k-bit training (handles gradient checkpointing + cast)
+# model = prepare_model_for_kbit_training(model)
+
+# Step 4: Apply LoRA
+lora_config = LoraConfig(
+    r=8,
+    lora_alpha=16,
+    target_modules=["q_proj", "v_proj"],
+    lora_dropout=0.05,
+    bias="none",
+    task_type="CAUSAL_LM",
+)
+# model = get_peft_model(model, lora_config)
+```
+
+**Memory at each step (8B model)**:
+- After `from_pretrained` with 4-bit: ~5 GB
+- After LoRA adapters: +~50 MB
+- Training with batch_size=1: +~4 GB activations
+- **Total: ~9 GB** (fits on a 12GB GPU with gradient checkpointing)
+
+---
+
+## Pattern 3: Dataset Formatting for HuggingFace Trainer
+
+The Trainer expects a `"text"` field in each example. Format your dataset before training.
+
+```python
+def format_for_trainer(examples: list[dict]) -> list[dict]:
+    """
+    Convert {"instruction": ..., "output": ...} examples to trainer format.
+
+    The standard alpaca-style format:
+        ### Instruction:
+        {instruction}
+        ### Response:
+        {output}
+    """
+    formatted = []
+    for ex in examples:
+        text = (
+            f"### Instruction:\n{ex['instruction']}\n"
+            f"### Response:\n{ex['output']}"
+        )
+        formatted.append({"text": text})
+    return formatted
+
+
+# Then pass to a Dataset:
+# from datasets import Dataset
+# dataset = Dataset.from_list(format_for_trainer(raw_examples))
+#
+# Use with SFTTrainer:
+# from trl import SFTTrainer
+# trainer = SFTTrainer(
+#     model=model,
+#     train_dataset=dataset,
+#     dataset_text_field="text",
+#     max_seq_length=512,
+# )
+```
+
+---
+
+## Pattern 4: Merging Adapters for Deployment
+
+Once training is done, merge adapters into the base model to remove inference overhead.
+
+```python
+# After training, save the adapter weights
+# peft_model.save_pretrained("lora-adapter/")
+
+# To merge for deployment:
+# merged_model = peft_model.merge_and_unload()
+# merged_model.save_pretrained("merged-model/")
+# tokenizer.save_pretrained("merged-model/")
+
+# The merged-model/ directory can now be used exactly like the original base model:
+# model = AutoModelForCausalLM.from_pretrained("merged-model/")
+```
+
+**When to merge vs keep separate**:
+
+| Scenario | Recommendation |
+|----------|---------------|
+| Single fine-tuned task deployed in production | Merge — no overhead |
+| Multiple fine-tuned variants for different use cases | Keep separate — hot-swap adapters on one base |
+| Frequent retraining / A-B testing | Keep separate — easier iteration |
+
+---
+
+## Anti-Patterns
+
+| Anti-Pattern | Why It's a Problem | Better Approach |
+|---|---|---|
+| **Full fine-tuning when LoRA is sufficient** | 10× more memory, 3× slower, huge model files | Default to LoRA; use full fine-tuning only when LoRA clearly can't capture the required behaviour |
+| **Rank too low for complex task** | Model fails to learn; loss doesn't converge | Increase rank (r=16, r=32); monitor train loss closely for the first few steps |
+| **Not merging before deployment** | Each inference call has adapter overhead — adds latency when you have a single fixed adapter | Merge adapters before deploying if you don't need hot-swap capability |
+| **Applying LoRA to wrong layers** | Adapters don't affect the critical computation paths | Check the model architecture; target the attention projection matrices at minimum |
+| **QLoRA without gradient checkpointing** | Activations still fill memory even with quantized weights | Always enable `gradient_checkpointing` with QLoRA |
+
+---
+
+Next: [Lab — LoRA Dataset & Config Preparation](./lab.mdx)

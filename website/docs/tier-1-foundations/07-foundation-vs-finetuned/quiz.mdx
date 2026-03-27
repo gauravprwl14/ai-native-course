@@ -1,0 +1,81 @@
+---
+title: "Quiz: Foundation vs Fine-tuned Models"
+sidebar_position: 5
+description: "Test your understanding of foundation models, instruction-tuning, RLHF, and when to fine-tune."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz 07 — Foundation vs Fine-tuned Models
+
+<Quiz
+  chapterId="tier1-ch07"
+  passMark={70}
+  questions={[
+    {
+      id: "q1",
+      text: "A base/foundation model is primarily trained to:",
+      points: 1,
+      options: [
+        "A) Follow instructions",
+        "B) Predict the next token",
+        "C) Generate code",
+        "D) Answer questions"
+      ],
+      correct: 1,
+      explanation: "Base models are trained with a single objective: predict the next token in a sequence. This is how they acquire language understanding, world knowledge, and reasoning ability. They do not learn to follow instructions until instruction-tuning is applied on top."
+    },
+    {
+      id: "q2",
+      text: "What does RLHF stand for?",
+      points: 1,
+      options: [
+        "A) Reinforcement Learning from Human Feedback",
+        "B) Rapid Language and Human Framework",
+        "C) Recurrent Learning for Human Fine-tuning",
+        "D) Robust Language Handling Function"
+      ],
+      correct: 0,
+      explanation: "RLHF stands for Reinforcement Learning from Human Feedback. Human annotators rank pairs of model outputs, those rankings train a reward model, and then the base model is fine-tuned with RL to maximise the reward. This is the alignment step that makes models helpful and safe."
+    },
+    {
+      id: "q3",
+      text: "You're building a legal contract analyser that needs to output structured JSON consistently across tens of thousands of contracts per day. What is the best approach?",
+      points: 2,
+      options: [
+        "A) Use GPT-4o with a detailed system prompt",
+        "B) Fine-tune on 5,000 labelled contract examples",
+        "C) Use a base Llama model",
+        "D) Chain multiple API calls"
+      ],
+      correct: 1,
+      explanation: "Fine-tuning is the right choice here. You have a specific, consistent output format (structured JSON), a large domain dataset (5,000 examples), and a high-volume workload where per-request accuracy matters. Fine-tuning trains the model to produce the exact JSON schema reliably and reduces inference costs at scale."
+    },
+    {
+      id: "q4",
+      text: "Why might a small fine-tuned model outperform a large general model on a specific task?",
+      points: 2,
+      options: [
+        "A) Small models are always faster",
+        "B) Fine-tuned models have more parameters",
+        "C) Task-specific training data aligns the model's outputs exactly to the target task",
+        "D) General models do not know domain facts"
+      ],
+      correct: 2,
+      explanation: "A small model fine-tuned on your exact task distribution learns the specific patterns, formats, and vocabulary your task requires. A large general model spreads its capacity across thousands of task types. When measured on your specific task, the specialist's focused training can produce more accurate and consistent outputs than the generalist's broader knowledge."
+    },
+    {
+      id: "q5",
+      text: "You have only 50 examples of your target task. Should you fine-tune?",
+      points: 2,
+      options: [
+        "A) Yes, any data helps",
+        "B) No, 50 examples is rarely enough — use prompt engineering instead",
+        "C) Yes, but only with LoRA",
+        "D) Only if the examples are perfect"
+      ],
+      correct: 1,
+      explanation: "50 examples is almost never enough for fine-tuning. With such a small dataset the model overfits to surface patterns in your examples rather than learning the task. The reliable path with limited data is few-shot prompting: include several examples directly in the system prompt or user message. Fine-tuning becomes worthwhile around 1,000+ diverse, high-quality labelled examples."
+    }
+  ]}
+/>

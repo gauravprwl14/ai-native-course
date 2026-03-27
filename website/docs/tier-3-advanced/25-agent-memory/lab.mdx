@@ -1,0 +1,53 @@
+---
+title: "Lab: Agent with Persistent Memory"
+sidebar_position: 4
+description: "Build a MemoryStore class with save, get, and semantic search, then wire it to a MemoryAgent that remembers facts across calls."
+---
+
+# Lab 25 — Agent with Persistent Memory
+
+## What You're Building
+
+A `MemoryStore` class backed by OpenAI embeddings and an optional JSON persistence file, plus a `MemoryAgent` that uses the store to remember and recall facts across calls.
+
+You will implement:
+
+1. **`MemoryStore.save(key, value)`** — embed the value and store it under the key; persist to disk if a storage path is configured
+2. **`MemoryStore.get(key)`** — exact lookup by key; returns the string value or `None`
+3. **`MemoryStore.search(query, top_k=3)`** — embed the query, compute cosine similarity against all stored embeddings, return the top-k `(key, value)` pairs
+4. **`MemoryStore.summarize_old()`** — ask the LLM to summarise all memories and return the summary string
+5. **`MemoryAgent`** — wraps a `MemoryStore`; on each `chat(message)` call it retrieves relevant memories, injects them into the system prompt, calls the LLM, and optionally saves new facts
+
+## Files
+
+| File | Purpose |
+|------|---------|
+| `starter/solution.py` | Your starting point — fill in the TODOs |
+| `solution/solution.py` | Reference solution |
+| `tests/test_solution.py` | Verify your implementation |
+
+## Getting Started
+
+```bash
+cd curriculum/tier-3-advanced/25-agent-memory/lab/starter
+python solution.py
+```
+
+## Acceptance Criteria
+
+- [ ] `MemoryStore.save(key, value)` stores the value and its embedding in `self.memories[key]`
+- [ ] `MemoryStore.save(key, value)` calls `_persist()` when `storage_path` is set
+- [ ] `MemoryStore.get(key)` returns the stored string value or `None` for unknown keys
+- [ ] `MemoryStore.search(query, top_k=3)` returns a list of `(key, value)` tuples sorted by cosine similarity descending
+- [ ] `MemoryStore.search(query, top_k=1)` returns at most 1 result
+- [ ] `MemoryStore.summarize_old()` calls the LLM and returns a non-empty string
+- [ ] `MemoryAgent.chat(message)` retrieves relevant memories and includes them in the LLM call
+- [ ] `MemoryAgent.chat(message)` returns a non-empty string response
+- [ ] All tests pass: `pytest tests/ -v`
+
+## Running Tests
+
+```bash
+cd curriculum/tier-3-advanced/25-agent-memory/lab
+pytest tests/ -v
+```

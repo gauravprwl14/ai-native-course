@@ -1,0 +1,75 @@
+---
+title: "Lab: Build a Planner Agent"
+sidebar_position: 4
+description: "Implement generate_plan, execute_task, and execute_plan to build a working planner agent."
+---
+
+# Lab 23 — Build a Planner Agent
+
+In this lab you will implement a minimal planner agent that:
+
+1. Takes a high-level goal and asks an LLM to generate a structured plan
+2. Executes each task in dependency order
+3. Passes prior results as context to each subsequent task
+
+## What You'll Build
+
+| Function / Class | Description |
+|-----------------|-------------|
+| `generate_plan(goal, context)` | Calls LLM to produce a JSON plan (list of task dicts) |
+| `execute_task(task, available_results)` | Executes a single task, with prior results as context |
+| `execute_plan(plan)` | Runs all tasks in order, collecting `TaskResult` objects |
+| `TaskResult` | Dataclass: `task_id`, `success`, `output`, `error` |
+
+## Starter File
+
+Open `curriculum/tier-3-advanced/23-planning/lab/starter/solution.py`.
+
+The file contains:
+- `PLANNING_PROMPT` — the prompt template for plan generation
+- `TaskResult` dataclass skeleton
+- Three function stubs with `# TODO` comments
+
+## Your Tasks
+
+### Task A: `generate_plan`
+
+- Format `PLANNING_PROMPT` with `goal` and `context`
+- Call the Anthropic API with `temperature=0` (deterministic plans)
+- Parse the JSON response and return a `list[dict]`
+- Each dict should have keys: `id`, `description`, `depends_on`
+
+### Task B: `execute_task`
+
+- Check that all tasks in `task["depends_on"]` have succeeded in `available_results`
+- If any dependency failed, return a `TaskResult` with `success=False`
+- Build a context string from the outputs of dependencies
+- Call the LLM: `"Execute this task: {task['description']}\nContext: {context}"`
+- Return `TaskResult(task_id=task["id"], success=True, output=response_text)`
+
+### Task C: `execute_plan`
+
+- Initialize `results = {}`
+- Loop over the plan in order
+- Call `execute_task(task, results)` for each task
+- Store the returned `TaskResult` in `results[task["id"]]`
+- Return `list(results.values())`
+
+## Running the Tests
+
+```bash
+cd curriculum/tier-3-advanced/23-planning/lab
+pytest tests/ -v
+```
+
+## Stretch Goals
+
+1. Add replanning: if a task fails, call the LLM to regenerate the remaining steps
+2. Add parallel execution: tasks with no dependencies can run with `ThreadPoolExecutor`
+3. Add a `max_retries` parameter to `execute_task` — retry transient failures before marking as failed
+
+## Expected Output
+
+When you run the completed planner with a goal like `"Summarise the history of Python"`, you should see a plan of 3-5 tasks printed, followed by the output of each task.
+
+Next: [Quiz — Planning & Task Decomposition](./quiz.mdx)

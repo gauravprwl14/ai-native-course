@@ -1,0 +1,43 @@
+---
+title: "Chapter 12: Structured Output"
+sidebar_position: 1
+description: "Extract machine-readable JSON from LLMs reliably. Learn prompt patterns that produce valid structured data every time."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 12 — Structured Output
+
+## What You'll Learn
+
+- How to prompt LLMs to return valid JSON every time
+- Schema enforcement techniques: from prompt-only to API-level guarantees
+- Pydantic validation for type-safe structured data
+- Building a retry loop that recovers from invalid JSON automatically
+- Tool calling (Anthropic function calling) as the most reliable path to structured output
+
+## Prerequisites
+
+- Chapter 11 (System Prompts) — you should understand how to steer model behaviour with system-level instructions
+- Python 3.10+, `anthropic` and `pydantic` packages installed
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 25 min |
+| Patterns | 20 min |
+| Lab | 30 min |
+| Quiz | 10 min |
+| **Total** | **~85 min** |
+
+## How This Connects
+
+Structured output is the bridge between freeform LLM text and real software systems. Every production AI feature — extracting data from documents, powering search, driving agents — relies on getting JSON back reliably. Chain-of-Thought (Chapter 10) often produces reasoning traces; structured output captures the final answer cleanly. RAG (Chapter 14) returns retrieved context in structured form. Evals (Chapter 16) use structured output to score results programmatically.
+
+<ConceptMap
+  current="structured-output"
+  related={["system-prompts", "tool-use", "rag", "chain-of-thought", "evals"]}
+/>
+
+➡️ Next: [Concepts — Structured Output](./concepts.mdx)

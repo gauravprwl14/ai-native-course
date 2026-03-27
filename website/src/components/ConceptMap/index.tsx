@@ -12,7 +12,19 @@ interface RelatedNode {
 interface ConceptMapProps {
   current: string;        // label of current chapter
   currentHref?: string;   // href of current chapter (for display only)
-  related: RelatedNode[]; // related chapters
+  related: (RelatedNode | string)[]; // related chapters — strings auto-converted to nodes
+}
+
+function toNode(item: RelatedNode | string): RelatedNode {
+  if (typeof item === 'string') {
+    return {
+      id: item,
+      label: item.replace(/-/g, ' '),
+      href: '/' + item,
+      tier: 1,
+    };
+  }
+  return item;
 }
 
 const TIER_COLORS: Record<number, string> = {
@@ -32,6 +44,7 @@ function getNodePosition(index: number, total: number, radius: number): { x: num
 }
 
 export default function ConceptMap({ current, related }: ConceptMapProps): ReactNode {
+  const nodes = related.map(toNode);
   const cx = 200;
   const cy = 200;
   const radius = 130;
@@ -41,8 +54,8 @@ export default function ConceptMap({ current, related }: ConceptMapProps): React
     <div className={styles.container}>
       <svg viewBox={viewBox} className={styles.svg} aria-label={`Concept map for ${current}`}>
         {/* Draw lines from center to each related node */}
-        {related.map((node, i) => {
-          const pos = getNodePosition(i, related.length, radius);
+        {nodes.map((node, i) => {
+          const pos = getNodePosition(i, nodes.length, radius);
           return (
             <line
               key={`line-${node.id}`}
@@ -57,8 +70,8 @@ export default function ConceptMap({ current, related }: ConceptMapProps): React
         })}
 
         {/* Related nodes */}
-        {related.map((node, i) => {
-          const pos = getNodePosition(i, related.length, radius);
+        {nodes.map((node, i) => {
+          const pos = getNodePosition(i, nodes.length, radius);
           const nx = cx + pos.x;
           const ny = cy + pos.y;
           const color = TIER_COLORS[node.tier ?? 1];
@@ -91,7 +104,7 @@ export default function ConceptMap({ current, related }: ConceptMapProps): React
 
       {/* Legend */}
       <div className={styles.legend}>
-        {related.map((node) => (
+        {nodes.map((node) => (
           <Link key={node.id} to={node.href} className={styles.legendItem}>
             <span className={styles.legendDot} style={{ background: TIER_COLORS[node.tier ?? 1] }} />
             {node.label}

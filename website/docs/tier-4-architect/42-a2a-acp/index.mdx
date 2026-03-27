@@ -1,0 +1,51 @@
+---
+title: "Chapter 42: A2A & ACP — Agent Communication Protocols"
+sidebar_position: 1
+description: "How AI agents discover, communicate with, and delegate work to each other using A2A (Google) and ACP (IBM/BeeAI) protocols."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 42 — A2A & ACP: Agent Communication Protocols
+
+## What You'll Learn
+
+- Why multi-agent systems need standard communication protocols
+- What an **agent card** is and why it is the key to agent discovery
+- How **A2A (Agent-to-Agent)**, Google's open agent protocol, works
+- How **ACP (Agent Communication Protocol)** from IBM/BeeAI compares
+- How to implement a capability-based agent registry and delegation system
+
+## Prerequisites
+
+| Prerequisite | Why it matters |
+|-------------|----------------|
+| Chapter 24 — Multi-Agent Systems | You need to understand orchestrators, workers, and agent coordination patterns |
+| Chapter 41 — MCP | A2A is to agents what MCP is to tools — understanding MCP first makes A2A click faster |
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 20 min |
+| Patterns | 20 min |
+| Lab | 25 min |
+| Quiz | 10 min |
+| **Total** | **~75 min** |
+
+## How This Connects
+
+Chapter 24 showed you how to build a multi-agent system where agents are defined in the same codebase: an orchestrator hardcodes which specialists exist and how to call them. That works for a self-contained project — but it breaks the moment agents need to be:
+
+- **Discovered dynamically**: "I need an agent that can translate Korean, who is available right now?"
+- **Deployed independently**: each specialist agent runs in its own service, possibly on different machines
+- **Composed across organisations**: your orchestrator agent uses a translation specialist built by a different team
+
+A2A and ACP are the protocols that make this possible. They define how agents publish their capabilities, how other agents discover them, and how tasks get delegated and results returned.
+
+<ConceptMap
+  current="a2a-acp"
+  related={["multi-agent", "agent-handoff", "mcp", "planning", "agentic-workflows"]}
+/>
+
+Next: [Concepts — Agent-to-Agent Communication](./concepts.mdx)

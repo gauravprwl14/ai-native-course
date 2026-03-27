@@ -1,0 +1,43 @@
+---
+title: "Chapter 27: Agent Handoff"
+sidebar_position: 1
+description: "Route tasks to specialized agents. Build a router that classifies incoming requests and delegates to the right specialist."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 27 — Agent Handoff
+
+## What You'll Learn
+
+- How a router agent classifies intent and selects the right specialist
+- Handoff protocols: how to pass conversation context and a task summary to a specialist
+- Graceful fallback: what to do when no specialist matches
+- Confidence thresholds: when to escalate to a human instead of routing to an agent
+- How to build an `AgentRouter` class that orchestrates intent classification and execution
+
+## Prerequisites
+
+- Chapter 24 (Multi-Agent) — you should understand how multiple agents can work together before building a routing layer on top
+- Python 3.10+, `anthropic` package installed
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 20 min |
+| Patterns | 20 min |
+| Lab | 35 min |
+| Quiz | 10 min |
+| **Total** | **~85 min** |
+
+## How This Connects
+
+Chapter 24 (Multi-Agent) showed how agents collaborate. Agent Handoff is about *routing* — deciding which agent should handle a given request before any collaboration begins. Planning (Chapter 23) decomposes tasks into steps; routing selects the right executor for each step. Guardrails (Chapter 28) wrap the handoff to ensure no specialist receives unsafe or out-of-scope requests.
+
+<ConceptMap
+  current="agent-handoff"
+  related={["multi-agent", "agents", "planning", "guardrails"]}
+/>
+
+➡️ Next: [Concepts — Agent Handoff](./concepts.mdx)

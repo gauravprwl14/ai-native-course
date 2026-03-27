@@ -1,0 +1,112 @@
+---
+title: "Quiz — GraphRAG"
+sidebar_position: 5
+description: "Test your knowledge of knowledge graphs, entity extraction, GraphRAG vs flat RAG, community detection, multi-hop reasoning, and graph traversal."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz — GraphRAG
+
+<Quiz
+  questions={[
+    {
+      id: "q1",
+      text: "What are the two fundamental components of a knowledge graph?",
+      options: [
+        "A) Embeddings and similarity scores",
+        "B) Nodes (entities) and edges (typed relationships)",
+        "C) Chunks and vector indices",
+        "D) Prompts and completions"
+      ],
+      correct: 1,
+      explanation: "A knowledge graph is a directed graph where nodes represent entities (Apple, Tim Cook, iPhone) and edges represent typed relationships between them (MAKES, CEO_OF, LOCATED_IN). This is distinct from vector databases, which store embeddings, not structured relationships."
+    },
+    {
+      id: "q2",
+      text: "What is a 'triple' (SPO triple) in a knowledge graph?",
+      options: [
+        "A) Three chunks retrieved by a RAG pipeline",
+        "B) A representation of knowledge as (subject, predicate, object), e.g. (Apple, MAKES, iPhone)",
+        "C) Three layers of a neural network",
+        "D) A tuple of (embedding, text, metadata)"
+      ],
+      correct: 1,
+      explanation: "A triple represents a single fact as (subject, predicate, object). For example: (Tim Cook, CEO_OF, Apple) or (Apple, MAKES, iPhone). Triples are the fundamental unit for storing and querying structured knowledge."
+    },
+    {
+      id: "q3",
+      text: "Which type of question is GraphRAG BEST suited for compared to flat vector RAG?",
+      options: [
+        "A) 'What does the return policy say?' (simple factual lookup)",
+        "B) 'Summarize this 3-page PDF'",
+        "C) 'Which engineers worked on projects that depend on the authentication service?' (multi-hop relational)",
+        "D) 'What is the capital of France?'"
+      ],
+      correct: 2,
+      explanation: "GraphRAG excels at multi-hop relational questions that require following edges across multiple entities. 'Which engineers worked on projects that depend on service X' requires traversing: service X → projects → engineers — three hops that flat RAG cannot handle reliably."
+    },
+    {
+      id: "q4",
+      text: "In Microsoft's GraphRAG, what is the purpose of community detection (using the Leiden algorithm)?",
+      options: [
+        "A) To compress the vector index for faster similarity search",
+        "B) To cluster densely connected entities into groups, then generate summary reports for each cluster to answer global questions",
+        "C) To detect duplicate documents in the corpus",
+        "D) To filter out low-quality entity extractions"
+      ],
+      correct: 1,
+      explanation: "Community detection clusters entities that are densely connected into groups. GraphRAG then asks an LLM to generate a summary report for each cluster. These community summaries enable 'global search' — answering broad thematic questions like 'What are the main risk themes in this corpus?' that no individual chunk or entity can answer."
+    },
+    {
+      id: "q5",
+      text: "You ask: 'What are the supply chain risks for Apple products?' Flat RAG retrieves chunks about iPhone supply chains but misses the TSMC-Taiwan dependency mentioned in a different document. Why does GraphRAG handle this better?",
+      options: [
+        "A) GraphRAG uses larger chunks than flat RAG",
+        "B) GraphRAG traverses the entity graph: Apple → iPhone → A17 Chip → TSMC → Taiwan, surfacing the TSMC-Taiwan relationship even if it's in a separate document",
+        "C) GraphRAG stores all documents in a relational database",
+        "D) GraphRAG uses a larger LLM context window"
+      ],
+      correct: 1,
+      explanation: "This is the key advantage of graph traversal. The relationship Apple→iPhone→A17 Chip→TSMC→Taiwan is distributed across multiple documents. Flat vector search can't follow these hops. Graph traversal from the 'Apple' entity naturally surfaces the TSMC and Taiwan nodes within 3 hops."
+    },
+    {
+      id: "q6",
+      text: "Why is it important to add reverse edges when building a knowledge graph for traversal?",
+      options: [
+        "A) Reverse edges speed up the Leiden community detection algorithm",
+        "B) Without reverse edges, you can only traverse relationships in one direction — missing entities that are only reachable from the opposite side",
+        "C) Reverse edges are required by the RDF standard",
+        "D) Reverse edges reduce memory usage by 50%"
+      ],
+      correct: 1,
+      explanation: "If you only store A→B, a traversal starting from B cannot find A. Adding a B→A_REVERSE edge means you can traverse the graph from any entity in either direction. For example, given (iPhone, MADE_BY, Apple), you should also store (Apple, MADE_BY_REVERSE, iPhone) so that traversal from Apple finds iPhone."
+    },
+    {
+      id: "q7",
+      text: "What is the main risk of using LLM-based triple extraction without validation?",
+      options: [
+        "A) It is too slow for any production use case",
+        "B) LLMs may hallucinate relationships that don't exist, polluting the graph with false knowledge",
+        "C) LLMs cannot extract more than 10 entities per document",
+        "D) Triple extraction requires GPU acceleration"
+      ],
+      correct: 1,
+      explanation: "LLMs can hallucinate relationships, especially for less prominent entities or when the text is ambiguous. Without validation, the graph gets polluted with false triples (e.g., 'Apple OWNS Google'). Best practice: spot-check samples, filter obvious errors (subject=object), and normalize entity names to catch duplicates."
+    },
+    {
+      id: "q8",
+      text: "For which scenario would you NOT recommend GraphRAG?",
+      options: [
+        "A) A corporate knowledge base with 10,000 documents about employees, projects, and systems",
+        "B) A research corpus where users ask 'what are the common themes across all papers?'",
+        "C) A 50-page product manual where users ask 'what is the maximum operating temperature?'",
+        "D) A legal document set where users ask 'which cases reference the same precedent?'"
+      ],
+      correct: 2,
+      explanation: "A 50-page product manual with simple factual lookups is a poor fit for GraphRAG. Graph indexing requires significant processing time and cost (multiple LLM calls per chunk for entity/relation extraction, community detection, etc.). Flat RAG handles simple factual Q&A on small document sets faster and cheaper. GraphRAG is worth the overhead for large, relationship-rich corpora with multi-hop query needs."
+    }
+  ]}
+  chapterId="tier4-ch47"
+  passMark={70}
+/>

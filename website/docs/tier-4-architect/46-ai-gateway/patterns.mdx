@@ -1,0 +1,263 @@
+---
+title: "Gateway Design Patterns"
+sidebar_position: 3
+description: "Five production patterns for AI gateways: provider fallback, cost attribution, per-key rate limiting, audit logging with PII masking, and circuit breakers."
+---
+
+# Gateway Design Patterns
+
+---
+
+## Pattern 1: Provider Fallback
+
+**Problem:** A single LLM provider has an outage or returns 5xx errors. Your application should not go down.
+
+**Solution:** Define a fallback chain. When the primary provider fails, the gateway automatically retries on the next provider in the chain.
+
+```python
+FALLBACK_CHAIN = {
+    "anthropic": ["openai", "azure"],
+    "openai":    ["anthropic", "azure"],
+    "azure":     ["openai", "anthropic"],
+}
+
+def route_with_fallback(model: str, prompt: str, providers: list[str]) -> Response:
+    for provider in providers:
+        try:
+            return call_provider(provider, model, prompt)
+        except (ProviderError, RateLimitError) as e:
+            log.warning(f"Provider {provider} failed: {e}, trying next")
+    raise AllProvidersFailedError("No available providers")
+```
+
+**When to apply:** Any production system with SLA requirements. A single provider going down should not trigger a page.
+
+**Tradeoffs:**
+- Different providers have different response formats — normalize at the gateway
+- Fallback costs may differ from primary; communicate this to cost attribution
+- Don't silently fall back to a much more expensive model without alerting
+
+---
+
+## Pattern 2: Cost Attribution
+
+**Problem:** At the end of the month, you receive a $4,000 LLM bill but have no idea which team or feature generated the cost.
+
+**Solution:** Tag every gateway request with an API key that maps to a team/project/user. The gateway logs the computed cost with that tag.
+
+```python
+# API key format: team-feature-environment
+# "search-core-prod"   → search team, core feature, production
+# "rec-engine-staging" → recommendations team, staging
+
+def log_with_attribution(
+    key: str,
+    model: str,
+    provider: str,
+    input_tokens: int,
+    output_tokens: int,
+    cost_usd: float,
+):
+    log_entry = {
+        "timestamp": time.time(),
+        "key": key,           # "search-core-prod"
+        "model": model,
+        "provider": provider,
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
+        "cost_usd": cost_usd,
+    }
+    audit_logger.write(log_entry)
+    metrics.increment("llm.cost", cost_usd, tags={"key": key, "provider": provider})
+```
+
+**Reporting query:**
+
+```python
+# Total cost per key (last 30 days)
+from collections import defaultdict
+
+def get_cost_by_key(logs: list[dict]) -> dict[str, float]:
+    totals = defaultdict(float)
+    for entry in logs:
+        totals[entry["key"]] += entry["cost_usd"]
+    return dict(totals)
+```
+
+**When to apply:** Any multi-team or multi-product deployment. Even solo projects benefit from per-feature cost tracking.
+
+---
+
+## Pattern 3: Per-Key Rate Limiting
+
+**Problem:** A misconfigured background job loops and sends 10,000 requests in a minute, hitting the provider rate limit and blocking every other team.
+
+**Solution:** Enforce a per-key rate limit using a sliding window at the gateway.
+
+```python
+from collections import defaultdict
+import time
+
+class SlidingWindowRateLimiter:
+    def __init__(self, requests_per_minute: int = 60):
+        self.rpm = requests_per_minute
+        self._windows: dict[str, list[float]] = defaultdict(list)
+
+    def is_allowed(self, key: str) -> bool:
+        now = time.time()
+        window_start = now - 60.0
+
+        # Evict timestamps outside the window
+        self._windows[key] = [
+            t for t in self._windows[key] if t > window_start
+        ]
+
+        if len(self._windows[key]) >= self.rpm:
+            return False
+
+        self._windows[key].append(now)
+        return True
+```
+
+**Usage in gateway:**
+
+```python
+def route(request: GatewayRequest) -> GatewayResponse:
+    if not rate_limiter.is_allowed(request.key):
+        raise ValueError(f"Rate limit exceeded for key: {request.key}")
+    # ... rest of routing
+```
+
+**When to apply:** Always. Even if you trust every caller, a bug can cause runaway requests that harm everyone else.
+
+**Tradeoffs:**
+- In-memory windows don't work across multiple gateway instances — use Redis for distributed rate limiting
+- Consider separate limits for input tokens per minute (TPM), not just request count (RPM)
+
+---
+
+## Pattern 4: Request/Response Audit Log with PII Masking
+
+**Problem:** You need a complete audit trail for compliance, but prompt text often contains user PII (names, emails, health data).
+
+**Solution:** Log metadata for every request. Store full prompt text only in a separate, encrypted, access-controlled store — and run PII detection before storage.
+
+```python
+import re
+
+# Simplified PII patterns (use a proper library like presidio in production)
+PII_PATTERNS = [
+    (r'\b[A-Z][a-z]+\s[A-Z][a-z]+\b', '[NAME]'),        # Full names
+    (r'\b[\w.+-]+@[\w-]+\.[\w.]+\b', '[EMAIL]'),          # Email addresses
+    (r'\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b', '[PHONE]'),   # US phone numbers
+    (r'\b\d{3}-\d{2}-\d{4}\b', '[SSN]'),                  # SSNs
+]
+
+def mask_pii(text: str) -> str:
+    for pattern, replacement in PII_PATTERNS:
+        text = re.sub(pattern, replacement, text)
+    return text
+
+def write_audit_log(entry: RequestLog, prompt: str | None = None):
+    # Always log metadata
+    metadata_store.write(entry)
+
+    # Optionally log prompt text with PII masking
+    if prompt and config.STORE_PROMPT_TEXT:
+        masked = mask_pii(prompt)
+        encrypted_prompt_store.write({
+            "request_id": entry.request_id,
+            "masked_prompt": masked,
+        })
+```
+
+**When to apply:** Any production system handling user data. Required for GDPR/HIPAA compliance. Even internal tools benefit — developers accidentally include real data in test prompts regularly.
+
+---
+
+## Pattern 5: Circuit Breaker
+
+**Problem:** A provider starts returning 500 errors intermittently. Each request waits for the full timeout (30s) before failing. Your gateway is now slow for everyone, not just the users hitting that provider.
+
+**Solution:** A circuit breaker tracks failure counts. After a threshold, it "opens" and immediately rejects requests to that provider for a cooldown period, then allows a single test request to probe if the provider recovered.
+
+```python
+from enum import Enum
+import time
+
+class CircuitState(Enum):
+    CLOSED = "closed"      # Normal operation
+    OPEN = "open"          # Provider failing — reject fast
+    HALF_OPEN = "half_open"  # Probe: allow one request through
+
+class CircuitBreaker:
+    def __init__(
+        self,
+        failure_threshold: int = 5,
+        reset_timeout: float = 60.0,
+    ):
+        self.failure_threshold = failure_threshold
+        self.reset_timeout = reset_timeout
+        self._failures: dict[str, int] = {}
+        self._last_failure: dict[str, float] = {}
+        self._state: dict[str, CircuitState] = {}
+
+    def get_state(self, provider: str) -> CircuitState:
+        state = self._state.get(provider, CircuitState.CLOSED)
+        if state == CircuitState.OPEN:
+            elapsed = time.time() - self._last_failure.get(provider, 0)
+            if elapsed > self.reset_timeout:
+                self._state[provider] = CircuitState.HALF_OPEN
+                return CircuitState.HALF_OPEN
+        return state
+
+    def record_success(self, provider: str) -> None:
+        self._failures[provider] = 0
+        self._state[provider] = CircuitState.CLOSED
+
+    def record_failure(self, provider: str) -> None:
+        self._failures[provider] = self._failures.get(provider, 0) + 1
+        self._last_failure[provider] = time.time()
+        if self._failures[provider] >= self.failure_threshold:
+            self._state[provider] = CircuitState.OPEN
+```
+
+**State transitions:**
+
+```
+CLOSED → (N failures in window) → OPEN → (timeout expires) → HALF_OPEN
+HALF_OPEN → (success) → CLOSED
+HALF_OPEN → (failure) → OPEN
+```
+
+**When to apply:** Any gateway routing to multiple providers. Without circuit breakers, a slow provider causes latency spikes that affect all users even if they're being routed to different providers.
+
+---
+
+## Anti-Patterns
+
+### Anti-Pattern 1: Route All Traffic to the Cheapest Model
+
+```python
+# BAD: always use cheapest regardless of task
+def get_model(task: str) -> str:
+    return "llama-3-tiny"  # cheapest model for everything
+```
+
+The cheapest model is often wrong for complex tasks. A $0.002 routing decision that returns a bad answer leads to user churn worth far more than the savings. Use model selection logic (Chapter 40) to match task complexity to model capability.
+
+### Anti-Pattern 2: Log Full Prompts Without PII Check
+
+```python
+# BAD: log raw user input
+audit_log.write({
+    "prompt": request.prompt,  # may contain SSNs, medical data, etc.
+    ...
+})
+```
+
+Users include PII in prompts constantly — names, emails, health questions. Logging raw prompts without PII masking creates a compliance liability. Always mask or encrypt before writing prompt content to logs.
+
+---
+
+➡️ Next: [Lab — Build a Mini AI Gateway](./lab.mdx)

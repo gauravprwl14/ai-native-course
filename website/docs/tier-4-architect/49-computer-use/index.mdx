@@ -1,0 +1,51 @@
+---
+title: "Chapter 49: Computer Use — UI Agents"
+sidebar_position: 1
+description: "Build agents that control computers: the Anthropic computer use API, screenshot-action loops, browser automation, and UI agent safety challenges."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 49 — Computer Use: UI Agents
+
+## What You'll Learn
+
+Many valuable tasks require a user interface that has no programmatic API. Filing a form on a legacy government website, interacting with a desktop application, navigating a UI that changes too fast to maintain a scraper — these can only be automated by an agent that sees and acts on the screen exactly like a human would.
+
+Computer use is the capability that enables this: an LLM that receives screenshots and decides what to click, type, or scroll.
+
+## Prerequisites
+
+- Chapter 19 (Tool Use) — you should understand how agents call structured tools
+- Chapter 20 (Agentic Loop) — you should understand the observe → think → act loop
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 25 min |
+| Patterns | 20 min |
+| Lab | 25 min |
+| Quiz | 10 min |
+| **Total** | **~80 min** |
+
+## What You'll Learn
+
+- **How computer use works** — the screenshot → LLM → action → screenshot loop
+- **Anthropic computer use API** — the beta API, supported actions, and tool call format
+- **Action space** — click, type, scroll, key, navigate, and how coordinates are specified
+- **Computer use vs Playwright** — when to use each and how to combine them
+- **Sandboxing** — why running computer use agents without a sandbox is a security risk
+- **Safety guardrails** — human-in-the-loop approval for destructive actions
+- **UI agent challenges** — visual understanding, coordinate precision, dynamic UIs, infinite loops
+
+## How This Connects
+
+<ConceptMap
+  current="computer-use"
+  related={["tool-use", "agentic-loop", "durable-workflows", "multi-agent"]}
+/>
+
+---
+
+Next: [Concepts — Agents That Control Computers](./concepts.mdx)

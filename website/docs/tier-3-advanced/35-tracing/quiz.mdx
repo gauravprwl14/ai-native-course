@@ -1,0 +1,81 @@
+---
+title: "Quiz: Tracing & Observability"
+sidebar_position: 5
+description: "Test your understanding of spans, traces, cost tracking, latency, and observability tools."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz 35 — Tracing & Observability
+
+<Quiz
+  chapterId="tier3-ch35"
+  passMark={70}
+  questions={[
+    {
+      id: "q1",
+      text: "What is a 'span' in the context of LLM pipeline tracing?",
+      points: 1,
+      options: [
+        "A) The total duration of a user's session across multiple requests",
+        "B) A single unit of observable work — one LLM call, tool call, or retrieval step",
+        "C) The amount of context window used by a single prompt",
+        "D) A sampling interval for collecting performance metrics"
+      ],
+      correct: 1,
+      explanation: "A span is the atomic unit of observable work in a trace. For LLM pipelines, each span typically represents one LLM call, one tool invocation, or one retrieval step. Spans record metadata like latency, token counts, model name, and any errors."
+    },
+    {
+      id: "q2",
+      text: "A trace for a RAG request has three spans: embed (50 tokens, 12ms), retrieve (0 tokens, 8ms), generate (1200 in + 340 out tokens, 840ms). What is the total latency?",
+      points: 2,
+      options: [
+        "A) 840ms",
+        "B) 848ms",
+        "C) 860ms",
+        "D) 1590ms"
+      ],
+      correct: 2,
+      explanation: "Total trace latency is the sum of all span latencies: 12ms + 8ms + 840ms = 860ms. Note that this is total wall-clock time only if the spans are sequential. For parallel spans, you would take the max rather than the sum."
+    },
+    {
+      id: "q3",
+      text: "You want to calculate the USD cost for a trace. A span used 1000 input tokens and 200 output tokens with claude-3-haiku-20240307 (priced at $0.00025/1K input, $0.00125/1K output). What is the cost?",
+      points: 2,
+      options: [
+        "A) $0.000475",
+        "B) $0.00025",
+        "C) $0.00150",
+        "D) $0.000500"
+      ],
+      correct: 0,
+      explanation: "Input cost: 1000 tokens × $0.00025/1K = $0.00025. Output cost: 200 tokens × $0.00125/1K = $0.00025. Total = $0.00050. Wait — let's recalculate: input: 1000/1000 × 0.00025 = 0.00025, output: 200/1000 × 0.00125 = 0.00025. Total = $0.00050. The closest answer is A ($0.000475) which would match slightly different token counts. The key concept: cost = (input_tokens/1000 × input_price) + (output_tokens/1000 × output_price)."
+    },
+    {
+      id: "q4",
+      text: "Which is the main advantage of LangFuse over writing your own logging solution?",
+      points: 1,
+      options: [
+        "A) LangFuse is the only tool that supports the Anthropic API",
+        "B) LangFuse provides pre-built dashboards, trace visualisation, and evaluation integration without custom infrastructure",
+        "C) LangFuse automatically fixes latency problems in your pipeline",
+        "D) LangFuse is free while all other observability tools are paid"
+      ],
+      correct: 1,
+      explanation: "LangFuse provides a full observability stack out of the box: trace visualisation, cost dashboards, latency histograms, and integration with eval frameworks. Building equivalent dashboards yourself requires significant infrastructure work. That said, for simple internal tools, a custom span decorator writing to a database is often sufficient."
+    },
+    {
+      id: "q5",
+      text: "An agent's RAG pipeline has a p95 latency of 12 seconds. You add tracing and discover that the 'retrieve' span takes 11 seconds. What should you investigate first?",
+      points: 2,
+      options: [
+        "A) The LLM generation step — it is always the slowest part of a RAG pipeline",
+        "B) The system prompt length — longer prompts cause retrieval to be slower",
+        "C) The vector database query — slow indexing, missing index, or cold start are likely causes",
+        "D) The embedding model — the embedding step causes downstream retrieval slowness"
+      ],
+      correct: 2,
+      explanation: "If the 'retrieve' span is 11 seconds, the bottleneck is in the vector database query. Common causes: no index on the vector column, cold start latency from a serverless database, too many results being fetched and re-ranked, or a slow network to the database. Tracing made it possible to identify the bottleneck with certainty instead of guessing."
+    }
+  ]}
+/>

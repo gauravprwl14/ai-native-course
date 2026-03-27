@@ -1,0 +1,45 @@
+---
+title: "Chapter 30: LoRA / QLoRA"
+sidebar_position: 1
+description: "Fine-tune large models on consumer hardware. Understand Low-Rank Adaptation and quantization for efficient fine-tuning."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 30 — LoRA / QLoRA
+
+## What You'll Learn
+
+- The LoRA math intuition: why low-rank adapter matrices work
+- The rank parameter and how to choose it
+- QLoRA: how 4-bit quantization cuts memory requirements to a fraction of full fine-tuning
+- The PEFT library from HuggingFace: the standard Python interface for LoRA
+- Memory savings compared to full fine-tuning
+- Hot-swappable adapters: one base model, many fine-tuned behaviours
+
+## Prerequisites
+
+- Chapter 29 (Fine-tuning Basics) — you should understand the fine-tuning process, JSONL format, and overfitting before learning parameter-efficient methods
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 30 min |
+| Patterns | 15 min |
+| Lab | 30 min |
+| Quiz | 10 min |
+| **Total** | **~85 min** |
+
+## Why This Matters
+
+Standard fine-tuning a 7B parameter model requires ~28GB of GPU RAM — more than most cloud GPUs and far beyond any consumer hardware. LoRA (Low-Rank Adaptation) cuts that to 3–5GB, making fine-tuning accessible on a single A100 or even a consumer RTX 3090.
+
+This isn't a compromise. LoRA-fine-tuned models match or exceed full fine-tuning quality on most tasks, train faster, and produce small adapter files (a few MB) rather than full model copies (14GB+). For organisations running multiple fine-tuned variants, adapters are also hot-swappable — one base model, many behaviours.
+
+<ConceptMap
+  current="lora"
+  related={["fine-tuning", "foundation-models", "rlhf", "inference-vs-training"]}
+/>
+
+Next: [Concepts — LoRA / QLoRA](./concepts.mdx)

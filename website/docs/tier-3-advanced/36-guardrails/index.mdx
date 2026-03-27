@@ -1,0 +1,45 @@
+---
+title: "Chapter 36: Guardrails"
+sidebar_position: 1
+description: "Add safety layers to AI systems. Implement input validation, output filtering, and topic restrictions."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 36 — Guardrails
+
+## What You'll Learn
+
+- Why unguarded LLM endpoints are dangerous in production
+- The input guardrail / output guardrail architecture
+- How to build a keyword filter and an LLM-based topic classifier
+- How to build a `GuardrailPipeline` that composes multiple checks
+- How to balance strictness with false-positive rate
+
+## Prerequisites
+
+- Chapter 5 (System Prompts) — familiarity with system-prompt-level constraints
+- Chapter 28 (HITL) — understanding of when to block vs escalate
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 20 min |
+| Patterns | 15 min |
+| Lab | 35 min |
+| Quiz | 10 min |
+| **Total** | **~80 min** |
+
+## Why This Matters
+
+An unguarded LLM endpoint will eventually be abused — by prompt injection, by off-topic misuse, or by users extracting information they shouldn't have. Guardrails are the engineering layer that turns an experimental prototype into a system you can ship with confidence.
+
+Every commercial AI product has guardrails. Understanding how to build them — and their limitations — is essential for any AI engineer working on customer-facing applications.
+
+<ConceptMap
+  current="guardrails"
+  related={["system-prompts", "hitl", "prompt-injection", "pii-handling", "hallucination-detection"]}
+/>
+
+Next: [Concepts — Guardrails](./concepts.mdx)

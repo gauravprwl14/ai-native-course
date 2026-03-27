@@ -1,0 +1,81 @@
+---
+title: "Quiz: Context Window"
+sidebar_position: 16
+description: "Test your understanding of context windows, token budgets, and truncation strategies."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz 03 — Context Window
+
+<Quiz
+  chapterId="tier1-ch03"
+  passMark={70}
+  questions={[
+    {
+      id: "q1",
+      text: "Which of these is NOT part of the context window?",
+      points: 1,
+      options: [
+        "A) System prompt",
+        "B) Conversation history",
+        "C) Model weights",
+        "D) New user message"
+      ],
+      correct: 2,
+      explanation: "Model weights are fixed parameters stored in the model itself — they are not sent with each request and do not consume context window tokens. The context window only contains the tokens you send (system prompt, history, user message) and the tokens the model generates."
+    },
+    {
+      id: "q2",
+      text: "A model has an 8K context window and your system prompt uses 1,000 tokens. How many tokens remain for conversation?",
+      points: 2,
+      options: [
+        "A) 8,000 tokens",
+        "B) 7,000 tokens",
+        "C) 9,000 tokens",
+        "D) Unlimited — system prompt doesn't count"
+      ],
+      correct: 1,
+      explanation: "The total context window is 8,000 tokens. The system prompt consumes 1,000 of those tokens, leaving 7,000 tokens for conversation history, the new user message, and the model's response combined."
+    },
+    {
+      id: "q3",
+      text: "What happens when you use FIFO truncation on conversation history?",
+      points: 1,
+      options: [
+        "A) Oldest messages are dropped first",
+        "B) Newest messages are dropped first",
+        "C) Middle messages are dropped first",
+        "D) Messages are compressed into shorter versions"
+      ],
+      correct: 0,
+      explanation: "FIFO stands for First In, First Out. The first messages added to the history (the oldest ones) are the first to be removed when the context fills up. This keeps the most recent context intact while discarding older exchanges."
+    },
+    {
+      id: "q4",
+      text: "You have a 4K context window, a 500 token system prompt, and 2,500 tokens of conversation history. How many tokens are available for a new user message and response combined?",
+      points: 3,
+      options: [
+        "A) 1,000 tokens",
+        "B) 500 tokens",
+        "C) 4,000 tokens",
+        "D) 0 tokens — the context is already full"
+      ],
+      correct: 0,
+      explanation: "Total window = 4,000. Used by system prompt = 500. Used by history = 2,500. Remaining = 4,000 - 500 - 2,500 = 1,000 tokens for the new user message and model response combined."
+    },
+    {
+      id: "q5",
+      text: "Why might summarization be a better truncation strategy than FIFO for some use cases?",
+      points: 2,
+      options: [
+        "A) Summarization is faster to compute than FIFO",
+        "B) Summarization preserves the semantic meaning of old messages while reducing token count",
+        "C) Summarization always uses fewer tokens than the original messages",
+        "D) Summarization is simpler to implement than FIFO"
+      ],
+      correct: 1,
+      explanation: "FIFO simply discards old messages entirely, losing all information from earlier in the conversation. Summarization compresses old messages into a shorter form that retains the key facts, decisions, and context. This is valuable when early messages contain important information (like the user's original goal) that FIFO would lose entirely."
+    }
+  ]}
+/>

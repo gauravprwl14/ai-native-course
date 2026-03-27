@@ -1,0 +1,114 @@
+---
+title: "Lab: Ollama Client Wrapper"
+sidebar_position: 4
+description: "Build an OllamaClient that connects to a local Ollama instance, streams responses, and falls back gracefully when unavailable."
+---
+
+# Lab: Ollama Client Wrapper
+
+## Goal
+
+Build a robust `OllamaClient` class that:
+
+1. Checks if the local Ollama server is running
+2. Lists available local models
+3. Generates text (with optional streaming)
+4. Pulls models from the registry
+5. Falls back gracefully when Ollama is unavailable
+
+## Setup
+
+```bash
+cd curriculum/tier-4-architect/43-llm-hosting/lab
+# No extra dependencies — uses stdlib urllib only
+```
+
+To test with a real Ollama instance (optional):
+```bash
+# Install Ollama: https://ollama.ai
+ollama pull llama3.2:3b-instruct-q4_K_M
+```
+
+## Starter File
+
+Open `starter/solution.py`. You'll implement:
+
+| Function / Method | Description |
+|---|---|
+| `OllamaClient.is_available()` | GET `/api/tags`, return `True` if 200 |
+| `OllamaClient.list_models()` | Parse model list from `/api/tags` |
+| `OllamaClient.generate()` | POST `/api/generate`, handle stream/non-stream |
+| `OllamaClient.pull_model()` | POST `/api/pull`, return success bool |
+| `get_client_with_fallback()` | Return `(client, is_available)` tuple |
+
+## Step-by-Step
+
+### Step 1: `is_available()`
+
+Make a GET request to `{base_url}/api/tags`. Return `True` if the request succeeds with HTTP 200. Return `False` on any `urllib.error.URLError` or exception — this happens when Ollama isn't running.
+
+```python
+def is_available(self) -> bool:
+    try:
+        urllib.request.urlopen(self.base_url + "/api/tags", timeout=3)
+        return True
+    except:
+        return False
+```
+
+### Step 2: `list_models()`
+
+GET `/api/tags` returns JSON like:
+```json
+{
+  "models": [
+    {"name": "llama3.1:8b-instruct-q4_K_M", "size": 4661225472, "digest": "sha256:..."}
+  ]
+}
+```
+
+Parse each entry into an `OllamaModel` dataclass.
+
+### Step 3: `generate()`
+
+POST `/api/generate` with:
+```json
+{"model": "llama3.1:8b", "prompt": "Hello", "stream": false}
+```
+
+- **Non-streaming**: parse the JSON response, return `response["response"]`
+- **Streaming**: each line is a JSON object `{"response": "token", "done": false}`. Read line by line, concatenate `response` values until `done: true`.
+
+### Step 4: `pull_model()`
+
+POST `/api/pull` with `{"name": model_name, "stream": false}`. Return `True` on success, `False` if the request fails.
+
+### Step 5: `get_client_with_fallback()`
+
+Create a client, call `is_available()`, return `(client, True)` or `(client, False)`.
+
+## Running Tests
+
+```bash
+pytest tests/test_solution.py -v
+```
+
+Tests use `unittest.mock` — no real Ollama instance needed.
+
+## Expected Output
+
+When you run the solution against a real Ollama instance:
+
+```
+Ollama available: True
+Models: ['llama3.2:3b-instruct-q4_K_M']
+Response: The capital of France is Paris.
+```
+
+When Ollama is not running:
+```
+Ollama available: False
+Using fallback stub response.
+```
+
+➡️ Next: [Quiz](./quiz.mdx)

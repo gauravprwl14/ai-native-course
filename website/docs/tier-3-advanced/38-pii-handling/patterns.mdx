@@ -1,0 +1,131 @@
+---
+title: "Patterns: PII Handling"
+sidebar_position: 3
+description: "Regex-based PII detection, redaction, pseudonymization with re-identification, and anti-patterns."
+---
+
+# Patterns: PII Handling
+
+## Pattern 1: Regex-Based PII Detection
+
+Fast, zero-cost PII detection using compiled regex patterns. Returns a structured dict of detected PII by type.
+
+```python
+import re
+
+PII_PATTERNS = {
+    "email": r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b",
+    "phone": r"\b(\+1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b",
+    "ssn":   r"\b\d{3}-\d{2}-\d{4}\b",
+    "credit_card": r"\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b",
+}
+
+def detect_pii(text: str) -> dict[str, list[str]]:
+    """Detect all PII types in text. Returns {pii_type: [matched_values]}."""
+    results = {}
+    for pii_type, pattern in PII_PATTERNS.items():
+        matches = re.findall(pattern, text)
+        if matches:
+            # re.findall returns strings or tuples if pattern has groups
+            cleaned = [m if isinstance(m, str) else m[0] for m in matches]
+            results[pii_type] = cleaned
+    return results
+
+# Usage
+pii = detect_pii("Call me at 555-123-4567 or email john@example.com")
+print(pii)
+# {"phone": ["555-123-4567"], "email": ["john@example.com"]}
+```
+
+**When to use**: As the first step in any PII handling pipeline. Also useful for compliance audits — run on a sample of logs to check for PII leakage.
+
+---
+
+## Pattern 2: Redaction Before Sending
+
+Replace all PII with type labels before the text reaches the LLM API. Simple, one-way.
+
+```python
+def redact_pii(text: str) -> str:
+    """Replace all PII in text with [TYPE_REDACTED] labels."""
+    result = text
+    for pii_type, pattern in PII_PATTERNS.items():
+        result = re.sub(pattern, f"[{pii_type.upper()}_REDACTED]", result)
+    return result
+
+# Usage
+redacted = redact_pii("My email is john@example.com and SSN is 123-45-6789.")
+print(redacted)
+# "My email is [EMAIL_REDACTED] and SSN is [SSN_REDACTED]."
+```
+
+**When to use**: When the LLM doesn't need the actual PII values to complete the task (e.g., "categorise this support ticket"). Irreversible — don't use if you need to re-identify.
+
+---
+
+## Pattern 3: Pseudonymization + Re-identification
+
+Replace PII with consistent fake values, process with the LLM, then restore originals using the mapping.
+
+```python
+def pseudonymize(text: str) -> tuple[str, dict]:
+    """
+    Replace PII with consistent placeholders.
+    Returns (pseudonymized_text, {placeholder: original_value}).
+    """
+    result = text
+    mapping = {}  # placeholder → original
+    reverse = {}  # original → placeholder (for consistency within a call)
+    counters = {}
+
+    for pii_type, pattern in PII_PATTERNS.items():
+        matches = re.findall(pattern, text)
+        for match in matches:
+            value = match if isinstance(match, str) else match[0]
+            if value not in reverse:
+                count = counters.get(pii_type, 0) + 1
+                counters[pii_type] = count
+                placeholder = f"{pii_type}_{count}"
+                reverse[value] = placeholder
+                mapping[placeholder] = value
+            result = result.replace(value, reverse[value], 1)
+
+    return result, mapping
+
+
+def restore_pseudonyms(text: str, mapping: dict) -> str:
+    """Reverse pseudonymization using the mapping."""
+    result = text
+    for placeholder, original in mapping.items():
+        result = result.replace(placeholder, original)
+    return result
+
+# Usage
+text = "Contact john@example.com or jane@example.com for details."
+pseudo, mapping = pseudonymize(text)
+print(pseudo)
+# "Contact email_1 or email_2 for details."
+
+llm_response = "I have sent the invoice to email_1 and a copy to email_2."
+restored = restore_pseudonyms(llm_response, mapping)
+print(restored)
+# "I have sent the invoice to john@example.com and a copy to jane@example.com."
+```
+
+**When to use**: When the LLM needs to reason about the structure or relationships between PII items (e.g., "route this message to the correct user"). The LLM sees labels, not real data.
+
+---
+
+## Anti-Patterns
+
+| Anti-Pattern | Why It's a Problem | Better Approach |
+|---|---|---|
+| **Logging raw prompts with PII** | Logs become a compliance liability — hard to purge, easy to breach | Redact PII before writing to any log store |
+| **Fine-tuning on raw user conversations** | Training data contains real names, emails, SSNs | Run PII detection + redaction before creating fine-tuning datasets |
+| **Only blocking one PII type** | User sends SSN; you block emails — SSN reaches the API | Run all pattern types; treat detection as comprehensive |
+| **Sending the mapping to the API** | The whole point is that the API never sees real PII | Store the mapping locally; only the pseudonymized text goes to the API |
+| **Using the same mapping across users/sessions** | Placeholder `email_1` refers to different people in different contexts | Create a fresh mapping per request or per user session |
+
+---
+
+Next: [Lab — PII Detection and Redaction](./lab.mdx)

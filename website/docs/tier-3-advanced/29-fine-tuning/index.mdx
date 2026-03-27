@@ -1,0 +1,46 @@
+---
+title: "Chapter 29: Fine-tuning Basics"
+sidebar_position: 1
+description: "Learn when and how to fine-tune LLMs. Prepare a dataset, understand the fine-tuning process, and know what metrics matter."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 29 — Fine-tuning Basics
+
+## What You'll Learn
+
+- When fine-tuning is the right tool versus when prompt engineering is sufficient
+- What data you need and how much: quality vs. quantity trade-offs
+- The JSONL format for fine-tuning datasets
+- Train/validation splits and why they matter for detecting overfitting
+- Key training metrics: training loss, validation loss, and what divergence tells you
+- Evaluating your fine-tuned model before deploying it
+
+## Prerequisites
+
+- Chapter 07 (Foundation Models) — you should understand what pre-training and base models are
+- Chapter 32 (Evals) is a useful cross-reference for evaluation methodology once you've fine-tuned
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 30 min |
+| Patterns | 20 min |
+| Lab | 30 min |
+| Quiz | 10 min |
+| **Total** | **~90 min** |
+
+## Why This Matters
+
+Prompt engineering is powerful, but it has limits. You can't prompt a model into always responding in a specific brand voice, always following a proprietary JSON schema, or correctly answering domain-specific questions that didn't appear in its training data. When you have examples of the exact behavior you want — and enough of them — fine-tuning is the right tool.
+
+Fine-tuning doesn't replace prompting; it changes what "default" looks like. After fine-tuning, the behavior you want becomes the model's baseline, which reduces the prompt engineering burden on every subsequent call.
+
+<ConceptMap
+  current="fine-tuning"
+  related={["foundation-models", "lora", "rlhf", "evals", "inference-vs-training"]}
+/>
+
+Next: [Concepts — Fine-tuning Basics](./concepts.mdx)

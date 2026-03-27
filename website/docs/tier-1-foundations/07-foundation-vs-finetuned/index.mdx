@@ -1,0 +1,43 @@
+---
+title: "Chapter 07: Foundation vs Fine-tuned Models"
+sidebar_position: 1
+description: "Understand the spectrum from general-purpose foundation models to task-specific fine-tuned models. Know which to use when."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 07 — Foundation vs Fine-tuned Models
+
+## What You'll Learn
+
+- What foundation/base models are and how they differ from instruction-tuned models
+- What fine-tuned models are and when they are worth the extra effort
+- How instruction-tuning and RLHF turn a raw base model into a helpful assistant
+- The major model families (Claude, GPT, Llama, Gemini) and where they sit on the spectrum
+- A decision framework for choosing between a general API model and a fine-tuned specialist
+
+## Prerequisites
+
+- Chapter 01 complete — you understand what an LLM is and how it predicts tokens
+- Chapter 06 complete — you understand inference vs training costs
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 25 min |
+| Patterns | 15 min |
+| Lab | 25 min |
+| Quiz | 10 min |
+| **Total** | **~75 min** |
+
+## How This Connects
+
+Every model you call through an API is the product of multiple training stages. Understanding those stages tells you why a model behaves the way it does — and whether you need to go further and fine-tune it yourself.
+
+<ConceptMap
+  current="foundation-models"
+  related={["llms", "inference-vs-training", "fine-tuning", "rlhf", "lora"]}
+/>
+
+Next: [Concepts — Foundation vs Fine-tuned Models](./concepts)

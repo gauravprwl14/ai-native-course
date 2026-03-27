@@ -1,0 +1,43 @@
+---
+title: "Chapter 37: Prompt Injection (Security)"
+sidebar_position: 1
+description: "Understand and defend against prompt injection attacks. Learn direct and indirect injection, and implement defenses."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 37 — Prompt Injection (Security)
+
+## What You'll Learn
+
+- What prompt injection is and why it is the most prevalent security threat in LLM applications
+- The difference between direct injection (from user input) and indirect injection (from retrieved documents)
+- How XML wrapping and input sanitization defend against injection
+- How to detect if a model has been hijacked by inspecting its output
+- How to test a system prompt's resilience against known injection attempts
+
+## Prerequisites
+
+- Chapter 5 (System Prompts) — you need to understand how system prompts work before learning how they can be bypassed
+- Chapter 36 (Guardrails) — this chapter extends guardrails with a security focus
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 20 min |
+| Patterns | 15 min |
+| Lab | 35 min |
+| Quiz | 10 min |
+| **Total** | **~80 min** |
+
+## Why This Matters
+
+Prompt injection is the SQL injection of AI applications. Any application that embeds user-controlled text into a prompt is potentially vulnerable. Unlike SQL injection, there is no perfect sanitization — LLMs are fundamentally designed to follow instructions in text. Understanding both the attack and the defense is required for building AI systems that are safe to deploy.
+
+<ConceptMap
+  current="prompt-injection"
+  related={["guardrails", "system-prompts", "hitl", "pii-handling"]}
+/>
+
+Next: [Concepts — Prompt Injection](./concepts.mdx)

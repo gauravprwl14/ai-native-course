@@ -1,0 +1,41 @@
+---
+title: "Chapter 06: Inference vs Training"
+sidebar_position: 1
+description: "Understand the two phases of LLMs: training (learning from data) and inference (generating predictions). Know when to use each."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 06 — Inference vs Training
+
+## What You'll Learn
+
+- What training is — how models learn from data and how weights are updated
+- What inference is — how models generate predictions from fixed weights
+- How training and inference differ in cost, speed, and purpose
+- When to fine-tune a model vs when to stick with prompt engineering
+
+## Prerequisites
+
+- Chapter 01 complete — you understand what an LLM is and how it generates text
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 20 min |
+| Patterns | 15 min |
+| Lab | 20 min |
+| Quiz | 10 min |
+| **Total** | **~65 min** |
+
+## How This Connects
+
+Every time you call an API, you're running inference. But when a model keeps failing your use case, you'll hear "just fine-tune it" — understanding the difference helps you know when that advice is right and when it's overkill.
+
+<ConceptMap
+  current="inference-vs-training"
+  related={["llms", "fine-tuning", "foundation-models", "temperature-sampling"]}
+/>
+
+➡️ Next: [Concepts — Inference vs Training](./concepts)

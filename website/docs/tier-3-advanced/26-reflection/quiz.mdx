@@ -1,0 +1,81 @@
+---
+title: "Quiz: Reflection & Self-critique"
+sidebar_position: 5
+description: "Test your understanding of generate-critique-revise loops, constitutional AI, when reflection helps, and iteration limits."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz 26 — Reflection & Self-critique
+
+<Quiz
+  chapterId="tier3-ch26"
+  passMark={70}
+  questions={[
+    {
+      id: "q1",
+      text: "In the generate-critique-revise (G-C-R) loop, what is the role of the critique step?",
+      points: 1,
+      options: [
+        "A) Generate an alternative version of the output from scratch",
+        "B) Identify specific flaws in the current draft so the revision step can fix them",
+        "C) Score the output on a 1-10 scale and return the best",
+        "D) Translate the output into a different format"
+      ],
+      correct: 1,
+      explanation: "The critique step reads the current draft and identifies specific weaknesses — inaccuracies, missing points, verbosity, unclear phrasing. It does not generate a new draft from scratch; it produces targeted feedback that the revise step acts on. The critique is most useful when it is specific and actionable, not vague."
+    },
+    {
+      id: "q2",
+      text: "You run a G-C-R loop for 5 iterations on a simple yes/no factual question. What is most likely to happen?",
+      points: 2,
+      options: [
+        "A) The output quality improves significantly with each iteration",
+        "B) The loop terminates immediately because the first draft is correct",
+        "C) The cost increases 5x with little or no quality improvement after iteration 1-2",
+        "D) The LLM contradicts itself and the final answer is worse than the first draft"
+      ],
+      correct: 2,
+      explanation: "Reflection has diminishing returns after 1-2 iterations. For a simple factual question, the first draft is usually correct — extra iterations add latency and cost without improving the answer. The quality gain from iterations 3-5 is almost always negligible. Reserve multi-iteration reflection for complex tasks where the output has multiple quality dimensions to improve."
+    },
+    {
+      id: "q3",
+      text: "Constitutional AI critique differs from a simple 'what is wrong?' prompt because it:",
+      points: 2,
+      options: [
+        "A) Uses a separate fine-tuned model for evaluation",
+        "B) Evaluates the output against a named list of explicit principles",
+        "C) Runs the critique 10 times and averages the scores",
+        "D) Only checks for factual accuracy, ignoring style"
+      ],
+      correct: 1,
+      explanation: "Constitutional AI critique evaluates output against a fixed list of named principles (e.g., accurate, helpful, concise, safe). Each principle is assessed separately, producing a structured verdict. This makes the evaluation auditable — you know exactly which principle was violated and why. A plain 'what is wrong?' prompt can surface anything, but constitutional critique targets the dimensions you care about explicitly."
+    },
+    {
+      id: "q4",
+      text: "A stop-when-satisfied loop exits early when:",
+      points: 2,
+      options: [
+        "A) The output exceeds 1000 tokens",
+        "B) The model has been called more than twice",
+        "C) The critique indicates no major issues remain",
+        "D) The revision is shorter than the original draft"
+      ],
+      correct: 2,
+      explanation: "A stop-when-satisfied loop checks the critique output for a signal that no major issues remain (e.g., the text 'NO MAJOR ISSUES'). When that signal appears, the loop exits early without performing another revision. This makes the loop adaptive — simple prompts cost fewer iterations, hard prompts use more, up to the maximum."
+    },
+    {
+      id: "q5",
+      text: "For which task would reflection most improve output quality?",
+      points: 3,
+      options: [
+        "A) Answering 'What is the capital of France?'",
+        "B) Looking up the current weather via a tool call",
+        "C) Writing a technical blog post that must be accurate, clear, and well-structured",
+        "D) Converting a number from Celsius to Fahrenheit"
+      ],
+      correct: 2,
+      explanation: "Reflection is most valuable for tasks with multiple quality dimensions — accuracy, clarity, structure, tone, completeness. A technical blog post has all of these. Simple factual questions (capital of France), tool calls (weather lookup), and arithmetic (Celsius conversion) have a single correct answer; the first generation is either right or wrong, and reflection adds latency without benefit."
+    }
+  ]}
+/>

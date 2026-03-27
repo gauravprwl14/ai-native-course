@@ -1,0 +1,106 @@
+---
+title: "Lab: Build a Durable Workflow Engine"
+sidebar_position: 4
+description: "Implement a JSON-checkpoint workflow engine that survives process crashes and resumes from the last completed step."
+---
+
+# Lab 48 — Build a Durable Workflow Engine
+
+In this lab you will implement a minimal but fully functional durable workflow engine from scratch. It checkpoints state to disk as JSON after every step, and resumes from the last completed step on restart.
+
+## What You'll Build
+
+| Class / Function | Description |
+|-----------------|-------------|
+| `StepResult` | Dataclass: step name, status, output, error |
+| `WorkflowCheckpoint` | Dataclass: workflow ID, completed steps, step outputs, status |
+| `DurableWorkflow.load_checkpoint` | Load checkpoint from disk; return True if found |
+| `DurableWorkflow.save_checkpoint` | Serialize checkpoint to JSON and write to disk |
+| `DurableWorkflow.is_step_completed` | Check if a step name is in `completed_steps` |
+| `DurableWorkflow.mark_step_completed` | Record step completion and save checkpoint |
+| `DurableWorkflow.run_step` | Execute one step, skipping if already completed |
+| `DurableWorkflow.run` | Run all steps in order; stop on failure; save final status |
+
+## Starter File
+
+Open `curriculum/tier-4-architect/48-durable-workflows/lab/starter/solution.py`.
+
+The file contains fully typed dataclasses and method stubs with `# TODO:` comments guiding each implementation step.
+
+## Your Tasks
+
+### Task A: `load_checkpoint`
+
+- Check if `self.checkpoint_path` exists using `Path.exists()`
+- If it exists, read the file as JSON and reconstruct a `WorkflowCheckpoint` from the dict
+- Return `True` if a checkpoint was loaded, `False` if no file exists
+
+### Task B: `save_checkpoint`
+
+- Create the parent directory with `mkdir(parents=True, exist_ok=True)`
+- Serialize `self.checkpoint` using `dataclasses.asdict`
+- Write the JSON string to `self.checkpoint_path`
+
+### Task C: `is_step_completed`
+
+- Return `True` if `step_name` is in `self.checkpoint.completed_steps`
+
+### Task D: `mark_step_completed`
+
+- Append `step_name` to `self.checkpoint.completed_steps`
+- Store `output` in `self.checkpoint.step_outputs[step_name]`
+- Call `self.save_checkpoint()`
+
+### Task E: `run_step`
+
+- If `is_step_completed(step_name)`, return `StepResult` with status `"skipped"` and the stored output
+- Otherwise, call `func(*args, **kwargs)` inside a try/except
+- On success: call `mark_step_completed`, return `StepResult(..., "completed", output)`
+- On exception: return `StepResult(..., "failed", error=str(e))`
+
+### Task F: `run`
+
+- Call `load_checkpoint()` to resume from any existing state
+- For each `(name, func, args, kwargs)` in `steps`, call `run_step`
+- If a step returns `status == "failed"`, stop and return results collected so far
+- When all steps complete, set `self.checkpoint.status = "completed"` and save
+
+## Running the Tests
+
+```bash
+cd curriculum/tier-4-architect/48-durable-workflows/lab
+pytest tests/ -v
+```
+
+## Demonstrating Crash and Resume
+
+The solution file includes a demo at the bottom. Run it to see the crash-and-resume behaviour:
+
+```bash
+python curriculum/tier-4-architect/48-durable-workflows/lab/solution/solution.py
+```
+
+Expected output:
+
+```
+=== First run (will fail at step 3) ===
+[RUN]  fetch_data
+[RUN]  process_data
+[RUN]  generate_report   ← simulated failure
+Workflow stopped at step 'generate_report'
+
+=== Second run (resume) ===
+[SKIP] fetch_data (already done)
+[SKIP] process_data (already done)
+[RUN]  generate_report   ← continues from here
+[RUN]  publish_report
+Workflow completed!
+```
+
+## Stretch Goals
+
+1. Add a `max_retries` parameter to `run_step` — retry a failed step up to N times before marking it failed
+2. Add a `SagaStep` variant that accepts a `compensation` callable; run compensations in reverse on failure
+3. Swap the JSON file checkpoint for a SQLite checkpoint using Python's built-in `sqlite3` module
+
+Next: [Quiz — Durable Workflows](./quiz.mdx)

@@ -1,0 +1,101 @@
+---
+title: "Lab: Build a Customer Service Bot"
+sidebar_position: 4
+description: "Build a customer service chatbot with a robust system prompt that handles edge cases, multi-turn conversation, and topic guardrails."
+---
+
+# Lab 11 — Build a Customer Service Bot
+
+## What You're Building
+
+A Python module that implements a configurable customer service chatbot. You'll write the system prompt, handle multi-turn conversation history, and build a lightweight topic classifier using the LLM itself.
+
+You'll implement three functions:
+
+1. **`create_customer_service_bot`** — build a bot configuration dict with a tailored system prompt
+2. **`chat`** — send a message to the configured bot and manage conversation history
+3. **`is_on_topic`** — use the LLM to classify whether a user message is on-topic
+
+## Files
+
+| File | Purpose |
+|------|---------|
+| `starter/solution.py` | Your starting point — fill in the TODOs |
+| `solution/solution.py` | Reference solution |
+| `tests/test_solution.py` | Verify your implementation |
+| `problem.md` | Full problem statement |
+
+## Getting Started
+
+```bash
+cd curriculum/tier-2-builder/11-system-prompts/lab/starter
+export ANTHROPIC_API_KEY=your_key_here
+python solution.py
+```
+
+## Function Signatures
+
+```python
+def create_customer_service_bot(company_name: str, product_type: str) -> dict:
+    """
+    Create a bot configuration with a system prompt.
+
+    Args:
+        company_name: Name of the company the bot represents
+        product_type: Type of product (e.g. "cloud storage", "project management software")
+
+    Returns:
+        dict with keys: "system_prompt", "company", "product"
+    """
+
+def chat(bot_config: dict, user_message: str, history: list[dict]) -> tuple[str, list[dict]]:
+    """
+    Send a message to the configured bot.
+
+    Args:
+        bot_config: Dict from create_customer_service_bot
+        user_message: The user's input text
+        history: List of prior message dicts (role/content pairs)
+
+    Returns:
+        Tuple of (response_text, updated_history)
+    """
+
+def is_on_topic(user_message: str, allowed_topics: list[str]) -> bool:
+    """
+    Use the LLM to check if a message is on-topic for the given topic list.
+
+    Args:
+        user_message: The user's input text
+        allowed_topics: List of topic strings that are considered on-topic
+
+    Returns:
+        True if on-topic, False otherwise
+    """
+```
+
+## Acceptance Criteria
+
+- [ ] `create_customer_service_bot("Acme", "cloud storage")` returns a dict with a `"system_prompt"` key
+- [ ] The system prompt contains the company name and product type
+- [ ] `chat(bot_config, "How do I reset my password?", [])` returns a `(str, list)` tuple
+- [ ] Each call to `chat` appends 2 items to history: user message + assistant reply
+- [ ] The system prompt from `bot_config` is passed to the API, not hardcoded
+- [ ] `is_on_topic("What's the weather?", ["billing", "account"])` returns `False`
+- [ ] `is_on_topic("How do I upgrade my plan?", ["billing", "account"])` returns `True`
+- [ ] All tests pass: `pytest tests/ -v`
+
+## How to Run Tests
+
+```bash
+cd curriculum/tier-2-builder/11-system-prompts/lab
+pytest tests/ -v
+```
+
+## Stretch Goals
+
+Once the core functions pass, try these extensions:
+
+1. **Injection resistance** — modify `chat` to wrap the user message in `<user_input>` tags before sending to the API.
+2. **Conversation summary** — after 10 turns, add a function that summarises the conversation so far and injects the summary into the system prompt (prevents context window overflow).
+3. **Tone selector** — add a `tone` parameter to `create_customer_service_bot` that adjusts the system prompt for "formal", "friendly", or "concise" styles and verify the outputs differ.

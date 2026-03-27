@@ -1,0 +1,155 @@
+---
+title: "Concepts: Foundation vs Fine-tuned Models"
+sidebar_position: 2
+description: "How base models become instruction-following assistants via instruction-tuning and RLHF, and when to go further with task-specific fine-tuning."
+---
+
+# Concepts: Foundation vs Fine-tuned Models
+
+## The Problem
+
+GPT-4 can write poetry, debug Python, and explain quantum physics — all adequately. But a model fine-tuned on ten thousand annotated medical billing records does medical coding far better than GPT-4 ever will. On the flip side, that specialist model is useless outside its narrow domain.
+
+So which do you reach for — the generalist or the specialist?
+
+---
+
+## The Intuition
+
+<div className="concept-intuition">
+
+A **foundation model** is like a generalist doctor fresh out of medical school. They have read every textbook, understand all the systems, and can hold a reasonable conversation about any condition. Ask about anything and they will give you a sensible answer.
+
+A **fine-tuned model** is like a specialist surgeon who has spent ten years doing only one procedure. Within that narrow domain they are faster, more precise, and make fewer mistakes than the generalist — but ask them about anything else and they are no more useful than anyone else.
+
+The decision is not "which is better." It is "what does my task actually need?"
+
+</div>
+
+---
+
+## How It Works
+
+### 1. Foundation / Base Models
+
+A base model is pre-trained on a massive corpus of internet text — books, code, Wikipedia, web pages. The training objective is simple: **predict the next token**.
+
+After pre-training the model has absorbed an enormous amount of world knowledge, learned grammar, learned reasoning patterns, and learned code syntax. What it has **not** learned is how to follow instructions. Ask a raw base model "What is the capital of France?" and it will likely continue your text in a way that makes statistical sense — not answer your question helpfully.
+
+Examples: `Llama 3` (base), `Mistral 7B` (base).
+
+### 2. Instruction-Tuned Models
+
+Instruction-tuning is a fine-tuning step applied on top of the base model using thousands to millions of `(instruction, ideal_output)` pairs. The model learns that when it sees a question it should answer it, when it sees a task it should complete it.
+
+This is the step that converts a raw next-token predictor into something that behaves like an assistant.
+
+**All the models you call through commercial APIs — Claude, GPT-4o, Gemini — are instruction-tuned.** You never interact with a raw base model through these APIs.
+
+### 3. RLHF — Reinforcement Learning from Human Feedback
+
+RLHF is an additional alignment step applied after instruction-tuning. Human annotators rank pairs of model outputs ("which of these responses is better?"). Those rankings train a **reward model** which predicts human preference scores. The base model is then fine-tuned using reinforcement learning to maximise those scores.
+
+RLHF is why modern assistants are not just capable but also helpful, safe, and appropriately concise. It is the training step that bakes in values like "don't help with harmful requests" and "be honest about uncertainty."
+
+A related technique, **DPO** (Direct Preference Optimisation), achieves similar results with a simpler training procedure and has become increasingly common.
+
+### 4. Task-Specific Fine-Tuned Models
+
+You can take any instruction-tuned model and fine-tune it further on a curated domain dataset. This trades breadth for depth:
+
+- **Medical models** (MedPaLM, Med-PaLM 2): Fine-tuned on clinical notes, research papers, exam questions. Outperform GPT-4 on medical benchmarks.
+- **Code models** (CodeLlama, StarCoder): Fine-tuned on code repositories. Faster and cheaper for code generation than large general models.
+- **Legal models**: Fine-tuned on case law and contracts. More consistent output structure for legal documents.
+
+The risk is **catastrophic forgetting**: if you fine-tune too aggressively on a narrow dataset, the model forgets general capabilities. A model over-tuned on medical billing codes may produce worse prose or reasoning than before.
+
+### 5. Model Families at a Glance
+
+| Stage | Examples | Behaviour |
+|-------|----------|-----------|
+| **Base / Foundation** | Llama 3 (base), Mistral 7B (base) | Next-token prediction, no instruction following |
+| **Instruction-tuned** | Claude 3.5, GPT-4o, Gemini 1.5 Pro | Follows instructions, helpful assistant behaviour |
+| **Domain-specific fine-tuned** | MedPaLM, CodeLlama, Legal-BERT | Deep expertise in one domain, reduced breadth |
+
+---
+
+## The Training Pipeline
+
+```mermaid
+graph LR
+  A["Massive text corpus\n(internet, books, code)"]
+  B["Pre-training\nnext-token prediction"]
+  C["Base model\n(knows language + facts\nbut won't follow instructions)"]
+  D["Instruction-tuning\n(instruction, output) pairs"]
+  E["Instruction-tuned model\n(follows instructions)"]
+  F["RLHF / DPO\nhuman preference ranking"]
+  G["Deployed model\n(Claude, GPT-4o, Gemini)"]
+  H["Domain fine-tuning\ntask-specific dataset"]
+  I["Specialist model\n(MedPaLM, CodeLlama)"]
+
+  A --> B --> C --> D --> E --> F --> G
+  E --> H --> I
+
+  style A fill:#e0e7ff,stroke:#6366f1
+  style C fill:#fef3c7,stroke:#f59e0b
+  style G fill:#d1fae5,stroke:#10b981
+  style I fill:#fce7f3,stroke:#ec4899
+```
+
+---
+
+## Key Terms
+
+| Term | Meaning |
+|------|---------|
+| **Foundation model** | A large model pre-trained on broad data — the starting point for further training |
+| **Base model** | Synonym for foundation model; specifically a model before instruction-tuning |
+| **Chat model** | An instruction-tuned (and usually RLHF'd) model designed for dialogue |
+| **Instruction tuning** | Fine-tuning on (instruction, output) pairs to teach the model to follow directions |
+| **RLHF** | Reinforcement Learning from Human Feedback — alignment step using human preference rankings |
+| **DPO** | Direct Preference Optimisation — a simpler alternative to RLHF |
+| **Fine-tuning** | Any additional training on top of a pre-trained model |
+| **Catastrophic forgetting** | When a model loses general capabilities after being fine-tuned too narrowly |
+
+---
+
+## The Interview Angle
+
+<div className="interview-angle">
+
+**"What is the difference between a base model and a chat model?"**
+
+A base model is trained only to predict the next token. It has no concept of "answering a question" or "completing a task" — it just continues text. A chat model is a base model that has been instruction-tuned on (instruction, response) pairs and typically aligned with RLHF or DPO. The instruction-tuning step is what makes the model behave like an assistant rather than a text autocomplete engine.
+
+When you call the Claude or OpenAI API, you are always talking to a chat model — never the raw base.
+
+</div>
+
+---
+
+## Common Mistakes
+
+<div className="antipattern">
+
+**Using a base model expecting chat behaviour**
+Base models are not available through consumer APIs for good reason — they do not follow instructions. If you somehow access a base model checkpoint and ask it a question, it will continue your text, not answer it. Always check whether you have a base or instruction-tuned checkpoint before diagnosing "bad outputs."
+
+**Fine-tuning when good prompting would suffice**
+Fine-tuning is expensive (compute + data labelling) and introduces maintenance burden. Around 90% of use cases that appear to need fine-tuning can be solved with a well-crafted system prompt and few-shot examples. Try prompt engineering first. Fine-tune only when you have a large, consistent, task-specific dataset and a measurable performance gap.
+
+**Catastrophic forgetting from aggressive fine-tuning**
+Fine-tuning on a small domain dataset with a high learning rate overwrites general capabilities. Techniques like LoRA (Low-Rank Adaptation) mitigate this by fine-tuning only a small number of additional parameters rather than the full model weights.
+
+**Fine-tuning on too little data**
+Fewer than ~100 high-quality labelled examples rarely produces reliable improvements. You may see the model overfit to surface patterns in your examples. The sweet spot for most domain fine-tuning tasks is 1,000–10,000 diverse, high-quality examples.
+
+</div>
+
+---
+
+## Further Reading
+
+- [InstructGPT paper](https://arxiv.org/abs/2203.02155) — the original paper describing instruction-tuning + RLHF that produced ChatGPT
+- [Llama 2 paper](https://arxiv.org/abs/2307.09288) — Meta's open model paper with detailed description of the RLHF pipeline
+- ["RLHF: From Zero to ChatGPT"](https://huggingface.co/blog/rlhf) — Hugging Face blog post with a clear, visual walkthrough of the RLHF training loop

@@ -1,0 +1,120 @@
+---
+title: "Quiz: Computer Use — UI Agents"
+sidebar_position: 5
+description: "Test your understanding of computer use API, action space, sandboxing, grounding, computer use vs Playwright, and safety challenges."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz 49 — Computer Use: UI Agents
+
+<Quiz
+  chapterId="tier4-ch49"
+  passMark={70}
+  questions={[
+    {
+      id: "q1",
+      text: "What is the fundamental loop that a computer use agent executes?",
+      points: 1,
+      options: [
+        "A) Read HTML → parse DOM → click element → repeat",
+        "B) Screenshot → LLM decides action → execute action → screenshot → repeat",
+        "C) Call API → parse JSON response → update UI → repeat",
+        "D) Record user actions → replay them → verify result → repeat"
+      ],
+      correct: 1,
+      explanation: "Computer use is a perception-action loop. The agent captures a screenshot (its 'perception'), sends it to the LLM with the goal (the 'decision'), executes the returned action (click, type, scroll) on the real or virtual display, then captures a new screenshot to see the result. This loop continues until the goal is achieved or the step limit is reached."
+    },
+    {
+      id: "q2",
+      text: "What does Anthropic's computer use API return when the model decides to click something?",
+      points: 2,
+      options: [
+        "A) A CSS selector identifying the element to click",
+        "B) A tool use response with action='left_click' and pixel coordinate [x, y]",
+        "C) A JavaScript expression to execute in the browser console",
+        "D) The element's aria-label and bounding box in HTML"
+      ],
+      correct: 1,
+      explanation: "The Anthropic computer use API returns structured tool calls. For a click, this looks like: {\"action\": \"left_click\", \"coordinate\": [320, 240]}. The coordinate is in pixels relative to the virtual display dimensions (e.g., 1280×800). The calling code is responsible for executing this action on the actual display using Playwright, X11, or another automation framework."
+    },
+    {
+      id: "q3",
+      text: "Why must computer use agents always run in a sandboxed environment?",
+      points: 2,
+      options: [
+        "A) Sandboxing improves screenshot quality and reduces latency",
+        "B) The Anthropic API requires a sandboxed environment to function",
+        "C) An unrestricted agent on a real desktop can read private files, send emails, make purchases, or cause irreversible damage",
+        "D) Sandboxing prevents the LLM from seeing sensitive information in screenshots"
+      ],
+      correct: 2,
+      explanation: "Computer use gives an agent the same access as a human sitting at the keyboard. On a real desktop, this means it could read SSH keys and credentials, send emails, delete files, make purchases, or modify system settings. Sandboxing (Docker container, VM, xvfb virtual display) limits the blast radius so agent errors or prompt injection attacks cannot affect the host system."
+    },
+    {
+      id: "q4",
+      text: "You need to automate form submission on a web app that has stable CSS class names and IDs. Which approach should you use?",
+      points: 1,
+      options: [
+        "A) Computer use — it's more flexible and handles any web page",
+        "B) Playwright — direct DOM automation is faster and more reliable when selectors are stable",
+        "C) Both in parallel — run computer use and Playwright simultaneously and take whichever finishes first",
+        "D) Neither — use the web app's official API if available, otherwise manual testing is required"
+      ],
+      correct: 1,
+      explanation: "When a web page has stable DOM structure with reliable selectors (IDs, class names, aria labels), Playwright is the correct choice. It is 10-100× faster than computer use, does not require a screenshot for every action, and is far more reliable since it's not subject to visual grounding errors or coordinate precision issues. Use computer use only when DOM automation is not viable."
+    },
+    {
+      id: "q5",
+      text: "What is 'grounding' in the context of computer use agents?",
+      points: 2,
+      options: [
+        "A) The process of connecting the agent to a real computer via USB",
+        "B) The ability to map a natural-language description ('click the blue Submit button') to specific pixel coordinates on the screen",
+        "C) A safety mechanism that prevents the agent from taking destructive actions",
+        "D) The technique of loading a webpage before taking a screenshot"
+      ],
+      correct: 1,
+      explanation: "Grounding is the visual understanding challenge at the core of computer use. The agent receives a goal in natural language (e.g., 'click the Login button') and a screenshot of the screen. Grounding is the process of identifying exactly where that element is in the image — determining its pixel coordinates accurately enough to click it. Poor grounding causes clicks that miss the target or hit the wrong element."
+    },
+    {
+      id: "q6",
+      text: "What is xvfb and why is it used with computer use agents?",
+      points: 1,
+      options: [
+        "A) A Python library for encoding screenshots as base64 strings",
+        "B) A browser extension that logs all DOM events for debugging",
+        "C) X Virtual Framebuffer — a virtual X11 display that runs without a physical monitor, used to sandbox computer use agents",
+        "D) An Anthropic tool that converts screenshots to structured DOM descriptions"
+      ],
+      correct: 2,
+      explanation: "xvfb (X Virtual Framebuffer) is a Linux implementation of the X11 display protocol that runs entirely in memory without a physical screen. Computer use agents run inside an xvfb virtual display inside a Docker container. The agent can see the virtual screen via screenshots and execute clicks/keystrokes on it, completely isolated from the host system's real display."
+    },
+    {
+      id: "q7",
+      text: "An agent is trying to click a 'Submit' button but the page is still loading when it executes the click. What pattern prevents this class of error?",
+      points: 2,
+      options: [
+        "A) Adding a fixed 5-second sleep before every action",
+        "B) Taking a fresh screenshot after every action and verifying the UI state changed before planning the next action",
+        "C) Using the 'key' action instead of 'left_click' for form submissions",
+        "D) Lowering the LLM temperature to make action decisions more deterministic"
+      ],
+      correct: 1,
+      explanation: "The correct pattern is to take a screenshot after each action and verify the state actually changed. If the page was still loading, the screenshot will look the same as before. The agent can detect this (same URL, same visible text) and either wait or retry. Fixed sleeps waste time and are still unreliable on slow connections. State verification is the robust approach."
+    },
+    {
+      id: "q8",
+      text: "Which type of actions should require explicit human approval before execution in a computer use agent?",
+      points: 2,
+      options: [
+        "A) All actions — human approval should be required for every click and keypress",
+        "B) Only screenshot actions — the agent should never capture images without permission",
+        "C) Irreversible or high-impact actions: form submission, file deletion, sending messages, making purchases",
+        "D) Navigation actions only — clicking links is the most dangerous operation"
+      ],
+      correct: 2,
+      explanation: "Human-in-the-loop approval is most valuable for irreversible or high-impact actions: submitting a form, deleting a file, sending an email, confirming a purchase, clicking 'Deploy' or 'Delete'. These cannot be undone if the agent makes an error. Read-only actions (screenshots, scrolling to read content) typically don't require approval. The goal is to catch dangerous mistakes without making every safe action require human confirmation."
+    }
+  ]}
+/>

@@ -1,0 +1,45 @@
+---
+title: "Chapter 18: Re-ranking"
+sidebar_position: 1
+description: "Improve RAG precision with a two-stage retrieval pipeline. Use cross-encoders to re-score candidates before sending to the LLM."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 18 — Re-ranking
+
+## What You'll Learn
+
+- Why vector search alone returns noisy candidates and what a re-ranker fixes
+- The difference between bi-encoders and cross-encoders — and why each belongs at a different stage
+- How to build a two-stage retrieval pipeline: bi-encoder retrieves top-50, cross-encoder re-ranks to top-5
+- How to use the Cohere Rerank API for production-grade re-ranking
+- How to use an LLM as a re-ranker when no cross-encoder model is available
+
+## Prerequisites
+
+- Chapter 14 (RAG Core) — you should understand embeddings, chunking, and retrieval-augmented generation
+- Chapter 15 (Vector Databases) — familiarity with vector similarity search and how candidate sets are retrieved
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 25 min |
+| Patterns | 15 min |
+| Lab | 30 min |
+| Quiz | 10 min |
+| **Total** | **~80 min** |
+
+## How This Connects
+
+Chapter 14 built a RAG pipeline that embeds a query, retrieves the top-k chunks by cosine similarity, and sends them to the LLM. The problem: cosine similarity is a rough proxy for relevance. The top chunk by embedding distance isn't always the most useful chunk for answering the question.
+
+Re-ranking adds a second stage between retrieval and generation. You retrieve a large candidate set cheaply (bi-encoder), then re-score with a much more precise model (cross-encoder or LLM). Only the best-scoring chunks reach the LLM. This is the difference between a good RAG demo and a production-quality RAG system.
+
+<ConceptMap
+  current="re-ranking"
+  related={["rag", "hybrid-search", "embeddings", "vector-databases"]}
+/>
+
+➡️ Next: [Concepts — Re-ranking](./concepts.mdx)

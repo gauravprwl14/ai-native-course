@@ -1,0 +1,72 @@
+---
+title: "Lab: Build a Faithfulness Checker"
+sidebar_position: 4
+description: "Implement check_faithfulness, detect_contradictions, and verify_rag_answer to catch hallucinations in RAG pipelines."
+---
+
+# Lab: Build a Faithfulness Checker
+
+## Goal
+
+Implement a three-function hallucination detection module that can be plugged into any RAG pipeline. The module scores answer faithfulness, identifies contradicting sentences, and produces a structured verification report.
+
+## What You'll Build
+
+| Function | Description |
+|----------|-------------|
+| `check_faithfulness(answer, context)` | Returns a float 0–1 scoring how well the answer is supported by the context |
+| `detect_contradictions(answer, context)` | Returns a list of sentences in the answer that contradict or are unsupported by the context |
+| `verify_rag_answer(question, answer, retrieved_chunks)` | Aggregates both checks into a structured report: `{"faithful": bool, "score": float, "issues": list[str]}` |
+
+## Starter File
+
+Location: `curriculum/tier-3-advanced/34-hallucination/lab/starter/solution.py`
+
+```python
+FAITHFULNESS_PROMPT = """Given a context and an answer, rate how faithful the answer is.
+Return JSON: {{"score": float 0-1, "reason": "brief explanation"}}
+
+Context: {context}
+Answer: {answer}"""
+
+def check_faithfulness(answer: str, context: str) -> float:
+    # TODO: call API with FAITHFULNESS_PROMPT, parse JSON, return score
+    raise NotImplementedError()
+
+def detect_contradictions(answer: str, context: str) -> list[str]:
+    # TODO: LLM identifies contradicting/unsupported sentences, returns list
+    raise NotImplementedError()
+
+def verify_rag_answer(question: str, answer: str, retrieved_chunks: list[str]) -> dict:
+    # TODO: join chunks as context, call check_faithfulness + detect_contradictions
+    # Return {"faithful": bool, "score": float, "issues": list[str]}
+    raise NotImplementedError()
+```
+
+## Acceptance Criteria
+
+- `check_faithfulness("Refunds in 60 days", "Refunds in 30 days")` returns a float between 0.0 and 1.0
+- `check_faithfulness` returns a value < 0.5 when the answer clearly contradicts the context
+- `detect_contradictions` returns a non-empty list when contradictions exist
+- `detect_contradictions` returns an empty list `[]` when the answer is fully supported
+- `verify_rag_answer` returns a dict with keys `"faithful"`, `"score"`, and `"issues"`
+- `verify_rag_answer` sets `"faithful": False` when `score < 0.8`
+- `verify_rag_answer` sets `"faithful": True` when `score >= 0.8`
+- All 8 tests pass: `pytest tests/ -v`
+
+## How to Run
+
+```bash
+cd curriculum/tier-3-advanced/34-hallucination/lab
+pytest tests/ -v
+```
+
+## Hints
+
+1. `check_faithfulness`: call the API, then parse the JSON response. Wrap the parse in a try/except and return `0.5` as a fallback if parsing fails.
+2. `detect_contradictions`: ask the LLM to return a JSON list. Find the `[` and `]` in the response to extract the list, then `json.loads` it.
+3. `verify_rag_answer`: join `retrieved_chunks` with `"\n\n"` to form the context string, then call both functions. Set `faithful = score >= 0.8`.
+
+---
+
+Next: [Quiz — Hallucination Detection](./quiz.mdx)

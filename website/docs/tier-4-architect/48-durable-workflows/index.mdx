@@ -1,0 +1,49 @@
+---
+title: "Chapter 48: Durable Agentic Workflows"
+sidebar_position: 1
+description: "Make multi-step AI workflows fault-tolerant: checkpointing, resume on failure, idempotency, and workflow engines like Temporal, Prefect, and LangGraph."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 48 — Durable Agentic Workflows
+
+## What You'll Learn
+
+Long-running AI agents can execute for minutes or hours. When they crash mid-way, every completed step is lost and the workflow must restart from scratch — expensive, slow, and unreliable. Durable workflows solve this by persisting state after every step, enabling automatic resume from exactly where execution stopped.
+
+## Prerequisites
+
+- Chapter 20 (Agentic Loop) — you should understand how an agent reasons and acts in a loop
+- Chapter 23 (Planning and Task Decomposition) — you should understand multi-step task planning
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 25 min |
+| Patterns | 20 min |
+| Lab | 35 min |
+| Quiz | 10 min |
+| **Total** | **~90 min** |
+
+## What You'll Learn
+
+- **Why durability matters** — the cost of restarting a long-running agent from scratch
+- **Checkpointing** — saving workflow state to disk or a database after every step
+- **Resume on failure** — reloading a checkpoint and continuing from the last completed step
+- **Idempotency keys** — ensuring a completed step is never re-executed accidentally
+- **Step-level retry** — retrying individual failed steps, not the entire workflow
+- **Saga pattern** — defining compensating (undo) actions for each step
+- **Workflow engines** — when and why to use Temporal, Prefect, LangGraph, or Celery
+
+## How This Connects
+
+<ConceptMap
+  current="durable-workflows"
+  related={["agentic-loop", "planning", "multi-agent", "graphrag"]}
+/>
+
+---
+
+Next: [Concepts — Making Agent Workflows Durable](./concepts.mdx)

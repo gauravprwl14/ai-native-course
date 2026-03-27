@@ -1,0 +1,112 @@
+---
+title: "Quiz: LLM Hosting"
+sidebar_position: 5
+description: "Test your knowledge of quantization, GGUF, Ollama, self-hosted vs API trade-offs, and memory requirements."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz: LLM Hosting
+
+<Quiz
+  questions={[
+    {
+      id: "q1",
+      text: "What is the primary advantage of INT4 (Q4) quantization over FP16 for local LLM inference?",
+      options: [
+        "A) Higher output quality",
+        "B) 4x smaller model size with minimal quality loss",
+        "C) Faster training speed",
+        "D) Better support for multi-GPU setups"
+      ],
+      correct: 1,
+      explanation: "INT4 quantization reduces each weight from 16 bits to 4 bits — a 4x reduction in memory footprint. The quality loss is typically less than 3% on standard benchmarks, making it the practical choice for local inference."
+    },
+    {
+      id: "q2",
+      text: "What does GGUF stand for, and which engine introduced it?",
+      options: [
+        "A) GPU-Generic Unified Format, introduced by vLLM",
+        "B) GPT-Generated Unified Format, introduced by llama.cpp",
+        "C) Generalized GPU Unified Framework, introduced by Hugging Face",
+        "D) Gradient-Guided Unified Format, introduced by Meta"
+      ],
+      correct: 1,
+      explanation: "GGUF (GPT-Generated Unified Format) was introduced by the llama.cpp project. It replaced the older GGML format and packs the model weights, tokenizer, and architecture config into a single portable file."
+    },
+    {
+      id: "q3",
+      text: "Ollama exposes its API on which port by default?",
+      options: [
+        "A) 8080",
+        "B) 3000",
+        "C) 11434",
+        "D) 5000"
+      ],
+      correct: 2,
+      explanation: "Ollama serves its API at http://localhost:11434 by default. It provides both a native `/api/generate` endpoint and an OpenAI-compatible `/v1/chat/completions` endpoint."
+    },
+    {
+      id: "q4",
+      text: "You need to run an AI feature where user health records are processed. Which deployment approach is most appropriate?",
+      options: [
+        "A) OpenAI GPT-4o API — best quality",
+        "B) Self-hosted Ollama with a local open-weight model",
+        "C) Anthropic Claude API — most privacy-focused cloud provider",
+        "D) A public HuggingFace Inference endpoint"
+      ],
+      correct: 1,
+      explanation: "Health records are regulated under laws like HIPAA. Data must not leave your infrastructure without a BAA (Business Associate Agreement). Self-hosting with Ollama ensures data never leaves your servers."
+    },
+    {
+      id: "q5",
+      text: "Approximately how much VRAM do you need to run a 13B parameter model at INT4 quantization?",
+      options: [
+        "A) 2 GB",
+        "B) 4 GB",
+        "C) 8 GB",
+        "D) 26 GB"
+      ],
+      correct: 2,
+      explanation: "13B × 4 bits / 8 = ~6.5 GB minimum. With KV cache and overhead, ~8 GB VRAM is required. FP16 would need 26 GB — INT4 makes 13B models accessible on consumer GPUs like an RTX 3080."
+    },
+    {
+      id: "q6",
+      text: "Which code snippet correctly configures the OpenAI Python SDK to use a local Ollama instance?",
+      options: [
+        "A) `OpenAI(api_key='ollama', host='localhost:11434')`",
+        "B) `OpenAI(base_url='http://localhost:11434/v1', api_key='ollama')`",
+        "C) `OpenAI(endpoint='ollama://localhost/v1', api_key='ollama')`",
+        "D) `OpenAI(server='http://localhost:11434', api_key='ollama')`"
+      ],
+      correct: 1,
+      explanation: "The OpenAI Python SDK accepts a `base_url` parameter to redirect requests to any OpenAI-compatible endpoint. Ollama's compatibility layer lives at `/v1`, so the full base URL is `http://localhost:11434/v1`."
+    },
+    {
+      id: "q7",
+      text: "What is vLLM's key advantage over Ollama for production GPU serving?",
+      options: [
+        "A) It supports more model architectures",
+        "B) It provides a GUI for model management",
+        "C) It uses continuous batching and PagedAttention for high throughput",
+        "D) It runs without any GPU hardware"
+      ],
+      correct: 2,
+      explanation: "vLLM's continuous batching processes requests as GPU capacity frees up rather than in fixed batches. PagedAttention manages KV cache memory like OS virtual memory. Together these allow vLLM to serve 10-100x more requests per second than naive inference servers."
+    },
+    {
+      id: "q8",
+      text: "What happens when a model does not fit entirely in VRAM with Ollama?",
+      options: [
+        "A) Ollama returns an error and refuses to run the model",
+        "B) Ollama automatically downloads a smaller quantized version",
+        "C) Ollama offloads remaining layers to CPU RAM, which works but is much slower",
+        "D) Ollama splits the model across multiple GPUs automatically"
+      ],
+      correct: 2,
+      explanation: "Ollama (via llama.cpp) supports partial GPU offload. Layers that fit in VRAM run on GPU; remaining layers run on CPU in system RAM. The model runs, but throughput drops significantly — CPU layers can be 10-50x slower than GPU layers."
+    }
+  ]}
+  chapterId="tier4-ch43"
+  passMark={75}
+/>

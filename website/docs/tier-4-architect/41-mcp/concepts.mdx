@@ -1,0 +1,264 @@
+---
+title: "Model Context Protocol Architecture"
+sidebar_position: 2
+description: "Understand the MCP client-server architecture, the three primitives (tools, resources, prompts), and JSON-RPC transport options."
+---
+
+# Concepts: Model Context Protocol Architecture
+
+## The Problem
+
+Before MCP, every AI application reinvented the same wheel:
+
+- Claude application A builds a custom way to call a database
+- Claude application B builds a different custom way to call the same database
+- A developer who wants to connect their tools to Claude Desktop has to write a one-off integration for every tool
+
+The result is a fragmented ecosystem where integrations cannot be shared, reused, or composed. The AI host and the data/tool providers are tightly coupled.
+
+**MCP solves this with a standard protocol.** If you build an MCP server for your database, any MCP client can use it — today and in the future.
+
+---
+
+## What MCP Is
+
+**Model Context Protocol (MCP)** is an open standard, led by Anthropic, that defines how AI applications (hosts) communicate with external data and tool providers (servers). It is:
+
+- **Open**: published at modelcontextprotocol.io, vendor-neutral, MIT licensed
+- **Bidirectional**: servers can push notifications to clients (unlike simple REST)
+- **Transport-agnostic**: works over stdio (local process) or HTTP+SSE (remote server)
+- **Built on JSON-RPC 2.0**: a well-understood, language-agnostic message format
+
+The analogy is USB-C: before USB-C, every device had its own proprietary connector. USB-C is the standard that lets any device connect to any charger. MCP is the USB-C for AI tool integration.
+
+---
+
+## The MCP Architecture
+
+```
+┌─────────────────────────────────────────────┐
+│                  MCP Host                   │
+│  (Claude Desktop, Cursor, your app, etc.)   │
+│                                             │
+│  ┌──────────────┐    ┌──────────────┐      │
+│  │  MCP Client  │    │  MCP Client  │      │
+│  │  (one per    │    │  (one per    │      │
+│  │   server)    │    │   server)    │      │
+│  └──────┬───────┘    └──────┬───────┘      │
+└─────────┼────────────────────┼──────────────┘
+          │ stdio / HTTP+SSE   │
+          │                    │
+   ┌──────▼───────┐   ┌────────▼─────┐
+   │  MCP Server  │   │  MCP Server  │
+   │ (filesystem) │   │ (database)   │
+   └──────────────┘   └──────────────┘
+```
+
+### Key Roles
+
+| Role | Description | Example |
+|------|-------------|---------|
+| **MCP Host** | The application that runs the LLM and manages MCP clients | Claude Desktop, Cursor, your FastAPI app |
+| **MCP Client** | A protocol client embedded in the host; maintains one connection per server | Claude Desktop creates one client per configured MCP server |
+| **MCP Server** | A lightweight process that exposes tools, resources, and prompts | A Python script that reads your file system |
+
+---
+
+## The Three MCP Primitives
+
+### 1. Tools — The Model Calls Functions
+
+Tools are functions the model can invoke. The model sends a tool call; the server executes it and returns the result. This is analogous to function calling (Chapter 19), but over the MCP protocol rather than embedded in the application.
+
+```json
+{
+  "name": "list_files",
+  "description": "List files in the project directory",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "path": {"type": "string", "description": "Directory path to list"}
+    }
+  }
+}
+```
+
+**Use tools for:** actions that have side effects or require computation — running a query, sending a message, creating a file.
+
+### 2. Resources — The Model Reads Data
+
+Resources are data sources the model can read. Unlike tools (which execute code), resources provide content: files, database rows, API responses. Each resource has a URI.
+
+```json
+{
+  "uri": "file:///project/README.md",
+  "name": "README",
+  "description": "Project readme file",
+  "mimeType": "text/markdown"
+}
+```
+
+**Use resources for:** read-only data the model needs for context — documentation, configuration files, database schemas.
+
+### 3. Prompts — Reusable Prompt Templates
+
+Prompts are server-defined prompt templates that can be parameterised and surfaced to users in the host UI. They let you package common workflows as reusable invocations.
+
+```json
+{
+  "name": "summarize_document",
+  "description": "Summarize a document in a given style",
+  "arguments": [
+    {"name": "document_uri", "required": true},
+    {"name": "style", "required": false}
+  ]
+}
+```
+
+**Use prompts for:** standardising how the model approaches common tasks — code review, document summarisation, bug triage.
+
+---
+
+## Transport Options
+
+| Transport | When to use | How it works |
+|-----------|------------|--------------|
+| **stdio** | Local MCP servers on the same machine | Host spawns the server as a subprocess; communicates via stdin/stdout |
+| **HTTP + SSE** | Remote MCP servers over a network | Server exposes HTTP endpoints; uses Server-Sent Events for server-to-client notifications |
+
+Most development and local integrations (e.g., Claude Desktop config) use stdio. Production deployments and shared team servers use HTTP+SSE.
+
+---
+
+## How It Works: End-to-End Flow
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant H as MCP Host (Claude Desktop)
+    participant C as MCP Client
+    participant S as MCP Server
+    participant E as External Data
+
+    U->>H: "List the Python files in my project"
+    H->>C: initialise connection
+    C->>S: initialize request
+    S-->>C: server capabilities
+    C->>S: tools/list
+    S-->>C: [{name: "list_files", ...}]
+    H->>H: Claude decides to call list_files
+    C->>S: tools/call {name: "list_files", arguments: {}}
+    S->>E: os.listdir(base_dir)
+    E-->>S: ["main.py", "utils.py", ...]
+    S-->>C: {content: ["main.py", "utils.py", ...], isError: false}
+    C-->>H: tool result
+    H-->>U: "Your project contains: main.py, utils.py, ..."
+```
+
+---
+
+## Client-Server Lifecycle
+
+```mermaid
+flowchart LR
+    A[Host starts] --> B[Spawn MCP server\nsubprocess]
+    B --> C[initialize handshake\nprotocol version + capabilities]
+    C --> D[Host lists tools\nresources, prompts]
+    D --> E[User sends message]
+    E --> F{Model decides\nto use a tool?}
+    F -- yes --> G[tools/call request]
+    G --> H[Server executes\nhandler]
+    H --> I[Return result\nto host]
+    I --> F
+    F -- no --> J[Return final\nresponse to user]
+```
+
+---
+
+## JSON-RPC 2.0 Message Format
+
+MCP uses JSON-RPC 2.0 as its wire format. You rarely write this by hand (the SDK handles it), but understanding it helps when debugging:
+
+```json
+// Request: host → server
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/call",
+  "params": {
+    "name": "list_files",
+    "arguments": {}
+  }
+}
+
+// Response: server → host
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "content": [{"type": "text", "text": "main.py\nutils.py"}],
+    "isError": false
+  }
+}
+```
+
+---
+
+## Key Terms
+
+| Term | Definition |
+|------|-----------|
+| **MCP host** | The application that runs the LLM and embeds MCP clients |
+| **MCP client** | A protocol client within the host that maintains one server connection |
+| **MCP server** | A process that exposes tools, resources, and/or prompts over MCP |
+| **Tool** | A callable function exposed by a server; the model requests execution |
+| **Resource** | A readable data source with a URI; provides context to the model |
+| **Prompt** | A reusable, parameterisable prompt template defined by the server |
+| **JSON-RPC 2.0** | The wire protocol underlying MCP messages |
+| **stdio transport** | Communication via subprocess stdin/stdout (local servers) |
+| **HTTP+SSE transport** | Communication via HTTP with Server-Sent Events (remote servers) |
+| **initialize handshake** | The first exchange where client and server negotiate protocol version and capabilities |
+
+---
+
+## MCP vs Function Calling
+
+A common confusion:
+
+| | Function Calling (Ch 19) | MCP |
+|--|--------------------------|-----|
+| **What it is** | LLM API feature | Network protocol |
+| **Scope** | Single application | Cross-application standard |
+| **Transport** | Part of the API request/response | stdio or HTTP+SSE |
+| **Reusability** | Tool definitions are per-app | MCP servers are reusable by any host |
+| **Discovery** | Tools defined in the API call | Client calls `tools/list` at runtime |
+
+MCP **uses** function calling under the hood — the host translates MCP tool definitions into the LLM's native tool call format. MCP is the transport and discovery layer; function calling is the LLM capability.
+
+---
+
+## Interview Angle
+
+**"What is MCP and why does it matter for AI agent development?"**
+
+MCP (Model Context Protocol) is Anthropic's open standard for connecting LLMs to external tools and data. Before MCP, every AI application built its own custom integration layer — there was no standard way to share tool implementations between apps.
+
+MCP matters because it decouples the AI host from the data providers. You write an MCP server for your database once, and any MCP-compatible host — Claude Desktop, Cursor, your own application — can use it without modification. This enables an ecosystem of reusable, composable AI integrations.
+
+For agent development specifically, MCP provides a clean boundary between "the agent reasoning loop" and "the tools the agent can use." You can develop, test, and deploy MCP servers independently of the agents that consume them.
+
+---
+
+## Common Mistakes
+
+| Mistake | What Goes Wrong | Fix |
+|---------|----------------|-----|
+| **Confusing MCP with function calling** | Treating MCP as just another tool call framework | MCP is a transport + discovery standard. Function calling is the LLM capability MCP exposes. |
+| **Not handling tool errors** | Unhandled exceptions crash the server process | Always catch exceptions in tool handlers; return `{"content": str(e), "isError": true}` |
+| **Putting business logic in the transport** | Embedding auth, caching, and data transformation in JSON-RPC handlers | Keep handlers thin; delegate to proper service classes |
+| **Leaking secrets in resource content** | A resource returns a config file that includes API keys | Filter sensitive fields before returning resource content |
+| **Not validating tool inputs** | Accepting arbitrary file paths enables directory traversal attacks | Validate and sanitise all inputs; use `os.path.realpath` to prevent path traversal |
+
+---
+
+Next: [Patterns — MCP Server Patterns](./patterns.mdx)

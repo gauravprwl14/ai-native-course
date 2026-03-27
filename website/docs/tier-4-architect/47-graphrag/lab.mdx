@@ -1,0 +1,174 @@
+---
+title: "Lab — Build a Mini GraphRAG Pipeline"
+sidebar_position: 4
+description: "Build a Python knowledge graph pipeline: entity extraction, triple extraction, graph construction, BFS traversal, and relationship queries — no external databases required."
+---
+
+# Lab — Build a Mini GraphRAG Pipeline
+
+## Overview
+
+In this lab you will build a minimal GraphRAG pipeline in pure Python using only the standard library and basic regex — no spaCy, no graph database, no LLM API calls required. You will implement entity extraction, relationship extraction, graph construction, BFS traversal, and graph querying.
+
+**Time:** ~35 minutes
+
+---
+
+## What You Will Build
+
+Five functions that together form a mini knowledge graph pipeline:
+
+1. **`extract_entities_simple`** — extract capitalized noun phrases as entities using regex
+2. **`extract_relationships_from_pairs`** — create `RELATED_TO` triples for entities co-occurring in a sentence
+3. **`build_graph`** — construct a `KnowledgeGraph` from entities and relationships
+4. **`find_connected`** — BFS traversal to find all entities reachable within N hops
+5. **`query_graph`** — answer natural language queries by finding mentioned entities and their connections
+
+---
+
+## Getting Started
+
+```bash
+cd curriculum/tier-4-architect/47-graphrag/lab
+# Edit starter/solution.py
+# Run tests: pytest tests/ -v
+```
+
+---
+
+## Step 1: Entity Extraction
+
+Implement `extract_entities_simple(text)` using the provided regex hint:
+
+```python
+# Pattern to match capitalized words/phrases
+pattern = r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b'
+```
+
+- Find all matches of this pattern in the text
+- Assign type `"ENTITY"` to all (simplified — no type classification)
+- Return a list of unique `Entity` objects (no duplicates by name)
+
+**Example:**
+```python
+text = "Apple is a technology company. Tim Cook leads Apple."
+entities = extract_entities_simple(text)
+# → [Entity(name="Apple", type="ENTITY"), Entity(name="Tim Cook", type="ENTITY")]
+```
+
+---
+
+## Step 2: Relationship Extraction
+
+Implement `extract_relationships_from_pairs(text, entities)`:
+
+- Split text by `'. '` to get sentences
+- For each sentence, check which entity names appear in it
+- If 2 or more entities appear, create a `RELATED_TO` relationship between the first two
+- Return all `Relationship` objects found
+
+**Example:**
+```python
+text = "Apple CEO Tim Cook announced the new product."
+entities = [Entity("Apple", "ENTITY"), Entity("Tim Cook", "ENTITY")]
+rels = extract_relationships_from_pairs(text, entities)
+# → [Relationship(subject="Apple", predicate="RELATED_TO", obj="Tim Cook")]
+```
+
+---
+
+## Step 3: Build the Graph
+
+Implement `build_graph(entities, relationships)`:
+
+- Create a `KnowledgeGraph` instance
+- Add all entities to `graph.entities` dict keyed by name
+- For each relationship, add `(predicate, obj)` to `graph.adjacency[subject]`
+- Also add the reverse edge: `(predicate + "_REVERSE", subject)` to `graph.adjacency[obj]`
+- Add each relationship to `graph.relationships`
+- Return the graph
+
+The reverse edge is important — it allows traversal in both directions.
+
+---
+
+## Step 4: BFS Traversal
+
+Implement `find_connected(graph, start_entity, max_hops=2)`:
+
+- Use BFS from `start_entity`
+- Track visited nodes to avoid cycles
+- Stop expanding at `max_hops` depth
+- Return a list of all reachable entity names (excluding `start_entity` itself)
+
+**Example:**
+```
+Graph: A → B → C → D
+find_connected(graph, "A", max_hops=2) → ["B", "C"]  (D is 3 hops away)
+```
+
+---
+
+## Step 5: Graph Query
+
+Implement `query_graph(graph, query)`:
+
+- Find all entity names from `graph.entities` that appear in the query (case-insensitive)
+- If none found, return `"No relevant entities found"`
+- For each found entity, call `find_connected(graph, entity, max_hops=2)`
+- Format the result as: `"Entities related to {entity}: {connected_list}"`
+- Combine results for all found entities
+
+---
+
+## Expected Behavior
+
+```python
+passages = [
+    "Apple is a technology company founded by Steve Jobs.",
+    "Tim Cook is the CEO of Apple and leads its operations.",
+    "Apple makes the iPhone and the MacBook.",
+    "Steve Jobs also founded Pixar Animation Studios.",
+]
+
+text = " ".join(passages)
+entities = extract_entities_simple(text)
+relationships = extract_relationships_from_pairs(text, entities)
+graph = build_graph(entities, relationships)
+
+# Traversal
+connected = find_connected(graph, "Apple", max_hops=2)
+print(connected)  # ['Steve Jobs', 'Tim Cook', 'iPhone', ...]
+
+# Query
+result = query_graph(graph, "What is related to Apple?")
+print(result)  # "Entities related to Apple: Steve Jobs, Tim Cook, ..."
+```
+
+---
+
+## Comparing with Flat Keyword Search
+
+The lab also includes a comparison function. Notice how flat keyword search can only find exact matches, while graph traversal can surface entities that are semantically connected even if they don't appear in the same sentence as the query entity.
+
+---
+
+## Running the Tests
+
+```bash
+cd curriculum/tier-4-architect/47-graphrag/lab
+pytest tests/ -v
+```
+
+---
+
+## Extension Challenges
+
+1. Add entity type classification (PERSON, ORG, PRODUCT) to `extract_entities_simple` using a small list of known suffixes and patterns
+2. Implement Depth-First Search as an alternative to BFS in `find_connected`
+3. Add a `get_all_paths(graph, start, end)` function that returns all paths between two entities
+4. Implement `find_shortest_path(graph, start, end)` using BFS with path tracking
+
+---
+
+➡️ Next: [Quiz — GraphRAG](./quiz.mdx)

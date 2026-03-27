@@ -1,0 +1,43 @@
+---
+title: "Chapter 16: Chunking Strategies"
+sidebar_position: 1
+description: "How you split documents determines RAG quality. Learn fixed-size, sentence, and semantic chunking — and when to use each."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 16 — Chunking Strategies
+
+## What You'll Learn
+
+- Why chunking is a critical step in RAG pipelines
+- Fixed-size, sentence-based, and semantic chunking strategies
+- How chunk size affects retrieval precision vs. context richness
+- What overlap is and why it prevents context loss at boundaries
+- How recursive character splitting works (LangChain's default)
+
+## Prerequisites
+
+- **Chapter 14 — RAG Core**: you should understand the 3-step RAG pipeline (embed, retrieve, generate)
+- Python 3.10+, `tiktoken` installed
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 20 min |
+| Patterns | 15 min |
+| Lab | 30 min |
+| Quiz | 10 min |
+| **Total** | **~75 min** |
+
+## How This Connects
+
+Chunking is the step that comes before embedding in every RAG pipeline. A 200-page PDF must be split into retrievable pieces before it can be embedded and stored. The quality of your chunking strategy directly determines how well your RAG system performs — even with perfect embeddings and a great LLM, wrong chunk sizes will produce poor results. Chunking feeds directly into vector databases (Chapter 15), and is a prerequisite for understanding hybrid search (Chapter 17).
+
+<ConceptMap
+  current="chunking"
+  related={["rag", "vector-databases", "hybrid-search", "embeddings"]}
+/>
+
+➡️ Next: [Concepts — Chunking Strategies](./concepts.mdx)

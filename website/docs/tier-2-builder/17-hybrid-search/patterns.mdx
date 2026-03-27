@@ -1,0 +1,203 @@
+---
+title: "Patterns: Hybrid Search Implementation"
+sidebar_position: 3
+description: "Practical patterns for building a hybrid search pipeline — BM25 keyword search, RRF fusion, and a complete hybrid pipeline."
+---
+
+# Patterns: Hybrid Search Implementation
+
+## Pattern 1: BM25 Search with rank_bm25
+
+`rank_bm25` is a lightweight Python library that implements BM25Okapi — the Okapi variant with the best default parameters. Tokenize documents and queries by lowercasing and splitting on whitespace.
+
+```python
+from rank_bm25 import BM25Okapi
+
+def bm25_search(query: str, documents: list[str], top_k: int = 5) -> list[tuple[int, float]]:
+    """
+    BM25 keyword search over a list of documents.
+    Returns a list of (doc_index, score) tuples sorted by score descending.
+    """
+    # Tokenize: lowercase + split on whitespace
+    tokenized_docs = [doc.lower().split() for doc in documents]
+    bm25 = BM25Okapi(tokenized_docs)
+
+    # Score all documents for this query
+    tokenized_query = query.lower().split()
+    scores = bm25.get_scores(tokenized_query)
+
+    # Sort by score descending, return top_k
+    ranked = sorted(enumerate(scores), key=lambda x: x[1], reverse=True)
+    return ranked[:top_k]
+
+# Usage
+documents = [
+    "The Toyota Camry XSE V6 has 301 horsepower.",
+    "Electric vehicles are growing in market share.",
+    "The 2024 Camry features a new infotainment system.",
+    "Sedans remain popular in the US market.",
+]
+results = bm25_search("2024 Toyota Camry", documents, top_k=2)
+print(results)
+# [(0, 2.31), (2, 1.84)] — doc 0 and doc 2 are the best keyword matches
+```
+
+**Key details:**
+- Always lowercase before tokenizing. BM25 is case-sensitive — "Toyota" and "toyota" are different tokens without lowercasing.
+- `bm25.get_scores()` returns a score for every document, including those with zero matches. Zero-score documents are valid — they just didn't match any query terms.
+- Rebuild the `BM25Okapi` object for each search if your document set changes. In production, you'd persist the index.
+
+---
+
+## Pattern 2: Reciprocal Rank Fusion
+
+RRF takes multiple ranked lists of document indices and combines them using the formula `score = Σ 1/(k + rank)`.
+
+```python
+def reciprocal_rank_fusion(
+    rankings: list[list[int]],
+    k: int = 60
+) -> list[tuple[int, float]]:
+    """
+    Fuse multiple ranked lists using Reciprocal Rank Fusion.
+
+    rankings: list of lists — each inner list is doc indices ranked best-to-worst
+    k: constant (default 60) — dampens rank-1 advantage
+    Returns: list of (doc_index, rrf_score) sorted by score descending
+    """
+    scores: dict[int, float] = {}
+    for ranking in rankings:
+        for rank, doc_idx in enumerate(ranking):
+            # rank is 0-indexed here, so we add 1 to make it 1-indexed
+            scores[doc_idx] = scores.get(doc_idx, 0.0) + 1.0 / (k + rank + 1)
+
+    return sorted(scores.items(), key=lambda x: x[1], reverse=True)
+
+# Usage
+bm25_ranking  = [2, 0, 1, 3]  # doc 2 is best BM25 match
+vector_ranking = [0, 2, 3, 1]  # doc 0 is best semantic match
+
+fused = reciprocal_rank_fusion([bm25_ranking, vector_ranking])
+print(fused)
+# [(2, 0.0324...), (0, 0.0319...), ...]
+# Doc 2 edges ahead: rank 1 in BM25 + rank 2 in vector = highest combined score
+```
+
+**Why k=60?** The constant `k` prevents rank-1 from being infinitely more valuable than rank-2. With `k=60`, the difference between rank 1 and rank 2 is `1/61 - 1/62 ≈ 0.00026` — small but meaningful. A document that's rank-5 in one list but rank-1 in another can still end up at the top.
+
+---
+
+## Pattern 3: Full Hybrid Pipeline
+
+Combine BM25 and vector search with RRF to build a complete hybrid retrieval system.
+
+```python
+import math
+from rank_bm25 import BM25Okapi
+
+
+def cosine_similarity(v1: list[float], v2: list[float]) -> float:
+    """Cosine similarity between two vectors."""
+    dot = sum(a * b for a, b in zip(v1, v2))
+    m1 = math.sqrt(sum(a**2 for a in v1))
+    m2 = math.sqrt(sum(b**2 for b in v2))
+    return dot / (m1 * m2) if m1 and m2 else 0.0
+
+
+def hybrid_search(
+    query: str,
+    documents: list[str],
+    embeddings: list[list[float]],
+    query_embedding: list[float],
+    top_k: int = 5,
+) -> list[tuple[int, float]]:
+    """
+    Hybrid search: combine BM25 keyword search + vector cosine similarity via RRF.
+    Returns top_k (doc_index, rrf_score) tuples sorted by score descending.
+    """
+    # Step 1: BM25 — get all documents ranked by keyword relevance
+    bm25_results = bm25_search(query, documents, top_k=len(documents))
+    bm25_ranking = [idx for idx, _ in bm25_results]
+
+    # Step 2: Vector — rank all documents by cosine similarity
+    sim_scores = [(i, cosine_similarity(query_embedding, emb))
+                  for i, emb in enumerate(embeddings)]
+    sim_scores.sort(key=lambda x: x[1], reverse=True)
+    vector_ranking = [idx for idx, _ in sim_scores]
+
+    # Step 3: RRF fusion
+    fused = reciprocal_rank_fusion([bm25_ranking, vector_ranking])
+    return fused[:top_k]
+
+
+# --- Example usage (with toy embeddings) ---
+documents = [
+    "The Toyota Camry XSE V6 towing capacity is 1,000 lbs.",
+    "Electric cars are the future of transportation.",
+    "The 2024 Camry has an updated infotainment system.",
+    "Hybrid vehicles combine gasoline and electric power.",
+]
+
+# In production, these come from an embedding model (e.g., OpenAI, Cohere)
+# Here we use toy 3-dim embeddings for illustration
+doc_embeddings = [
+    [0.9, 0.1, 0.0],  # car-focused
+    [0.1, 0.9, 0.1],  # EV-focused
+    [0.8, 0.2, 0.1],  # car-focused
+    [0.5, 0.5, 0.2],  # mixed
+]
+query_emb = [0.85, 0.15, 0.0]  # query is car-focused
+
+results = hybrid_search(
+    query="2024 Toyota Camry towing",
+    documents=documents,
+    embeddings=doc_embeddings,
+    query_embedding=query_emb,
+    top_k=3,
+)
+print(results)
+# [(0, ...), (2, ...), (3, ...)] — docs 0 and 2 rank highest (keyword + semantic match)
+```
+
+---
+
+## Anti-Patterns
+
+<div className="antipattern">
+
+**Using pure semantic for exact code or product lookups**
+
+```python
+# Bad — "t3.micro" might not have a strong embedding; semantic search misses it
+results = vector_search("AWS EC2 t3.micro pricing", embeddings, query_emb)
+
+# Good — BM25 finds "t3.micro" as an exact token match
+results = hybrid_search("AWS EC2 t3.micro pricing", documents, embeddings, query_emb)
+```
+
+**Using fixed weights for all query types**
+
+```python
+# Risky — a simple weighted average assumes BM25 and vector contribute equally
+# for every query. But "explain quantum computing" needs more semantic weight
+# while "CVE-2024-1234" needs more BM25 weight.
+
+# RRF is naturally weight-balanced — it uses ranks, not raw scores,
+# which normalises the contribution of each retriever.
+# Prefer RRF over weighted score averaging unless you have training data
+# to tune the weights.
+```
+
+**Passing raw BM25 scores to RRF instead of ranked indices**
+
+```python
+# Bad — RRF expects ranked indices, not float scores
+rrf = reciprocal_rank_fusion([bm25_scores_as_floats, vector_scores_as_floats])
+
+# Good — extract indices in sorted order first
+bm25_ranking = [idx for idx, score in sorted_bm25_results]
+vector_ranking = [idx for idx, score in sorted_vector_results]
+rrf = reciprocal_rank_fusion([bm25_ranking, vector_ranking])
+```
+
+</div>

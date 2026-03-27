@@ -1,0 +1,50 @@
+---
+title: "Lab: Compare Chunking Strategies"
+sidebar_position: 4
+description: "Implement fixed-size chunking, sentence-aware chunking, and metadata-enriched chunking for a RAG pipeline."
+---
+
+# Lab 16 — Compare Chunking Strategies
+
+## What You're Building
+
+Three chunking functions used in the preprocessing stage of a RAG pipeline:
+
+1. **`fixed_size_chunk(text, chunk_size, overlap)`** — splits text into fixed-size character chunks with configurable overlap
+2. **`sentence_chunk(text, max_tokens)`** — splits text at sentence boundaries, respecting a maximum token count per chunk
+3. **`chunk_with_metadata(text, source, chunk_size, overlap)`** — chunks text and attaches source metadata to each chunk
+
+## Files
+
+| File | Purpose |
+|------|---------|
+| `starter/solution.py` | Your starting point — fill in the TODOs |
+| `solution/solution.py` | Reference solution |
+| `tests/test_solution.py` | Verify your implementation |
+| `problem.md` | Detailed problem statement |
+
+## Getting Started
+
+```bash
+cd curriculum/tier-2-builder/16-chunking/lab/starter
+python solution.py
+```
+
+## Acceptance Criteria
+
+- [ ] `fixed_size_chunk(text, chunk_size, overlap)` returns multiple chunks for a long text
+- [ ] Each chunk is at most `chunk_size` characters long
+- [ ] Adjacent chunks share `overlap` characters (first word of chunk N+1 appears in chunk N)
+- [ ] `sentence_chunk(text, max_tokens)` splits only at sentence boundaries
+- [ ] Each sentence chunk contains at most `max_tokens` approximate tokens
+- [ ] `chunk_with_metadata(text, source, chunk_size, overlap)` returns a list of dicts
+- [ ] Each dict has keys: `text`, `source`, `chunk_index`, `token_count`
+- [ ] `chunk_index` values are sequential starting from 0
+- [ ] All tests pass: `pytest tests/ -v`
+
+## Running Tests
+
+```bash
+cd curriculum/tier-2-builder/16-chunking/lab
+pytest tests/ -v
+```

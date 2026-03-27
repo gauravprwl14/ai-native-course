@@ -1,0 +1,83 @@
+---
+title: "Quiz: Multimodal Models"
+sidebar_position: 5
+description: "Test your understanding of vision-language models, image tokens, and multimodal API patterns."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz 08 — Multimodal Models
+
+Test your understanding before moving to the next chapter.
+
+<Quiz
+  chapterId="tier1-ch08"
+  passMark={70}
+  questions={[
+    {
+      id: "q1",
+      text: "In vision-language models, images are processed as:",
+      points: 1,
+      options: [
+        "A) Raw pixel arrays passed directly to the transformer",
+        "B) Compressed JPEGs stored in the model's context",
+        "C) Sequences of patch embeddings converted to image tokens",
+        "D) A completely separate model that runs in parallel"
+      ],
+      correct: 2,
+      explanation: "A vision encoder (like CLIP or ViT) splits the image into patches, converts each patch into a dense embedding, and projects those embeddings into the same space as text token embeddings. The resulting image tokens are then processed alongside text tokens by the transformer — they're all just tokens from the model's perspective."
+    },
+    {
+      id: "q2",
+      text: "You need to extract line-item data from scanned invoice images. What is the best approach?",
+      points: 2,
+      options: [
+        "A) Use a traditional OCR library with regex to parse the extracted text",
+        "B) Send each invoice image to a vision model and ask it to return JSON",
+        "C) Feed a text description of the invoice layout to a text-only LLM",
+        "D) Convert the image to HTML using a document parser first"
+      ],
+      correct: 1,
+      explanation: "Sending the invoice image directly to a vision model and requesting structured JSON is the most robust approach. Traditional OCR + regex pipelines break when invoice layouts vary across vendors. Vision models understand spatial layout, handle varied formats, and can return validated JSON in a single API call. Text-only LLMs can't see the image, and HTML conversion adds unnecessary complexity."
+    },
+    {
+      id: "q3",
+      text: "Why do larger images cost more API tokens?",
+      points: 2,
+      options: [
+        "A) They require more network bandwidth and the API charges per byte transferred",
+        "B) The vision encoder splits images into patches — more pixels means more patches, which means more tokens",
+        "C) The API charges per megabyte of image data regardless of content",
+        "D) Larger images use more GPU memory during inference and that cost is passed through"
+      ],
+      correct: 1,
+      explanation: "The vision encoder converts image patches into tokens. A larger image has more patches, which produces more image tokens. Since you pay per token (input + output), more image tokens directly increases cost. A 1024x1024 image produces roughly 1,700 tokens; a 512x512 image produces roughly 300-600 tokens. Resizing before sending is the most effective way to control image costs."
+    },
+    {
+      id: "q4",
+      text: "To reduce token costs when sending images to a vision API, you should:",
+      points: 1,
+      options: [
+        "A) Convert colour images to black and white before sending",
+        "B) Resize the image to the maximum resolution needed for your task before sending",
+        "C) Always send images as PNG instead of JPEG",
+        "D) Use a lower temperature setting for vision requests"
+      ],
+      correct: 1,
+      explanation: "Resizing to the minimum resolution that still preserves the detail you need is the most effective cost-reduction technique. A 4K image for text extraction is wasteful — 1024px preserves all readable text at a fraction of the token cost. Converting to black-and-white, choosing PNG vs JPEG, and temperature settings do not reduce token count."
+    },
+    {
+      id: "q5",
+      text: "Which of these tasks would a vision model handle poorly?",
+      points: 2,
+      options: [
+        "A) Describing the overall scene and objects in a photograph",
+        "B) Reading and transcribing printed text in an image",
+        "C) Identifying the product shown in a product photo",
+        "D) Reporting the exact pixel coordinate of a specific button, e.g., (127, 345)"
+      ],
+      correct: 3,
+      explanation: "Vision models reason about images at a semantic level — they understand content, spatial relationships, and context. They cannot reliably report precise pixel coordinates. Asking 'where exactly in pixels is the Submit button?' will produce unreliable results. For precise coordinate detection, use dedicated computer vision tools or the computer-use capability. The other tasks (scene description, OCR, object identification) are well within VLM capabilities."
+    }
+  ]}
+/>

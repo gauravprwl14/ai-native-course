@@ -1,0 +1,45 @@
+---
+title: "Chapter 19: Tool Use / Function Calling"
+sidebar_position: 1
+description: "Give LLMs access to external tools. Build a weather + calculator agent using Anthropic's tool use API."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 19 — Tool Use / Function Calling
+
+## What You'll Learn
+
+- How to define tools with JSON schemas and pass them to the Anthropic API
+- The complete tool use flow: user message → model requests tool → you execute → model gets result → final answer
+- How to execute tools and return results as `tool_result` content blocks
+- How to build a multi-turn tool loop that handles sequential tool calls
+- Error handling: returning errors in `tool_result` so the model can recover gracefully
+
+## Prerequisites
+
+- Chapter 11 (System Prompts) — understanding multi-turn conversations and message structure
+- Chapter 12 (Structured Output) — familiarity with structured responses and JSON schemas from the LLM
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 30 min |
+| Patterns | 20 min |
+| Lab | 40 min |
+| Quiz | 10 min |
+| **Total** | **~100 min** |
+
+## How This Connects
+
+Previous chapters have taught you to prompt LLMs and extract structured output. But LLMs are fundamentally limited: they don't know today's weather, can't calculate compound interest precisely, and can't look up current stock prices. Tool use breaks through these limitations.
+
+By defining tools (functions your code can execute) and telling the model about them, you give the LLM the ability to orchestrate real-world actions. This is the foundation of AI agents — systems that perceive, reason, and act. Chapter 19 builds the core skill. Later chapters on agents and MCP build directly on top of it.
+
+<ConceptMap
+  current="tool-use"
+  related={["structured-output", "agentic-loop", "agents", "mcp", "function-calling"]}
+/>
+
+➡️ Next: [Concepts — Tool Use / Function Calling](./concepts.mdx)

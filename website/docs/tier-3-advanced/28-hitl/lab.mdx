@@ -1,0 +1,72 @@
+---
+title: "Lab: Agent That Asks Before Acting"
+sidebar_position: 4
+description: "Build a HITL agent that evaluates escalation criteria and requests human approval before executing high-risk actions."
+---
+
+# Lab: Agent That Asks Before Acting
+
+## Goal
+
+Implement a `HITLAgent` class that wraps every action with an escalation check. High-risk or low-confidence actions are paused and routed to a human for approval before execution.
+
+## What You'll Build
+
+| Function / Class | Description |
+|-----------------|-------------|
+| `should_escalate(action, confidence)` | Returns `True` if the action is in the high-risk set or confidence is below threshold |
+| `request_approval(action, context, get_input)` | Prints the action and context, prompts the user, returns `True` if approved |
+| `HITLAgent.execute_action(action, context, confidence)` | Orchestrates escalation check → approval → execute or skip |
+
+## Starter File
+
+Location: `curriculum/tier-3-advanced/28-hitl/lab/starter/solution.py`
+
+```python
+REQUIRES_APPROVAL = {"delete_file", "send_email", "make_payment", "modify_database"}
+CONFIDENCE_THRESHOLD = 0.7
+
+def should_escalate(action: str, confidence: float) -> bool:
+    # TODO: return True if action in REQUIRES_APPROVAL or confidence < CONFIDENCE_THRESHOLD
+    raise NotImplementedError()
+
+def request_approval(action: str, context: str, get_input=input) -> bool:
+    # TODO: print action + context, call get_input(), return "y" in response
+    raise NotImplementedError()
+
+class HITLAgent:
+    def execute_action(self, action: str, context: str, confidence: float = 1.0) -> dict:
+        # TODO: if should_escalate → request_approval → execute or skip
+        # Return {"action": action, "approved": bool, "executed": bool}
+        raise NotImplementedError()
+```
+
+## Acceptance Criteria
+
+- `should_escalate("delete_file", 0.95)` returns `True` (in allowlist)
+- `should_escalate("read_file", 0.5)` returns `True` (low confidence)
+- `should_escalate("read_file", 0.9)` returns `False` (safe + confident)
+- `request_approval(...)` returns `True` when user types "y" or "yes"
+- `request_approval(...)` returns `False` when user types "n" or "no"
+- `execute_action("send_email", "Send promo email", 0.9)` escalates and respects human decision
+- `execute_action("read_file", "Read config", 0.95)` executes without escalation
+- `action_log` records every action attempted
+- All 8 tests pass: `pytest tests/ -v`
+
+## How to Run
+
+```bash
+cd curriculum/tier-3-advanced/28-hitl/lab
+pytest tests/ -v
+```
+
+## Hints
+
+1. `should_escalate` is two conditions ORed together: `action in REQUIRES_APPROVAL or confidence < CONFIDENCE_THRESHOLD`
+2. `request_approval` uses `get_input` (a parameter, not the built-in `input`) so tests can mock it without patching builtins
+3. In `execute_action`: if `should_escalate` is False, set `approved=True` and `executed=True` without calling `request_approval`
+4. Always append to `self.action_log` regardless of whether the action was approved or rejected
+
+---
+
+Next: [Quiz — Human-in-the-Loop](./quiz.mdx)

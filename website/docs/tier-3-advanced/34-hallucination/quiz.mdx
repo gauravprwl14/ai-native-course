@@ -1,0 +1,81 @@
+---
+title: "Quiz: Hallucination Detection"
+sidebar_position: 5
+description: "Test your understanding of faithfulness, NLI, self-consistency, and hallucination detection techniques."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz 34 — Hallucination Detection
+
+<Quiz
+  chapterId="tier3-ch34"
+  passMark={70}
+  questions={[
+    {
+      id: "q1",
+      text: "A RAG answer scores 0.2 on a faithfulness checker. What does this most likely indicate?",
+      points: 1,
+      options: [
+        "A) The retrieved context was too short to answer the question",
+        "B) The answer directly contradicts or invents information not present in the retrieved context",
+        "C) The LLM ran out of tokens while generating the answer",
+        "D) The faithfulness checker itself is misconfigured"
+      ],
+      correct: 1,
+      explanation: "A faithfulness score of 0.2 means the answer is poorly supported by the context — it likely contradicts or fabricates information. A score close to 1.0 means every claim is supported by the retrieved documents."
+    },
+    {
+      id: "q2",
+      text: "What is the key difference between 'hallucination' and 'low faithfulness' in the context of RAG systems?",
+      points: 2,
+      options: [
+        "A) They are the same thing — both mean the answer is wrong",
+        "B) Hallucination refers to any incorrect answer; low faithfulness specifically means the answer contradicts the provided context",
+        "C) Low faithfulness means the retrieval step failed; hallucination means the generation step failed",
+        "D) Hallucination only occurs with open-source models, not with commercial APIs"
+      ],
+      correct: 1,
+      explanation: "Hallucination is a general term for LLM-generated content that is factually incorrect or fabricated. Faithfulness is a RAG-specific metric: it measures whether the answer is supported by the *retrieved context*, regardless of whether the context itself is correct. An answer can be faithful but still wrong if the retrieved context was wrong."
+    },
+    {
+      id: "q3",
+      text: "You are building a production RAG pipeline. At what point should the faithfulness check run?",
+      points: 1,
+      options: [
+        "A) Asynchronously after returning the answer to the user, for logging purposes only",
+        "B) Before retrieval, to pre-filter the question",
+        "C) After retrieval and generation, but before returning the answer to the user",
+        "D) Only during offline evaluation, not in the live pipeline"
+      ],
+      correct: 2,
+      explanation: "The faithfulness check must run after generation (because you need the answer to check) but before returning to the user (so you can gate, flag, or retry before the user sees a hallucinated answer). Running it only asynchronously means users already saw the bad answer."
+    },
+    {
+      id: "q4",
+      text: "What does the self-consistency technique measure, and what is its main trade-off?",
+      points: 2,
+      options: [
+        "A) It measures whether the answer matches the training data; the trade-off is that it requires fine-tuning",
+        "B) It measures agreement across multiple independent generations; the trade-off is N times the API cost",
+        "C) It measures token-level confidence scores from the model; the trade-off is that not all APIs expose these",
+        "D) It measures whether the context supports the answer using NLI; the trade-off is model size"
+      ],
+      correct: 1,
+      explanation: "Self-consistency generates the same answer N times at temperature > 0 and checks whether the answers agree. High variance signals uncertainty and potential hallucination. The main trade-off is cost: you multiply your API calls by N. Use it for high-stakes queries, not every request."
+    },
+    {
+      id: "q5",
+      text: "Which NLI label indicates that the context directly supports the claim in the answer?",
+      points: 1,
+      options: [
+        "A) Neutral",
+        "B) Contradiction",
+        "C) Entailment",
+        "D) Grounded"
+      ],
+      correct: 2,
+      explanation: "In NLI (Natural Language Inference), 'Entailment' means the premise (context) logically supports the hypothesis (the claim being checked). 'Contradiction' means the premise conflicts with the hypothesis. 'Neutral' means the premise neither supports nor contradicts — the claim is simply not mentioned."
+    }
+  ]}
+/>

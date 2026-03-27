@@ -1,0 +1,182 @@
+---
+title: "Patterns: Tracing & Observability"
+sidebar_position: 3
+description: "Span decorator, nested spans for multi-step pipelines, cost tracking, and anti-patterns."
+---
+
+# Patterns: Tracing & Observability
+
+## Pattern 1: Simple Span Decorator
+
+Wrap any function with timing and error capture. The most lightweight way to add observability.
+
+```python
+import time
+import functools
+from dataclasses import dataclass
+
+@dataclass
+class Span:
+    name: str
+    latency_ms: float = 0.0
+    error: str = None
+
+def trace_span(name: str):
+    """Decorator that records latency and errors for any function."""
+    def decorator(fn):
+        @functools.wraps(fn)
+        def wrapper(*args, **kwargs):
+            start = time.time()
+            error = None
+            try:
+                result = fn(*args, **kwargs)
+                return result
+            except Exception as e:
+                error = str(e)
+                raise
+            finally:
+                latency_ms = (time.time() - start) * 1000
+                span = Span(name=name, latency_ms=latency_ms, error=error)
+                print(f"[SPAN] {span.name}: {span.latency_ms:.1f}ms"
+                      + (f" ERROR={span.error}" if span.error else ""))
+        return wrapper
+    return decorator
+
+# Usage
+@trace_span("embed_query")
+def embed_query(text: str) -> list[float]:
+    # ... actual embedding logic ...
+    return [0.1, 0.2, 0.3]
+```
+
+**When to use**: Any function you want to time without changing its signature. Works best for standalone steps in a pipeline.
+
+---
+
+## Pattern 2: Nested Spans for Multi-Step Pipeline
+
+Build a `Trace` that accumulates `Span` objects from multiple pipeline steps. Gives you a request-level summary.
+
+```python
+from dataclasses import dataclass, field
+import time
+
+@dataclass
+class Span:
+    name: str
+    model: str = ""
+    input_tokens: int = 0
+    output_tokens: int = 0
+    latency_ms: float = 0.0
+    error: str = None
+
+@dataclass
+class Trace:
+    spans: list[Span] = field(default_factory=list)
+
+    def add_span(self, span: Span):
+        self.spans.append(span)
+
+    @property
+    def total_tokens(self):
+        return sum(s.input_tokens + s.output_tokens for s in self.spans)
+
+    @property
+    def total_latency_ms(self):
+        return sum(s.latency_ms for s in self.spans)
+
+    def summary(self) -> dict:
+        return {
+            "spans": len(self.spans),
+            "total_tokens": self.total_tokens,
+            "total_latency_ms": self.total_latency_ms,
+            "errors": [s.error for s in self.spans if s.error],
+        }
+
+
+def create_span(name: str, fn, *args, **kwargs) -> tuple[Span, any]:
+    """Execute fn(*args, **kwargs), record latency and errors. Returns (span, result)."""
+    start = time.time()
+    error = None
+    result = None
+    try:
+        result = fn(*args, **kwargs)
+    except Exception as e:
+        error = str(e)
+    finally:
+        latency_ms = (time.time() - start) * 1000
+    span = Span(name=name, latency_ms=latency_ms, error=error)
+    return span, result
+
+
+# Multi-step pipeline usage
+def rag_pipeline(question: str, client) -> tuple[str, Trace]:
+    trace = Trace()
+
+    span, chunks = create_span("retrieve", retrieve_chunks, question)
+    trace.add_span(span)
+
+    span, answer = create_span("generate", generate_answer, client, question, chunks)
+    trace.add_span(span)
+
+    return answer, trace
+```
+
+**When to use**: Any multi-step pipeline where you need request-level aggregation: total cost, total latency, which step failed.
+
+---
+
+## Pattern 3: Cost Tracking
+
+Calculate the USD cost of a trace from token counts and per-model pricing.
+
+```python
+COST_PER_1K_TOKENS = {
+    "claude-3-haiku-20240307": {"input": 0.00025, "output": 0.00125},
+    "claude-3-5-sonnet-20241022": {"input": 0.003, "output": 0.015},
+    "claude-3-opus-20240229": {"input": 0.015, "output": 0.075},
+}
+
+def calculate_cost_from_trace(trace: Trace) -> float:
+    """Calculate total USD cost from all spans in a trace."""
+    total_cost = 0.0
+    for span in trace.spans:
+        pricing = COST_PER_1K_TOKENS.get(span.model)
+        if pricing is None:
+            continue
+        input_cost = span.input_tokens * pricing["input"] / 1000
+        output_cost = span.output_tokens * pricing["output"] / 1000
+        total_cost += input_cost + output_cost
+    return total_cost
+
+# Usage
+trace = Trace()
+trace.add_span(Span(
+    name="generate",
+    model="claude-3-haiku-20240307",
+    input_tokens=1200,
+    output_tokens=350,
+    latency_ms=840.0
+))
+
+cost = calculate_cost_from_trace(trace)
+print(f"Request cost: ${cost:.6f}")  # $0.000738
+```
+
+**When to use**: Any production system where you need to track per-request or per-user costs. Build a budget alerting system on top of this.
+
+---
+
+## Anti-Patterns
+
+| Anti-Pattern | Why It's a Problem | Better Approach |
+|---|---|---|
+| **Only logging errors** | You cannot see slow or expensive requests that didn't error | Log every call: latency, tokens, model, success/failure |
+| **No trace grouping** | Log lines exist but can't be correlated to a single user request | Assign a UUID trace ID to each request and attach it to all spans |
+| **Tracing in staging only** | Production latency and cost can differ significantly from staging | Instrument production from day one with sampling if cost is a concern |
+| **Logging raw prompts without redaction** | PII and sensitive data end up in your observability platform | Redact PII before logging; store prompt hashes instead of full content |
+| **Ignoring token counts** | No visibility into runaway token usage before the billing bill arrives | Always read `usage.input_tokens` and `usage.output_tokens` from the API response |
+
+---
+
+Next: [Lab — Build a Tracer](./lab.mdx)

@@ -1,0 +1,81 @@
+---
+title: "Quiz: RAG — Core Concept"
+sidebar_position: 5
+description: "Test your understanding of Retrieval-Augmented Generation, the RAG pipeline, chunk sizing, fallback handling, and the trade-offs between RAG and fine-tuning."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz 14 — RAG: Core Concept
+
+<Quiz
+  chapterId="tier2-ch14"
+  passMark={70}
+  questions={[
+    {
+      id: "q1",
+      text: "RAG stands for:",
+      points: 1,
+      options: [
+        "A) Rapid Answer Generation",
+        "B) Retrieval-Augmented Generation",
+        "C) Recursive Agent Graph",
+        "D) Real-time API Gateway"
+      ],
+      correct: 1,
+      explanation: "RAG stands for Retrieval-Augmented Generation. It is a pattern that retrieves relevant document chunks and injects them into the LLM prompt before generating an answer — augmenting the generation step with retrieved knowledge."
+    },
+    {
+      id: "q2",
+      text: "You have 50,000 internal company docs. When a user asks a question, what happens FIRST in the RAG query phase?",
+      points: 2,
+      options: [
+        "A) The LLM is called with all 50,000 documents",
+        "B) The question is embedded and compared to stored chunk embeddings",
+        "C) All documents are sent to the LLM in a single large prompt",
+        "D) The documents are fine-tuned into the model on demand"
+      ],
+      correct: 1,
+      explanation: "In the RAG query phase, the first step is to embed the user's question using the same embedding model used during indexing. The resulting query vector is then compared against all stored chunk vectors using cosine similarity. The top-k most similar chunks are retrieved — then (and only then) is the LLM called with those chunks as context."
+    },
+    {
+      id: "q3",
+      text: "Why does chunk size matter in RAG?",
+      points: 2,
+      options: [
+        "A) Larger chunks are always faster to retrieve",
+        "B) Too large = diluted retrieval precision; too small = missing context. Chunk size is a precision/recall tradeoff",
+        "C) Chunks must be exactly 512 tokens for the embedding model to work",
+        "D) Chunk size only affects API costs, not answer quality"
+      ],
+      correct: 1,
+      explanation: "Chunk size is one of the most important RAG hyperparameters. Chunks that are too large average out similarity scores across many topics, reducing retrieval precision — you retrieve a chunk that mentions the answer but also many irrelevant things. Chunks that are too small lose context — a single sentence rarely contains enough information for the LLM to answer well. The sweet spot is typically 200–400 words with some overlap."
+    },
+    {
+      id: "q4",
+      text: "RAG retrieves 5 chunks but none are relevant to the question (all similarity scores are below 0.50). What is the best response?",
+      points: 2,
+      options: [
+        "A) Return the 5 chunks anyway and let the LLM decide",
+        "B) Detect the low similarity scores and respond: 'I don't have information about that topic in the provided documents'",
+        "C) Fall back to the LLM's general training knowledge",
+        "D) Return an HTTP 500 error"
+      ],
+      correct: 1,
+      explanation: "When retrieved chunks are below a similarity threshold, injecting them anyway causes the LLM to hallucinate answers from irrelevant context — often the most dangerous type of hallucination because it looks grounded. The correct pattern is to check similarity scores, and if none exceed a threshold (typically 0.70), return a clear fallback message indicating no relevant documents were found. This is more honest and more useful than a confident wrong answer."
+    },
+    {
+      id: "q5",
+      text: "The main advantage of RAG over fine-tuning for adding new knowledge to an LLM is:",
+      points: 3,
+      options: [
+        "A) RAG always produces more accurate answers than fine-tuning",
+        "B) RAG can be updated with new documents instantly without retraining the model",
+        "C) RAG is always cheaper than fine-tuning",
+        "D) RAG works without embedding models"
+      ],
+      correct: 1,
+      explanation: "The key advantage of RAG over fine-tuning is update speed. Fine-tuning bakes knowledge into model weights — adding a new document requires retraining, which takes hours or days and significant compute cost. With RAG, you just embed the new document and add it to the vector store — the knowledge is available instantly on the next query. RAG also provides citation ability (which document was used), which fine-tuned models cannot provide. The tradeoff: fine-tuning is better for internalising style, tone, and reasoning patterns; RAG is better for up-to-date, citable factual knowledge."
+    }
+  ]}
+/>

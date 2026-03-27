@@ -1,0 +1,47 @@
+---
+title: "Chapter 45: Latency Optimization"
+sidebar_position: 1
+description: "Reduce LLM response times by understanding TTFT vs end-to-end latency, streaming, parallelism, speculative decoding, and p95 profiling."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 45 — Latency Optimization
+
+## What You'll Learn
+
+Users expect fast responses. LLMs can take 5–30 seconds. This chapter teaches you how to close that gap — by understanding where time is actually spent, which optimizations target which bottlenecks, and how to measure p50/p95/p99 latency so you optimize the right thing.
+
+## Prerequisites
+
+- Chapters 43–44 (LLM Hosting, LLM Caching)
+- Familiarity with async Python (helpful, not required)
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 25 min |
+| Patterns | 20 min |
+| Lab | 25 min |
+| Quiz | 10 min |
+| **Total** | **~80 min** |
+
+## What You'll Learn
+
+- **TTFT vs end-to-end latency** — two different user experiences that require different fixes
+- **Streaming UX** — why showing partial tokens makes 10s feel instant
+- **Parallelism** — running multiple tool calls concurrently cuts latency proportionally
+- **Speculative decoding** — using a small draft model to accelerate a large model
+- **Profiling** — how to measure p50/p95/p99 and identify the true bottleneck
+
+## How This Connects
+
+Latency optimization is the third pillar of production LLM architecture, alongside hosting (Chapter 43) and caching (Chapter 44). Together they let you serve fast, cheap, private AI features.
+
+<ConceptMap
+  current="latency-optimization"
+  related={["llm-hosting", "llm-caching", "ai-gateway", "streaming"]}
+/>
+
+➡️ Next: [Concepts — Reducing LLM Latency](./concepts.mdx)

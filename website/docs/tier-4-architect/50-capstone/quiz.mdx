@@ -1,0 +1,146 @@
+---
+title: "Quiz 50: Capstone Synthesis"
+sidebar_position: 5
+description: "Ten synthesis questions covering concepts from all four tiers of the AI-Native Development Course."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz 50 — Capstone Synthesis
+
+<Quiz
+  chapterId="tier4-ch50"
+  passMark={70}
+  questions={[
+    {
+      id: "q1",
+      text: "In the Research Assistant architecture, which layer should handle prompt injection detection, and why does its position in the pipeline matter?",
+      points: 2,
+      options: [
+        "A) The LLM Core — the model itself can detect and refuse injection attempts",
+        "B) The Guardrail Layer, before the query reaches any LLM call — so injected content never influences the model",
+        "C) The Planner — it can identify suspicious query patterns before deciding on a strategy",
+        "D) The Output Layer — injected content only affects the output, not intermediate steps"
+      ],
+      correct: 1,
+      explanation: "The Guardrail Layer must run before any LLM call. If injection detection runs after the query reaches the LLM, the injected content may have already influenced the model's behavior. Position in the pipeline is the key — first gate, not an afterthought."
+    },
+    {
+      id: "q2",
+      text: "Your RAG pipeline's vector store returns three chunks, all with similarity scores below 0.05. What should the agent do?",
+      points: 2,
+      options: [
+        "A) Return an error: 'No relevant documents found'",
+        "B) Use all three chunks anyway — any context is better than none",
+        "C) Fall back to LLM-only answering using parametric knowledge, with no retrieved context",
+        "D) Re-run the query with different keywords until a relevant doc is found"
+      ],
+      correct: 2,
+      explanation: "This is graceful degradation. When retrieval confidence is too low, passing irrelevant chunks to the LLM makes the answer worse, not better (hallucination risk increases). The correct behavior is to fall back to LLM-only and optionally note that the answer comes from the model's parametric knowledge, not a knowledge base."
+    },
+    {
+      id: "q3",
+      text: "Why stream LLM responses to the user instead of waiting for the full response to complete?",
+      points: 1,
+      options: [
+        "A) Streaming is cheaper — you pay fewer tokens per request",
+        "B) Streaming reduces perceived latency — users see the first tokens in ~500ms instead of waiting 5-15 seconds for the full response",
+        "C) Streaming allows the agent to cancel a response mid-generation if it detects an error",
+        "D) Streaming is required for responses longer than 1024 tokens"
+      ],
+      correct: 1,
+      explanation: "Streaming is primarily a UX optimization. It doesn't change the cost (you're billed for the same tokens) but dramatically improves perceived responsiveness. A user who sees text appearing immediately feels the system is fast, even if the total time-to-complete is the same."
+    },
+    {
+      id: "q4",
+      text: "How would you add caching to the Research Assistant to reduce API costs for repeated questions?",
+      points: 2,
+      options: [
+        "A) Cache on the exact query string — only identical queries hit the cache",
+        "B) Hash the (normalized query, retrieved context) pair — this handles both query and context variations",
+        "C) SHA-256 hash the lowercase, stripped query as the cache key; store the final answer as the value",
+        "D) Cache the LLM response headers — they contain a unique ID for identical generations"
+      ],
+      correct: 2,
+      explanation: "The right approach is a deterministic key from the normalized query (lowercase, stripped). Using SHA-256 keeps the key compact regardless of query length. The value is the final answer. This is an exact cache — semantically similar but different queries (e.g., 'What is RAG?' vs 'Explain RAG') won't hit the same cache entry, which is acceptable for a first implementation."
+    },
+    {
+      id: "q5",
+      text: "What is the correct testing strategy for a component that calls the LLM internally?",
+      points: 2,
+      options: [
+        "A) Always test against the real API — mock responses don't reflect real behavior",
+        "B) Unit tests should mock the LLM call and test logic only; integration tests use the real API but are gated by env variable",
+        "C) Only test the output quality — use a golden dataset to check if answers contain required terms",
+        "D) Skip unit tests for AI components — they're non-deterministic and unreliable"
+      ],
+      correct: 1,
+      explanation: "The three-layer strategy: (1) Unit tests mock the LLM and test logic — cache key generation, guardrail pattern matching, plan parsing. These run on every commit, are fast, and never cost money. (2) Integration tests use the real API but only run when ANTHROPIC_API_KEY is present. (3) Eval tests measure output quality against golden datasets before releases."
+    },
+    {
+      id: "q6",
+      text: "An agent's planning loop keeps generating new tool calls in every iteration. What mechanism prevents it from running forever?",
+      points: 2,
+      options: [
+        "A) The LLM will naturally stop generating tool calls after a few turns",
+        "B) A max_steps limit and/or a wall-clock timeout that exits the loop regardless of state",
+        "C) Tool execution failures automatically break the loop",
+        "D) The system prompt instructs the model to complete the task in one step"
+      ],
+      correct: 1,
+      explanation: "Never trust an LLM loop to terminate on its own. Always set a max_steps (e.g., 10) that breaks the loop after N iterations, and a wall-clock timeout (e.g., 30 seconds) as a second safety net. Tool failures should be handled gracefully but should not themselves break the loop — the agent may try a different approach."
+    },
+    {
+      id: "q7",
+      text: "Why record a trace for every step in the agent pipeline, even when things are working correctly?",
+      points: 2,
+      options: [
+        "A) Tracing is required by the Anthropic API terms of service",
+        "B) Traces enable debugging (what went wrong?), latency profiling (where is it slow?), and cost attribution (which step uses the most tokens?)",
+        "C) Traces allow the agent to self-correct by reviewing its previous steps",
+        "D) Tracing is only useful when errors occur — recording successful steps wastes storage"
+      ],
+      correct: 1,
+      explanation: "Observability-first means tracing everything from day one, not just on errors. Traces let you answer: Which step produced the bad intermediate result? Which step is the latency bottleneck? How many LLM calls does a single user request trigger? How does cost break down per component? Adding tracing after the fact is painful and often incomplete."
+    },
+    {
+      id: "q8",
+      text: "Your system needs to: (a) plan a query strategy — short prompt, structured output; (b) generate a detailed research summary — long output, nuanced reasoning. Which model allocation is most cost-effective?",
+      points: 3,
+      options: [
+        "A) Use claude-3-5-sonnet-20241022 for both — consistency is more important than cost",
+        "B) Use claude-haiku-4-5-20251001 for planning (fast, cheap, structured output) and claude-3-5-sonnet-20241022 for generation (better reasoning, richer output)",
+        "C) Use claude-opus for both — the highest quality model guarantees the best results",
+        "D) Use claude-haiku-4-5-20251001 for everything — planning and generation are equally simple tasks"
+      ],
+      correct: 1,
+      explanation: "Model selection should match task complexity. Planning requires structured output parsing (NEEDS_RAG: yes/no), which Haiku handles well at ~5x lower cost. Generation requires nuanced reasoning and long-form output, which benefits from Sonnet's stronger capabilities. Using the cheapest model for everything sacrifices quality; using the most expensive model for everything wastes money."
+    },
+    {
+      id: "q9",
+      text: "A user submits the query: 'My SSN is 123-45-6789. How do I file taxes?' How should a production Research Assistant handle the PII in this query?",
+      points: 2,
+      options: [
+        "A) Pass the query to the LLM as-is — the model won't store or misuse the SSN",
+        "B) Reject the query entirely — any query containing PII should be blocked",
+        "C) Detect the PII pattern, mask it (e.g., 'My SSN is [REDACTED]') before sending to the LLM, and optionally warn the user",
+        "D) Log the SSN for compliance purposes, then pass the query to the LLM"
+      ],
+      correct: 2,
+      explanation: "PII should be detected and masked before the query is sent to any external API. This protects user privacy (SSNs should not be in LLM provider logs), satisfies GDPR/CCPA requirements, and avoids the SSN appearing in cached responses or trace logs. The user can still get a useful answer with the masked query."
+    },
+    {
+      id: "q10",
+      text: "What makes an agentic workflow 'durable' — meaning it can resume after a crash or restart?",
+      points: 3,
+      options: [
+        "A) Using in-memory caching so responses are fast enough that crashes are unlikely",
+        "B) Checkpointing agent state to persistent storage after each step, using idempotent operations so replayed steps don't cause side effects, and a resume mechanism that skips already-completed steps",
+        "C) Writing the final answer to disk before returning it to the user",
+        "D) Using async/await so the event loop can handle crashes gracefully"
+      ],
+      correct: 1,
+      explanation: "Durable workflows require three things together: (1) Checkpointing — persisting state (completed steps, intermediate results) after each step so a restart can continue from where it left off, not from the beginning. (2) Idempotency — replaying a step that already ran must produce the same result without side effects (e.g., don't send the email twice). (3) Resume logic — on startup, check if there's a checkpoint for this execution and skip already-completed steps. Temporal and AWS Step Functions implement this pattern. The capstone lab's in-memory cache is a simplified version of checkpoint for same-process restarts."
+    }
+  ]}
+/>

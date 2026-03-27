@@ -1,0 +1,45 @@
+---
+title: "Chapter 38: PII Handling"
+sidebar_position: 1
+description: "Strip PII from prompts before sending to LLMs. Detect, redact, and pseudonymize personally identifiable information."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 38 — PII Handling
+
+## What You'll Learn
+
+- Why sending PII to third-party LLM APIs is a compliance and security risk
+- How to detect structured PII using regex patterns
+- How to redact PII (replace with `[TYPE_REDACTED]`) before sending to an LLM
+- How to pseudonymize PII (replace with consistent fake values) for context-preserving processing
+- How to re-identify (restore original values) from a pseudonymization mapping after the LLM call
+
+## Prerequisites
+
+- Chapter 36 (Guardrails) — input/output filtering concepts apply here
+- Chapter 37 (Prompt Injection) — understanding of data safety in prompts
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 20 min |
+| Patterns | 15 min |
+| Lab | 30 min |
+| Quiz | 10 min |
+| **Total** | **~75 min** |
+
+## Why This Matters
+
+Every AI application that processes user-submitted text will eventually handle PII. The question is whether it does so deliberately (with detection, redaction, and audit trails) or accidentally (sending SSNs and credit card numbers to a third-party API).
+
+GDPR, HIPAA, CCPA, and most other data protection regulations require that PII be handled with care. "We sent it to an AI API and it might be used for training" is not a compliant answer. PII handling is the baseline for any enterprise or consumer AI application.
+
+<ConceptMap
+  current="pii-handling"
+  related={["guardrails", "prompt-injection", "evals", "fine-tuning"]}
+/>
+
+Next: [Concepts — PII Handling](./concepts.mdx)

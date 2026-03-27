@@ -1,0 +1,81 @@
+---
+title: "Quiz: Re-ranking"
+sidebar_position: 5
+description: "Test your understanding of cross-encoders, bi-encoders, two-stage retrieval, and re-ranking strategies."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz 18 — Re-ranking
+
+<Quiz
+  chapterId="tier2-ch18"
+  passMark={70}
+  questions={[
+    {
+      id: "q1",
+      text: "A cross-encoder differs from a bi-encoder because:",
+      points: 1,
+      options: [
+        "A) It's a smaller model",
+        "B) It processes the query and document together to capture their interaction",
+        "C) It uses BM25 keyword scoring",
+        "D) It's faster at query time"
+      ],
+      correct: 1,
+      explanation: "A cross-encoder encodes the query and document together as a single input, allowing the model to see how they interact — catching subtle relevance signals like synonyms, negations, and context. A bi-encoder encodes them separately, which is faster but less precise. The cross-encoder's higher precision comes at the cost of needing to run at query time (can't pre-compute)."
+    },
+    {
+      id: "q2",
+      text: "You're building a RAG system and answer quality is poor despite good retrieval. Adding a re-ranker would help by:",
+      points: 2,
+      options: [
+        "A) Fetching more documents from the vector database",
+        "B) Selecting the most relevant chunks from candidates before sending to the LLM",
+        "C) Improving the quality of document embeddings",
+        "D) Increasing the LLM temperature for more creative answers"
+      ],
+      correct: 1,
+      explanation: "A re-ranker sits between retrieval and generation. It takes a large candidate set (e.g., top-50 from vector search) and scores each chunk for relevance to the specific query. Only the highest-scoring chunks — typically 3 to 5 — are passed to the LLM. This concentrates relevant context and removes noise, which directly improves answer quality without changing retrieval or the LLM itself."
+    },
+    {
+      id: "q3",
+      text: "Why is a two-stage pipeline (retrieve-then-rerank) better than just retrieving with a cross-encoder from the start?",
+      points: 2,
+      options: [
+        "A) Cross-encoders don't work on large documents",
+        "B) Cross-encoders are too slow to run against a full corpus — only feasible as a second stage over a small candidate set",
+        "C) Bi-encoders produce more accurate embeddings than cross-encoders",
+        "D) API costs make cross-encoders prohibitive in all cases"
+      ],
+      correct: 1,
+      explanation: "Cross-encoders cannot pre-compute document representations at index time — the encoding depends on the query. Running a cross-encoder against every document in a million-document corpus at query time would take minutes. Bi-encoders pre-embed documents at index time, so query-time retrieval is just one embedding call plus ANN search — O(1) against the index size. The two-stage pipeline gets the best of both: fast retrieval plus precise re-scoring."
+    },
+    {
+      id: "q4",
+      text: "You re-rank 50 candidates down to 3 for the LLM, but the LLM still gives a bad answer. What should you check?",
+      points: 2,
+      options: [
+        "A) The LLM's temperature setting",
+        "B) Whether the 3 selected chunks actually contain the answer — the relevant chunk may have been outside the initial top-50",
+        "C) The model version being used",
+        "D) Whether the system prompt is too long"
+      ],
+      correct: 1,
+      explanation: "Re-ranking can only improve results within the candidate set. If the most relevant chunk was ranked 51st or lower by vector similarity, it was never included in the top-50 — and the re-ranker never saw it. In this case, you should increase the initial retrieval size (e.g., top-100) or investigate whether the embedding model captures the query-document relationship well. The re-ranker is only as good as the candidates it receives."
+    },
+    {
+      id: "q5",
+      text: "LLM-as-reranker is most useful when:",
+      points: 1,
+      options: [
+        "A) Speed is the primary requirement",
+        "B) You have no cross-encoder model but need better relevance scoring than raw vector similarity",
+        "C) Your budget allows for unlimited API calls",
+        "D) Documents are very short (under 50 words)"
+      ],
+      correct: 1,
+      explanation: "LLM-as-reranker requires one API call per candidate chunk — expensive and slow compared to the Cohere Rerank API (one call for all candidates). But it requires no special model: any LLM you're already using can be prompted to score relevance. This makes it the right choice when you're prototyping or when no cross-encoder is available, and you don't yet want to add Cohere to your stack."
+    }
+  ]}
+/>

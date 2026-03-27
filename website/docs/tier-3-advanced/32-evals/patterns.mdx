@@ -1,0 +1,170 @@
+---
+title: "Patterns: Evals / LLM Evaluation"
+sidebar_position: 3
+description: "Three practical eval patterns: exact match, ROUGE-L from scratch, and a full eval pipeline with baseline comparison."
+---
+
+# Patterns: Evals / LLM Evaluation
+
+---
+
+## Pattern 1: Exact Match Evaluator
+
+The simplest eval metric. Normalize both strings (strip whitespace, lowercase) and compare for equality. Returns 1.0 for a match, 0.0 otherwise.
+
+```python
+def exact_match_score(prediction: str, reference: str) -> float:
+    """Return 1.0 if prediction matches reference (case-insensitive, stripped)."""
+    return 1.0 if prediction.strip().lower() == reference.strip().lower() else 0.0
+
+# Usage
+print(exact_match_score("Paris", "paris"))          # 1.0
+print(exact_match_score("Paris, France", "Paris"))  # 0.0
+print(exact_match_score("  yes  ", "yes"))           # 1.0
+```
+
+**When to use:** Classification outputs, structured fields, or extractive QA where the answer is always a short, specific phrase. Not useful for open-ended generation.
+
+---
+
+## Pattern 2: ROUGE-L Scorer (from Scratch)
+
+ROUGE-L measures text overlap using the Longest Common Subsequence (LCS). Implements the standard F1 formulation without any external libraries.
+
+```python
+def _lcs_length(a: list, b: list) -> int:
+    """Compute the length of the longest common subsequence of token lists a and b."""
+    m, n = len(a), len(b)
+    dp = [[0] * (n + 1) for _ in range(m + 1)]
+    for i in range(1, m + 1):
+        for j in range(1, n + 1):
+            if a[i - 1] == b[j - 1]:
+                dp[i][j] = dp[i - 1][j - 1] + 1
+            else:
+                dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
+    return dp[m][n]
+
+
+def rouge_l_score(prediction: str, reference: str) -> float:
+    """
+    Compute ROUGE-L F1 between prediction and reference.
+    Tokenizes by whitespace; case-insensitive.
+    Returns 0.0 if either string is empty.
+    """
+    pred_tokens = prediction.strip().lower().split()
+    ref_tokens = reference.strip().lower().split()
+
+    if not pred_tokens or not ref_tokens:
+        return 0.0
+
+    lcs = _lcs_length(pred_tokens, ref_tokens)
+    precision = lcs / len(pred_tokens)
+    recall = lcs / len(ref_tokens)
+
+    if precision + recall == 0:
+        return 0.0
+
+    return 2 * precision * recall / (precision + recall)
+
+# Usage
+pred = "the cat sat on the mat"
+ref  = "the cat sat on the mat"
+print(rouge_l_score(pred, ref))  # 1.0
+
+pred2 = "the feline rested on the rug"
+print(rouge_l_score(pred2, ref))  # partial overlap ~0.5
+```
+
+**When to use:** Summarization, open-ended QA, any task where the correct answer can be expressed multiple ways. Much more useful than exact match for free-form generation.
+
+---
+
+## Pattern 3: Full Eval Pipeline with Baseline Comparison
+
+Wire together the scorer, the model, and the comparison logic into a reusable pipeline function.
+
+```python
+from typing import Callable
+
+def run_eval(model_fn: Callable[[str], str], dataset: list[dict]) -> dict:
+    """
+    Run model_fn on each dataset item and score results.
+
+    dataset items: {"input": str, "expected_output": str}
+    Returns: {"scores": list[float], "mean_score": float, "results": list[dict]}
+    """
+    results = []
+    for item in dataset:
+        prediction = model_fn(item["input"])
+        score = rouge_l_score(prediction, item["expected_output"])
+        results.append({
+            "input": item["input"],
+            "prediction": prediction,
+            "expected": item["expected_output"],
+            "score": score,
+        })
+
+    scores = [r["score"] for r in results]
+    mean_score = sum(scores) / len(scores) if scores else 0.0
+
+    return {
+        "scores": scores,
+        "mean_score": mean_score,
+        "results": results,
+    }
+
+
+def compare_to_baseline(current_results: dict, baseline_results: dict) -> dict:
+    """
+    Compare current eval results to a baseline.
+    Returns a dict with delta and whether it is a regression.
+    """
+    current_mean = current_results["mean_score"]
+    baseline_mean = baseline_results["mean_score"]
+    delta = current_mean - baseline_mean
+
+    return {
+        "current_mean": current_mean,
+        "baseline_mean": baseline_mean,
+        "delta": delta,
+        "regression": delta < -0.02,  # flag if score dropped more than 2 points
+        "improvement": delta > 0.02,
+    }
+
+
+# Usage
+eval_dataset = [
+    {"input": "What is the capital of France?", "expected_output": "Paris"},
+    {"input": "What is 2 + 2?",                "expected_output": "4"},
+]
+
+# Baseline (old model)
+baseline = run_eval(lambda q: "I'm not sure.", eval_dataset)
+
+# Current (new model)
+current = run_eval(lambda q: q.split("What is the ")[-1].rstrip("?"), eval_dataset)
+
+report = compare_to_baseline(current, baseline)
+print(f"Current: {report['current_mean']:.3f}")
+print(f"Baseline: {report['baseline_mean']:.3f}")
+print(f"Delta: {report['delta']:+.3f}")
+print(f"Regression: {report['regression']}")
+```
+
+**When to use:** Any time you want to compare two versions of a model or pipeline. Store `baseline_results` as a JSON file in your repo; update it when you intentionally ship a new model.
+
+---
+
+## Anti-Patterns
+
+| Anti-pattern | What Goes Wrong | Fix |
+|--------------|----------------|-----|
+| **Manual spot-checking only** | You see what you want to see; miss systematic failures in long-tail inputs | Build an eval dataset, run it automatically on every change |
+| **Evaluating on training data** | Metrics look great but reflect memorization; real-world performance is much lower | Maintain a strict train/eval split; never let eval data leak into training |
+| **Single metric** | ROUGE can be high for repetitive, fluent but wrong answers; exact match misses valid paraphrases | Use at least two metrics; layer in LLM-as-judge for open-ended tasks |
+| **Threshold too tight** | Every small prompt tweak fails the eval even when changes are improvements | Set regression threshold at 2–5 percentage points below baseline |
+| **No per-example breakdown** | Mean score looks fine but a whole category of questions is broken | Always store per-example results; analyze the lowest-scoring quartile |
+
+---
+
+Next: [Lab — Eval a RAG Pipeline](./lab.mdx)

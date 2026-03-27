@@ -1,0 +1,325 @@
+---
+title: "Patterns: Tool Use Implementation"
+sidebar_position: 3
+description: "Practical patterns for defining tools, executing them, building multi-tool agents, and handling errors."
+---
+
+# Patterns: Tool Use Implementation
+
+## Pattern 1: Single Tool — Define and Execute
+
+The minimal tool use workflow: define a tool, send it to the model, execute when requested, return the result.
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+# Step 1: Define the tool
+get_weather_tool = {
+    "name": "get_weather",
+    "description": "Get the current weather for a given city. Call this when the user asks about weather.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "location": {
+                "type": "string",
+                "description": "The city name, e.g. 'London' or 'Tokyo'"
+            }
+        },
+        "required": ["location"]
+    }
+}
+
+
+def get_weather(location: str) -> str:
+    """Mock weather function — replace with a real API call in production."""
+    return f"The weather in {location} is 72°F and sunny."
+
+
+# Step 2: Send message with tool
+messages = [{"role": "user", "content": "What's the weather in Paris?"}]
+response = client.messages.create(
+    model="claude-3-haiku-20240307",
+    max_tokens=1024,
+    tools=[get_weather_tool],
+    messages=messages,
+)
+
+# Step 3: Check if model wants to use a tool
+if response.stop_reason == "tool_use":
+    # Find the tool_use block
+    tool_use_block = next(b for b in response.content if b.type == "tool_use")
+    print(f"Model wants to call: {tool_use_block.name}({tool_use_block.input})")
+
+    # Step 4: Execute the tool
+    tool_result = get_weather(**tool_use_block.input)
+    print(f"Tool result: {tool_result}")
+
+    # Step 5: Return the result to the model
+    messages.append({"role": "assistant", "content": response.content})
+    messages.append({
+        "role": "user",
+        "content": [{
+            "type": "tool_result",
+            "tool_use_id": tool_use_block.id,
+            "content": tool_result
+        }]
+    })
+
+    # Step 6: Get the final answer
+    final_response = client.messages.create(
+        model="claude-3-haiku-20240307",
+        max_tokens=1024,
+        tools=[get_weather_tool],
+        messages=messages,
+    )
+    print(final_response.content[0].text)
+    # "The weather in Paris is 72°F and sunny."
+```
+
+---
+
+## Pattern 2: Multiple Tools — Model Chooses
+
+Define multiple tools and let the model pick the right one for each request.
+
+```python
+import math
+import anthropic
+
+client = anthropic.Anthropic()
+
+tools = [
+    {
+        "name": "get_weather",
+        "description": "Get the current weather for a city.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "location": {"type": "string", "description": "City name"}
+            },
+            "required": ["location"]
+        }
+    },
+    {
+        "name": "calculate",
+        "description": "Evaluate a mathematical expression and return the result.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "expression": {
+                    "type": "string",
+                    "description": "A math expression, e.g. '2 ** 32' or 'sqrt(144)'"
+                }
+            },
+            "required": ["expression"]
+        }
+    }
+]
+
+
+def execute_tool(tool_name: str, tool_input: dict) -> str:
+    """Route tool calls to the right function."""
+    if tool_name == "get_weather":
+        return f"The weather in {tool_input['location']} is 72°F and sunny."
+    elif tool_name == "calculate":
+        try:
+            result = eval(tool_input["expression"], {"__builtins__": {}}, math.__dict__)
+            return str(result)
+        except Exception as e:
+            return f"Error: {e}"
+    return f"Unknown tool: {tool_name}"
+
+
+# The model will choose get_weather or calculate based on the question
+def ask(question: str) -> str:
+    messages = [{"role": "user", "content": question}]
+    response = client.messages.create(
+        model="claude-3-haiku-20240307",
+        max_tokens=1024,
+        tools=tools,
+        messages=messages,
+    )
+
+    if response.stop_reason == "tool_use":
+        tool_block = next(b for b in response.content if b.type == "tool_use")
+        result = execute_tool(tool_block.name, tool_block.input)
+
+        messages.append({"role": "assistant", "content": response.content})
+        messages.append({
+            "role": "user",
+            "content": [{"type": "tool_result", "tool_use_id": tool_block.id, "content": result}]
+        })
+
+        final = client.messages.create(
+            model="claude-3-haiku-20240307",
+            max_tokens=1024,
+            tools=tools,
+            messages=messages,
+        )
+        return final.content[0].text
+
+    return response.content[0].text
+
+
+print(ask("What is 2 to the power of 32?"))
+# "2^32 = 4294967296"
+
+print(ask("What's the weather in London?"))
+# "The weather in London is 72°F and sunny."
+```
+
+---
+
+## Pattern 3: Tool Use Loop with Max Iterations Guard
+
+Some tasks require multiple sequential tool calls. Build a loop that continues until the model signals it's done, with a safety limit.
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+
+def run_agent(user_message: str, tools: list[dict], max_iterations: int = 10) -> str:
+    """
+    Run the full tool use loop. Returns the final text response.
+    Breaks after max_iterations to prevent infinite loops.
+    """
+    messages = [{"role": "user", "content": user_message}]
+
+    for iteration in range(max_iterations):
+        response = client.messages.create(
+            model="claude-3-haiku-20240307",
+            max_tokens=1024,
+            tools=tools,
+            messages=messages,
+        )
+
+        # Done — model has a final text answer
+        if response.stop_reason == "end_turn":
+            return response.content[0].text
+
+        # Model wants to use a tool
+        if response.stop_reason == "tool_use":
+            tool_block = next(b for b in response.content if b.type == "tool_use")
+            tool_result = execute_tool(tool_block.name, tool_block.input)
+
+            messages.append({"role": "assistant", "content": response.content})
+            messages.append({
+                "role": "user",
+                "content": [{
+                    "type": "tool_result",
+                    "tool_use_id": tool_block.id,
+                    "content": tool_result
+                }]
+            })
+            continue
+
+        # Unexpected stop_reason
+        break
+
+    return "Max iterations reached — unable to complete the task."
+```
+
+---
+
+## Pattern 4: Error Handling — Return Errors in `tool_result`
+
+Never let tool exceptions crash your agent. Catch errors and return them as `tool_result` content. The model can handle them gracefully.
+
+```python
+def safe_execute_tool(tool_name: str, tool_input: dict) -> str:
+    """Execute a tool and return the result or a formatted error string."""
+    try:
+        if tool_name == "get_weather":
+            location = tool_input.get("location", "")
+            if not location:
+                return "Error: location parameter is required"
+            return f"The weather in {location} is 72°F and sunny."
+
+        elif tool_name == "calculate":
+            expression = tool_input.get("expression", "")
+            try:
+                result = eval(expression, {"__builtins__": {}}, math.__dict__)
+                return str(result)
+            except ZeroDivisionError:
+                return "Error: division by zero"
+            except Exception as e:
+                return f"Error: invalid expression — {e}"
+
+        else:
+            return f"Error: unknown tool '{tool_name}'"
+
+    except Exception as e:
+        # Catch-all — never let an unexpected error crash the agent
+        return f"Error: tool execution failed — {e}"
+
+
+# The model receives the error message and can react:
+# "I tried to calculate that expression but got an error: division by zero.
+#  Could you clarify your question?"
+```
+
+---
+
+## Anti-Patterns
+
+<div className="antipattern">
+
+**Not returning `tool_result` after `tool_use`**
+
+```python
+# Bad — model never gets its tool result, API call may fail or model hangs
+if response.stop_reason == "tool_use":
+    execute_tool(...)
+    # Missing: append tool_result to messages before next API call!
+    response = client.messages.create(...)  # wrong — tool_result missing
+
+# Good — always append assistant content AND tool_result before next call
+messages.append({"role": "assistant", "content": response.content})
+messages.append({
+    "role": "user",
+    "content": [{"type": "tool_result", "tool_use_id": tool_block.id, "content": result}]
+})
+response = client.messages.create(...)
+```
+
+**Raising exceptions from tool functions**
+
+```python
+# Bad — crashes the agent
+def execute_tool(name, input):
+    if name == "calculate":
+        return str(eval(input["expression"]))  # ZeroDivisionError crashes the loop
+
+# Good — return error as string
+def execute_tool(name, input):
+    if name == "calculate":
+        try:
+            return str(eval(input["expression"], {"__builtins__": {}}, math.__dict__))
+        except Exception as e:
+            return f"Error: {e}"
+```
+
+**No max_iterations guard**
+
+```python
+# Bad — infinite loop if model keeps requesting tools
+while True:
+    response = client.messages.create(...)
+    if response.stop_reason == "end_turn":
+        break
+    # handle tool_use ...
+
+# Good — always cap iterations
+for _ in range(max_iterations):
+    response = client.messages.create(...)
+    if response.stop_reason == "end_turn":
+        return response.content[0].text
+    # handle tool_use ...
+return "Max iterations reached"
+```
+
+</div>

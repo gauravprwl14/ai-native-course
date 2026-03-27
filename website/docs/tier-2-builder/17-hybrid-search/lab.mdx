@@ -1,0 +1,51 @@
+---
+title: "Lab: Build Hybrid Search Pipeline"
+sidebar_position: 4
+description: "Implement BM25 search, Reciprocal Rank Fusion, and a full hybrid pipeline combining keyword and semantic retrieval."
+---
+
+# Lab 17 — Build Hybrid Search Pipeline
+
+## What You're Building
+
+A hybrid retrieval system that combines BM25 keyword search with vector cosine similarity, fused via Reciprocal Rank Fusion (RRF). You will implement:
+
+1. **`bm25_search(query, documents, top_k)`** — keyword-based BM25 search returning ranked (index, score) pairs
+2. **`reciprocal_rank_fusion(rankings, k=60)`** — RRF fusion of multiple ranked lists
+3. **`hybrid_search(query, documents, embeddings, query_embedding, top_k)`** — full pipeline combining both retrievers
+
+A `cosine_similarity` helper is provided for you.
+
+## Files
+
+| File | Purpose |
+|------|---------|
+| `starter/solution.py` | Your starting point — fill in the TODOs |
+| `solution/solution.py` | Reference solution |
+| `tests/test_solution.py` | Verify your implementation |
+| `problem.md` | Detailed problem statement |
+
+## Getting Started
+
+```bash
+cd curriculum/tier-2-builder/17-hybrid-search/lab/starter
+python solution.py
+```
+
+## Acceptance Criteria
+
+- [ ] `bm25_search(query, documents, top_k)` returns a list of `(int, float)` tuples
+- [ ] `bm25_search` returns the document with matching keywords ranked highest
+- [ ] `reciprocal_rank_fusion(rankings)` returns results sorted by RRF score descending
+- [ ] `reciprocal_rank_fusion` gives higher scores to documents appearing in multiple lists
+- [ ] `hybrid_search(query, documents, embeddings, query_embedding, top_k)` returns exactly `top_k` results
+- [ ] `hybrid_search` returns a list of `(int, float)` tuples
+- [ ] `cosine_similarity([1,0], [1,0])` returns `1.0`
+- [ ] All tests pass: `pytest tests/ -v`
+
+## Running Tests
+
+```bash
+cd curriculum/tier-2-builder/17-hybrid-search/lab
+pytest tests/ -v
+```

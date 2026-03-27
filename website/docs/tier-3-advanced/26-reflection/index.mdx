@@ -1,0 +1,43 @@
+---
+title: "Chapter 26: Reflection & Self-critique"
+sidebar_position: 1
+description: "Teach agents to critique and improve their own outputs. Implement generate-critique-revise loops for higher quality results."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 26 — Reflection & Self-critique
+
+## What You'll Learn
+
+- The generate-critique-revise (G-C-R) loop and when it improves output quality
+- How self-consistency works as a form of evaluation
+- Constitutional AI critique: evaluating outputs against a list of explicit principles
+- When reflection helps (creative work, reasoning, code) and when it adds latency without benefit
+- How to implement a stop-when-satisfied loop that exits when the critique says "no major issues"
+
+## Prerequisites
+
+- Chapter 20 (Agentic Loop) — you should understand how to build multi-step agent loops before adding a reflection pass
+- Python 3.10+, `anthropic` package installed
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 20 min |
+| Patterns | 20 min |
+| Lab | 30 min |
+| Quiz | 10 min |
+| **Total** | **~80 min** |
+
+## How This Connects
+
+Evaluation (Chapter 22) taught you how to measure output quality externally. Reflection is the internal version — the agent evaluates its own output before returning it. LLM-as-Judge (Chapter 23) uses a separate model to score outputs; reflection uses the same model in a second pass. Chain-of-Thought (Chapter 10) makes the reasoning visible; reflection adds a feedback loop on top of that reasoning.
+
+<ConceptMap
+  current="reflection"
+  related={["agents", "planning", "evals", "llm-as-judge", "chain-of-thought"]}
+/>
+
+➡️ Next: [Concepts — Reflection & Self-critique](./concepts.mdx)

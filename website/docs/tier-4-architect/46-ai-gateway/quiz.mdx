@@ -1,0 +1,112 @@
+---
+title: "Quiz — AI Gateway"
+sidebar_position: 5
+description: "Test your understanding of AI gateway architecture: routing, fallback, rate limiting, cost attribution, LiteLLM, and circuit breakers."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz — AI Gateway
+
+<Quiz
+  questions={[
+    {
+      id: "q1",
+      text: "What is the primary purpose of an AI gateway in a multi-LLM architecture?",
+      options: [
+        "A) Train custom models on proprietary data",
+        "B) Provide a central control plane for routing, policy enforcement, cost tracking, and logging across multiple LLM providers",
+        "C) Compress prompts to reduce token usage",
+        "D) Replace the LLM providers entirely with a local model"
+      ],
+      correct: 1,
+      explanation: "An AI gateway is a central control plane. It does not replace providers or train models — it adds routing, policy enforcement, cost tracking, caching, and logging on top of existing provider APIs."
+    },
+    {
+      id: "q2",
+      text: "Your gateway receives a request for model 'claude-sonnet-4-5'. Which routing decision is correct?",
+      options: [
+        "A) Route to OpenAI because Claude is an OpenAI model",
+        "B) Route to Anthropic because the model name starts with 'claude'",
+        "C) Route to Azure because it is the default fallback",
+        "D) Reject the request because the exact model ID is not in the routing table"
+      ],
+      correct: 1,
+      explanation: "The standard routing pattern checks model name prefixes. 'claude' maps to Anthropic. This prefix-based routing allows new model versions (claude-sonnet-4-5, claude-opus-4) to be handled without updating the routing table."
+    },
+    {
+      id: "q3",
+      text: "Anthropic returns a 529 error (overloaded). What should the gateway do next?",
+      options: [
+        "A) Immediately return the error to the calling application",
+        "B) Wait 24 hours and retry",
+        "C) Route the request to the next provider in the fallback chain (e.g., OpenAI or Azure)",
+        "D) Delete the request and log a warning"
+      ],
+      correct: 2,
+      explanation: "Provider fallback is a core gateway capability. A 529 (overloaded) is a transient server-side error. The gateway should automatically route to the next healthy provider in the fallback chain, transparently to the calling application."
+    },
+    {
+      id: "q4",
+      text: "A sliding window rate limiter is set to 60 RPM per key. Key 'team-a' made 60 requests in the last 59 seconds. A new request arrives. What happens?",
+      options: [
+        "A) The request is allowed because it is a new minute",
+        "B) The request is rejected because the window still contains 60 requests",
+        "C) The request is queued until the next minute",
+        "D) The request is allowed only if it is a cached hit"
+      ],
+      correct: 1,
+      explanation: "A sliding window looks at the last 60 seconds from the current moment, not at a fixed clock minute. If 60 requests occurred in the last 59 seconds, the window is full and the request is rejected regardless of where the clock minute boundary falls."
+    },
+    {
+      id: "q5",
+      text: "Your company wants to know which product team is spending the most on LLM calls. What is the correct gateway mechanism for this?",
+      options: [
+        "A) Circuit breaker with failure threshold per team",
+        "B) Cost attribution — tag each request with an API key mapping to a team, then sum costs in the audit log",
+        "C) Semantic caching to reduce duplicate costs",
+        "D) Provider fallback to the cheapest provider"
+      ],
+      correct: 1,
+      explanation: "Cost attribution uses per-team API keys to tag every request. The gateway logs the computed token cost with the key. Reports then aggregate cost_usd by key. This is the standard pattern used by LiteLLM, Portkey, and custom gateways."
+    },
+    {
+      id: "q6",
+      text: "What does LiteLLM provide that makes it popular as an open-source AI gateway?",
+      options: [
+        "A) A proprietary LLM fine-tuned for routing decisions",
+        "B) An OpenAI-compatible API that translates requests to 100+ provider formats",
+        "C) A vector database for semantic caching",
+        "D) A training framework for custom embeddings"
+      ],
+      correct: 1,
+      explanation: "LiteLLM exposes an OpenAI-compatible API (same request/response format as OpenAI) and internally translates calls to the format required by each provider (Anthropic, Cohere, Azure, Bedrock, etc.). This means applications only need to know one API format."
+    },
+    {
+      id: "q7",
+      text: "A circuit breaker for provider 'openai' is in the OPEN state. What does this mean?",
+      options: [
+        "A) OpenAI is healthy and receiving all traffic",
+        "B) The gateway has detected repeated failures and is now rejecting requests to OpenAI immediately without attempting a call",
+        "C) The gateway is currently testing OpenAI with a single probe request",
+        "D) OpenAI rate limits are currently active"
+      ],
+      correct: 1,
+      explanation: "OPEN state means the circuit breaker is tripped. After N consecutive failures, the breaker opens and all subsequent requests to that provider are immediately rejected (fail fast) without waiting for the provider to time out. This prevents latency spikes from propagating."
+    },
+    {
+      id: "q8",
+      text: "Why is it a security/compliance risk to log full prompt text in an AI gateway audit log?",
+      options: [
+        "A) Full prompts increase storage costs by 10x",
+        "B) Prompts often contain user PII (names, emails, health data) that should not be stored in a general-purpose log store",
+        "C) Logging prompts slows down the gateway by more than 50ms per request",
+        "D) Provider terms of service prohibit storing prompt text"
+      ],
+      correct: 1,
+      explanation: "Users routinely include PII in prompts — asking about their medical conditions, sharing their email for follow-up, etc. Logging raw prompt text creates a compliance liability under GDPR/HIPAA. The correct approach is to log metadata only and store prompt text (with PII masking) in a separate encrypted, access-controlled store."
+    }
+  ]}
+  chapterId="tier4-ch46"
+  passMark={70}
+/>

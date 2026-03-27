@@ -1,0 +1,78 @@
+---
+title: "Lab 08: Describe an Image via API"
+sidebar_position: 4
+description: "Build functions to load an image, encode it for the Claude Vision API, and extract text and descriptions."
+---
+
+# Lab 08 — Describe an Image via API
+
+## What You're Building
+
+Three functions that work together to process images with Claude Vision:
+
+1. **`encode_image_base64(image_path)`** — Read an image file and return its base64-encoded string, ready for the API.
+2. **`describe_image(image_path, question)`** — Send an image to Claude with a question and return the text response.
+3. **`extract_text_from_image(image_path)`** — OCR-style text extraction: pull all visible text from an image.
+
+## Prerequisites
+
+```bash
+cd curriculum/shared
+pip install -r requirements.txt
+cp .env.example .env
+# Add your ANTHROPIC_API_KEY to .env
+```
+
+## Acceptance Criteria
+
+- [ ] `encode_image_base64("image.png")` returns a non-empty base64 string that can be decoded back to bytes
+- [ ] `describe_image("image.png")` returns a non-empty string description
+- [ ] `describe_image("image.png", question="What colour is the background?")` answers the specific question
+- [ ] `extract_text_from_image("image.png")` returns visible text from the image (empty string if no text)
+- [ ] The API message includes the image in the correct `source` format (`type: "base64"`, `media_type`, `data`)
+- [ ] Media type is correctly detected: `.jpg`/`.jpeg` → `image/jpeg`, `.png` → `image/png`, `.gif` → `image/gif`, `.webp` → `image/webp`
+- [ ] All tests pass: `pytest tests/ -v`
+
+## Files
+
+| File | Purpose |
+|------|---------|
+| `starter/solution.py` | Your starting point — fill in the TODOs |
+| `solution/solution.py` | Reference solution |
+| `tests/test_solution.py` | Verify your implementation |
+
+## Getting Started
+
+```bash
+cd curriculum/tier-1-foundations/08-multimodal/lab/starter
+# Open solution.py and fill in the TODOs
+python solution.py
+```
+
+## Run Tests
+
+```bash
+cd curriculum/tier-1-foundations/08-multimodal/lab
+pytest tests/ -v
+```
+
+## Key Concepts You'll Use
+
+- `base64.b64encode(bytes_data).decode('utf-8')` — encode image bytes to string
+- `Path(image_path).read_bytes()` — read a file as raw bytes
+- `Path(image_path).suffix.lower()` — get file extension for media type detection
+- The `"image"` content block structure in Anthropic messages:
+  ```python
+  {
+      "type": "image",
+      "source": {
+          "type": "base64",
+          "media_type": "image/png",
+          "data": "<base64_string>",
+      }
+  }
+  ```
+
+## Extension (optional)
+
+Extend `describe_image` to also accept a URL instead of a file path. When the input starts with `http://` or `https://`, use `{"type": "url", "url": image_path}` instead of base64 encoding.

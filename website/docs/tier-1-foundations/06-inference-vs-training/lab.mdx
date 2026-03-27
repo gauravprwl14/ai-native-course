@@ -1,0 +1,88 @@
+---
+title: "Lab 06: Run Inference via API"
+sidebar_position: 4
+description: "Practice calling the LLM API in different ways — batch inference, with system prompts, and measuring latency."
+---
+
+# Lab 06 — Run Inference via API
+
+## What You're Building
+
+A Python module that demonstrates the core inference patterns:
+
+1. **Single inference** — call the API with an optional system prompt
+2. **Batch inference** — process multiple prompts in sequence
+3. **Latency measurement** — benchmark inference speed over multiple runs
+
+## Prerequisites
+
+```bash
+cd curriculum/shared
+pip install -r requirements.txt
+cp .env.example .env
+# Add your ANTHROPIC_API_KEY to .env
+```
+
+## Functions to Implement
+
+| Function | Description |
+|----------|-------------|
+| `run_inference(prompt, system_prompt=None)` | Make a single API call; pass system_prompt if provided |
+| `batch_inference(prompts)` | Call `run_inference` for each prompt, return list of responses |
+| `measure_inference_latency(prompt, n=3)` | Run inference `n` times, return latency stats dict |
+
+## Acceptance Criteria
+
+- [ ] `run_inference` returns a string for any valid prompt
+- [ ] `run_inference` passes `system_prompt` to the API when provided
+- [ ] `run_inference` works correctly when no `system_prompt` is given
+- [ ] `batch_inference` returns a list with the same length as the input
+- [ ] `measure_inference_latency` returns a dict with keys: `avg_latency_ms`, `min_ms`, `max_ms`, `n`
+- [ ] Tests pass: `pytest tests/ -v`
+
+## Files
+
+| File | Purpose |
+|------|---------|
+| `starter/solution.py` | Your starting point — fill in the TODOs |
+| `solution/solution.py` | Reference solution |
+| `tests/test_solution.py` | Verify your implementation |
+| `problem.md` | Detailed problem statement |
+
+## Getting Started
+
+```bash
+cd curriculum/tier-1-foundations/06-inference-vs-training/lab/starter
+# Open solution.py and fill in the TODOs
+python solution.py
+```
+
+## Run Tests
+
+```bash
+cd curriculum/tier-1-foundations/06-inference-vs-training/lab
+pytest tests/ -v
+```
+
+## Key Concepts You'll Use
+
+- `anthropic.Anthropic()` — creates the client
+- `client.messages.create()` — makes an API call
+- `response.content[0].text` — gets the text response
+- `system=system_prompt` — passes a system prompt to the API
+- `time.time()` — measures wall-clock time for latency
+
+## Expected Output
+
+```
+Running single inference...
+Response: Inference is the process of using a trained model to generate predictions...
+
+Running batch inference on 3 prompts...
+[0] What is inference? → Inference is...
+[1] What is training? → Training is...
+[2] What is fine-tuning? → Fine-tuning is...
+
+Measuring latency over 3 runs...
+avg: 842ms | min: 731ms | max: 963ms
+```

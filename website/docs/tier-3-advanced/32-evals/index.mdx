@@ -1,0 +1,45 @@
+---
+title: "Chapter 32: Evals / LLM Evaluation"
+sidebar_position: 1
+description: "Build an eval pipeline to measure LLM quality. Go beyond vibes with systematic evaluation of accuracy, faithfulness, and helpfulness."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 32 — Evals / LLM Evaluation
+
+## What You'll Learn
+
+- The three types of evals: reference-based, reference-free, and model-based
+- Key metrics: exact match, ROUGE-L, F1, and LLM-as-judge
+- How to construct an eval dataset from real production data
+- How to run a full eval pipeline and compare results to a baseline
+- How evals catch regressions before they reach users
+
+## Prerequisites
+
+- Chapter 14 (RAG) — eval pipelines are most commonly applied to RAG systems
+- Chapter 33 (LLM-as-Judge) — for model-based evaluation details (forward reference)
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 25 min |
+| Patterns | 20 min |
+| Lab | 35 min |
+| Quiz | 10 min |
+| **Total** | **~90 min** |
+
+## How This Connects
+
+You can build a RAG pipeline, a fine-tuned model, or a multi-agent system — but without evals, you have no way to answer: "Did my last change make things better or worse?" Evals are what separate production AI systems from demos. Every mature AI team has an eval suite they run on every code change, just like software engineers run unit tests.
+
+This chapter gives you the tools to build that suite. You will implement the core metrics from scratch (exact match and ROUGE-L), wire them into a pipeline, and learn to compare results against a baseline.
+
+<ConceptMap
+  current="evals"
+  related={["llm-as-judge", "rag", "fine-tuning", "hallucination-detection"]}
+/>
+
+Next: [Concepts — Evals / LLM Evaluation](./concepts.mdx)

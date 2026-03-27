@@ -1,0 +1,76 @@
+---
+title: "Lab: Solve Math Word Problems with CoT"
+sidebar_position: 4
+description: "Build a math word problem solver using zero-shot CoT, few-shot CoT, and self-consistency. Compare accuracy across techniques."
+---
+
+# Lab 10 — Solve Math Word Problems with CoT
+
+## What You're Building
+
+A Python module that solves math word problems using chain-of-thought prompting. You will implement:
+
+1. **`solve_with_cot`** — Zero-shot CoT: prompt the model to think step by step and return the full reasoning response
+2. **`extract_answer`** — Parse the final numerical answer from a CoT response using regex
+3. **`solve_with_self_consistency`** — Generate N reasoning chains and take a majority vote
+4. **`evaluate_math_accuracy`** — Measure what fraction of predictions match the correct answers
+
+## Prerequisites
+
+```bash
+cd curriculum/shared
+pip install -r requirements.txt
+cp .env.example .env
+# Add your ANTHROPIC_API_KEY to .env
+```
+
+## Files
+
+| File | Purpose |
+|------|---------|
+| `starter/solution.py` | Your starting point — fill in the TODOs |
+| `solution/solution.py` | Reference solution |
+| `tests/test_solution.py` | Verify your implementation |
+| `problem.md` | Full problem statement |
+
+## Getting Started
+
+```bash
+cd curriculum/tier-2-builder/10-chain-of-thought/lab/starter
+# Open solution.py and fill in the four TODOs
+python solution.py
+```
+
+## Acceptance Criteria
+
+- [ ] `solve_with_cot(problem)` returns a string containing the model's full step-by-step reasoning
+- [ ] `extract_answer(response)` correctly parses the number from "Therefore, the answer is: X"
+- [ ] `extract_answer` returns `None` when the pattern is not found
+- [ ] `solve_with_self_consistency(problem, n)` calls the API exactly `n` times
+- [ ] `solve_with_self_consistency` returns the most frequently occurring extracted answer
+- [ ] `evaluate_math_accuracy` returns 1.0 when all predictions match, 0.0 when none match
+- [ ] `None` predictions (failed extractions) count as wrong in `evaluate_math_accuracy`
+- [ ] All tests pass: `pytest tests/ -v`
+
+## Run Tests
+
+```bash
+cd curriculum/tier-2-builder/10-chain-of-thought/lab
+pytest tests/ -v
+```
+
+## Key Concepts You'll Use
+
+- `COT_PROMPT.format(problem=...)` — format the zero-shot CoT prompt template
+- `client.messages.create(temperature=0)` — deterministic generation for single-chain CoT
+- `client.messages.create(temperature=0.7)` — stochastic generation for self-consistency
+- `re.search(pattern, text)` — extract the answer with a regex pattern
+- `collections.Counter` — find the most common answer across N chains
+
+## Extend the Lab (Optional)
+
+Once your tests pass, try these extensions:
+
+1. **Benchmark CoT vs direct**: prompt without CoT and compare accuracy on a set of 10 problems
+2. **Few-shot CoT**: add 2–3 worked examples to the prompt and see if accuracy improves
+3. **Confidence scoring**: return the vote fraction alongside the answer (e.g., "42 (4/5 chains agree)")

@@ -1,0 +1,49 @@
+---
+title: "Chapter 41: MCP — Model Context Protocol"
+sidebar_position: 1
+description: "The open protocol for connecting LLMs to external data and tools. Build an MCP server that exposes filesystem operations to any compatible AI host."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 41 — MCP: Model Context Protocol
+
+## What You'll Learn
+
+- Why the AI industry needed a standard for tool and data integration
+- The MCP architecture: hosts, clients, servers, and transport layers
+- The three MCP primitives: **Tools**, **Resources**, and **Prompts**
+- How to build an MCP server in Python using the stdlib-compatible patterns
+- How Claude Desktop and other MCP hosts discover and connect to servers
+
+## Prerequisites
+
+| Prerequisite | Why it matters |
+|-------------|----------------|
+| Chapter 19 — Tool Use | MCP tools are a superset of function calling; you need to understand tool call / tool result message flow |
+| Tier 3 complete | You should be comfortable building agents, RAG pipelines, and multi-agent systems |
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 25 min |
+| Patterns | 20 min |
+| Lab | 35 min |
+| Quiz | 10 min |
+| **Total** | **~90 min** |
+
+## How This Connects
+
+Chapter 19 showed you how a single LLM can call tools defined in the same codebase. That works well for a single application — but it means every team reinvents the same integration plumbing: "how does the model get access to my database? my file system? my internal APIs?"
+
+MCP answers that question once, for everyone. It is an open standard — led by Anthropic but now multi-vendor — that separates the AI host (the thing running the model) from the data servers (the things that provide tools and data). Once you write an MCP server for your database, any MCP-compatible host can use it: Claude Desktop, Cursor, VS Code Copilot, or your own custom app.
+
+This chapter builds the mental model and hands-on skills you need to write MCP servers and understand why they are becoming the default integration layer for production AI systems.
+
+<ConceptMap
+  current="mcp"
+  related={["tool-use", "multi-agent", "agent-handoff", "a2a-acp", "llm-apis"]}
+/>
+
+Next: [Concepts — Model Context Protocol Architecture](./concepts.mdx)

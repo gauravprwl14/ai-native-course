@@ -1,0 +1,110 @@
+---
+title: "Lab: Two-Level LLM Cache"
+sidebar_position: 4
+description: "Build an ExactCache and CachedLLMClient that wraps any LLM caller with SHA256-keyed caching and TTL support."
+---
+
+# Lab: Two-Level LLM Cache
+
+## Goal
+
+Build a caching layer for LLM responses with:
+
+1. **`ExactCache`** — SHA256-keyed in-memory cache with TTL support
+2. **`CachedLLMClient`** — wraps any LLM caller, tracks hit/miss stats, uses the cache automatically
+
+## Setup
+
+```bash
+cd curriculum/tier-4-architect/44-llm-caching/lab
+# No extra dependencies — stdlib only
+```
+
+## Starter File
+
+Open `starter/solution.py`. You'll implement:
+
+| Class / Method | Description |
+|---|---|
+| `ExactCache._make_key()` | SHA256 hash of (model, prompt, sorted params) |
+| `ExactCache.get()` | Return cached value if exists and not expired |
+| `ExactCache.set()` | Store value with current timestamp |
+| `CachedLLMClient.generate()` | Check cache, call LLM on miss, store result |
+| `CachedLLMClient.hit_rate` | Property: `hits / (hits + misses)` |
+
+## Step-by-Step
+
+### Step 1: `_make_key()`
+
+Create a deterministic key from the request parameters:
+
+```python
+def _make_key(self, prompt: str, model: str, **params) -> str:
+    payload = {"model": model, "prompt": prompt, **dict(sorted(params.items()))}
+    serialized = json.dumps(payload, sort_keys=True)
+    return hashlib.sha256(serialized.encode()).hexdigest()
+```
+
+The `sort_keys=True` and `sorted(params.items())` ensure the key is the same regardless of dict ordering.
+
+### Step 2: `ExactCache.get()`
+
+1. Compute key using `_make_key()`
+2. Look up key in `self._store`
+3. If found: check if `time.time() - entry.created_at < self.ttl_seconds`
+4. Return `entry.value` if valid, `None` if expired or missing
+
+### Step 3: `ExactCache.set()`
+
+1. Compute key
+2. Create a `CacheEntry(value=value, created_at=time.time(), ttl_seconds=self.ttl_seconds)`
+3. Store in `self._store[key]`
+
+### Step 4: `CachedLLMClient.generate()`
+
+1. Call `self.cache.get(prompt, model, **params)`
+2. If not `None`: increment `self.hits`, return cached value
+3. Else: increment `self.misses`, call `self.llm_caller(prompt, model, **params)`
+4. Store result: `self.cache.set(prompt, model, result, **params)`
+5. Return result
+
+### Step 5: `hit_rate` property
+
+```python
+@property
+def hit_rate(self) -> float:
+    total = self.hits + self.misses
+    return self.hits / total if total > 0 else 0.0
+```
+
+## Running Tests
+
+```bash
+pytest tests/test_solution.py -v
+```
+
+All tests use mock LLM callers — no API keys needed.
+
+## Expected Behavior
+
+```python
+call_count = 0
+
+def mock_llm(prompt, model, **params):
+    nonlocal call_count
+    call_count += 1
+    return f"Response to: {prompt}"
+
+cache = ExactCache(ttl_seconds=60)
+client = CachedLLMClient(llm_caller=mock_llm, cache=cache)
+
+r1 = client.generate("Hello", "gpt-4")   # miss → calls LLM
+r2 = client.generate("Hello", "gpt-4")   # hit  → returns cached
+r3 = client.generate("World", "gpt-4")   # miss → calls LLM
+
+print(call_count)        # 2 (not 3 — second "Hello" was cached)
+print(client.hit_rate)   # 0.333...
+print(r1 == r2)          # True
+```
+
+➡️ Next: [Quiz](./quiz.mdx)

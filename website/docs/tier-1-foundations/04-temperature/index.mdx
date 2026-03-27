@@ -1,0 +1,42 @@
+---
+title: "Chapter 04: Temperature & Sampling"
+sidebar_position: 17
+description: "Control LLM randomness with temperature, top-p, and top-k. Know when to use deterministic vs creative outputs."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 04 — Temperature & Sampling
+
+## What You'll Learn
+
+- What temperature is and how it controls randomness in LLM outputs
+- How sampling works under the hood (logits, softmax, probability distributions)
+- The difference between top-p (nucleus sampling) and top-k
+- When to use deterministic vs creative output settings
+- How to tune sampling parameters for real-world use cases
+
+## Prerequisites
+
+- Chapter 01 complete — you understand what an LLM is and how it generates text
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 20 min |
+| Patterns | 15 min |
+| Lab | 25 min |
+| Quiz | 10 min |
+| **Total** | **~70 min** |
+
+## How This Connects
+
+Temperature is one of the most frequently-tuned parameters in production LLM systems. Understanding it will affect every chapter that involves generation: structured output (Ch05), prompting (Ch06), code generation (Ch08), and creative pipelines throughout Tier 2.
+
+<ConceptMap
+  current="temperature-sampling"
+  related={["tokens", "llms", "structured-output", "prompting"]}
+/>
+
+➡️ Next: [Concepts — Temperature & Sampling](./concepts)

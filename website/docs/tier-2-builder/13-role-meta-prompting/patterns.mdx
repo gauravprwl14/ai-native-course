@@ -1,0 +1,299 @@
+---
+title: "Patterns: Role + Meta Prompting"
+sidebar_position: 3
+description: "Practical patterns for assigning expert personas, using meta-prompting to generate task prompts, and building prompt variant pipelines."
+---
+
+# Patterns: Role + Meta Prompting
+
+## Pattern 1: Expert Persona for Technical Review
+
+Assign a specific, constrained role in the system prompt to get domain-appropriate, actionable feedback.
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+SECURITY_REVIEWER_ROLE = """You are a senior security engineer with 10 years of experience \
+reviewing Python web applications for vulnerabilities. You are reviewing code submitted by a \
+mid-level developer. Your job is to identify security issues, explain why each is a risk, \
+and suggest a concrete fix. Be direct and specific — not generic."""
+
+def security_review(code: str) -> str:
+    response = client.messages.create(
+        model="claude-3-haiku-20240307",
+        max_tokens=1024,
+        temperature=0.2,
+        system=SECURITY_REVIEWER_ROLE,
+        messages=[{
+            "role": "user",
+            "content": f"Review this code for security vulnerabilities:\n\n```python\n{code}\n```"
+        }]
+    )
+    return response.content[0].text
+
+# Example usage
+code_snippet = """
+import sqlite3
+
+def get_user(username):
+    conn = sqlite3.connect("users.db")
+    cursor = conn.cursor()
+    query = f"SELECT * FROM users WHERE username = '{username}'"
+    cursor.execute(query)
+    return cursor.fetchone()
+"""
+
+print(security_review(code_snippet))
+# => Identifies SQL injection vulnerability, explains the risk,
+#    suggests parameterised queries with example
+```
+
+**Key elements:**
+- Seniority and years of experience
+- Specific domain (Python web apps, security)
+- Audience context (mid-level developer)
+- Task framing (identify, explain, suggest fix)
+- Tone instruction (direct, not generic)
+
+---
+
+## Pattern 2: Audience-Aware Role
+
+The same content explained at the right level for the right audience. Role carries both the domain expertise and the communication style.
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+def explain_for_audience(concept: str, audience: str) -> str:
+    """Explain a concept tailored to a specific audience."""
+    role = f"""You are an expert teacher who specialises in explaining complex topics \
+to {audience}. You use analogies the audience will relate to, avoid jargon unless \
+you define it, and check comprehension at the end with one question."""
+
+    response = client.messages.create(
+        model="claude-3-haiku-20240307",
+        max_tokens=512,
+        temperature=0.3,
+        system=role,
+        messages=[{
+            "role": "user",
+            "content": f"Explain: {concept}"
+        }]
+    )
+    return response.content[0].text
+
+
+# Same concept, three different audiences
+concept = "how neural networks learn"
+
+print("=== For a 10-year-old ===")
+print(explain_for_audience(concept, "10-year-olds with no prior computing knowledge"))
+
+print("\n=== For a business executive ===")
+print(explain_for_audience(concept, "business executives making AI investment decisions"))
+
+print("\n=== For a software engineer ===")
+print(explain_for_audience(concept, "software engineers new to machine learning"))
+```
+
+**When to use:** Content generation, tutoring tools, documentation that targets multiple audiences, customer support bots with different user segments.
+
+---
+
+## Pattern 3: Meta-Prompt to Generate a Task Prompt
+
+You describe what you want a prompt to accomplish; the model writes the prompt for you.
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+META_PROMPT = """You are a world-class prompt engineer. Your job is to write a single, \
+detailed system prompt that will make an LLM excellent at the following task.
+
+The prompt you write should:
+- Assign a specific, expert role
+- Specify the output format and structure
+- Include constraints on tone and style
+- Anticipate common failure modes and guard against them
+- Be ready to use as-is (no placeholders except {{user_input}} if needed)
+
+Task to write a prompt for:
+{task_description}
+
+Write only the prompt itself. No explanation, no preamble."""
+
+def generate_task_prompt(task_description: str) -> str:
+    """Use meta-prompting to generate a high-quality prompt for a task."""
+    response = client.messages.create(
+        model="claude-3-haiku-20240307",
+        max_tokens=1024,
+        temperature=0.4,
+        messages=[{
+            "role": "user",
+            "content": META_PROMPT.format(task_description=task_description)
+        }]
+    )
+    return response.content[0].text
+
+
+# Generate a prompt for a specific task
+task = "Review pull requests and give constructive feedback to junior developers"
+generated_prompt = generate_task_prompt(task)
+
+print("Generated system prompt:")
+print(generated_prompt)
+
+# Now use the generated prompt for the actual task
+response = client.messages.create(
+    model="claude-3-haiku-20240307",
+    max_tokens=1024,
+    temperature=0.2,
+    system=generated_prompt,
+    messages=[{
+        "role": "user",
+        "content": "Please review this PR: [diff content here]"
+    }]
+)
+print("\nReview result:")
+print(response.content[0].text)
+```
+
+**Key insight:** The meta-prompt itself is a role prompt — "You are a world-class prompt engineer." This is recursive and intentional: the quality of the generated prompt depends on the quality of the meta-prompt.
+
+---
+
+## Pattern 4: Prompt Variants Generator
+
+Generate N different prompts for the same task, then test which performs best. Useful for building prompt libraries and A/B testing.
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+VARIANTS_META_PROMPT = """You are a prompt engineering expert. Generate {n} diverse \
+prompt variants for the following task. Each variant should approach the task \
+differently — vary the role, the framing, the output structure, or the tone.
+
+Task: {task_description}
+
+Requirements:
+- Number each variant 1 through {n}
+- Each variant should be a complete, usable system prompt
+- Make variants genuinely different, not just paraphrases
+- Separate each variant with exactly "---"
+
+Generate {n} variants now:"""
+
+
+def generate_prompt_variants(task_description: str, n: int = 5) -> list[str]:
+    """Generate n diverse prompt variants for a task using meta-prompting."""
+    response = client.messages.create(
+        model="claude-3-haiku-20240307",
+        max_tokens=2048,
+        temperature=0.8,  # High temperature = more diverse variants
+        messages=[{
+            "role": "user",
+            "content": VARIANTS_META_PROMPT.format(
+                n=n,
+                task_description=task_description
+            )
+        }]
+    )
+    raw = response.content[0].text
+    # Split on separator and clean up numbering / whitespace
+    variants = [v.strip() for v in raw.split("---") if v.strip()]
+    return variants[:n]
+
+
+def test_variant(variant_prompt: str, test_input: str) -> str:
+    """Run a single variant prompt against a test input."""
+    response = client.messages.create(
+        model="claude-3-haiku-20240307",
+        max_tokens=512,
+        temperature=0,
+        system=variant_prompt,
+        messages=[{"role": "user", "content": test_input}]
+    )
+    return response.content[0].text
+
+
+# Generate 3 variants for a customer support task
+task = "Handle customer complaints about delayed deliveries for an e-commerce company"
+variants = generate_prompt_variants(task, n=3)
+
+test_complaint = "My order #12345 was supposed to arrive 3 days ago and I still haven't received it!"
+
+for i, variant in enumerate(variants, 1):
+    print(f"\n=== Variant {i} ===")
+    print(f"Prompt (first 100 chars): {variant[:100]}...")
+    print(f"Response: {test_variant(variant, test_complaint)[:200]}...")
+```
+
+**When to use:** Building prompt libraries, A/B testing prompts in production, discovering prompt framings you wouldn't have thought of.
+
+---
+
+## Anti-Patterns
+
+<div className="antipattern">
+
+**Anti-pattern 1: Vague role with no domain or depth**
+
+```python
+# Bad — "expert" is undefined; the model defaults to generic
+system = "You are an expert. Help the user."
+
+# Good — domain, depth, and task context are all specified
+system = (
+    "You are a senior DevOps engineer specialising in Kubernetes on AWS. "
+    "You are helping a mid-level backend engineer debug a deployment issue. "
+    "Be specific: name exact kubectl commands, flag names, and manifest fields."
+)
+```
+
+---
+
+**Anti-pattern 2: Meta-prompting for tasks that don't need it**
+
+```python
+# Overkill — adds latency and cost for a well-understood task
+meta_result = generate_task_prompt("Say hello to the user")
+use_prompt(meta_result, "Hi there!")
+
+# Fine — direct prompting when you know what you want
+response = client.messages.create(
+    system="You are a friendly assistant. Greet the user warmly.",
+    messages=[{"role": "user", "content": "Hi there!"}]
+)
+```
+
+Use meta-prompting when: the task is complex, the domain is unfamiliar, or you need many variants fast.
+
+---
+
+**Anti-pattern 3: Deploying a generated prompt without testing it**
+
+```python
+# Dangerous — generated prompts can be poor quality
+generated = generate_task_prompt("Summarise legal contracts")
+deploy_to_production(generated)  # Never do this without testing
+
+# Safe — always evaluate on representative inputs first
+generated = generate_task_prompt("Summarise legal contracts")
+test_cases = load_test_cases("legal_summaries")
+score = evaluate_prompt(generated, test_cases)
+if score >= 0.8:
+    deploy_to_production(generated)
+else:
+    # Iterate: refine the meta-prompt and regenerate
+    print(f"Score {score:.2f} too low — iterating")
+```
+
+</div>

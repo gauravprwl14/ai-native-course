@@ -1,0 +1,88 @@
+---
+title: "Lab: Build a Document Q&A with RAG"
+sidebar_position: 4
+description: "Build a complete RAG pipeline that indexes text documents and answers questions about them using embeddings and Claude."
+---
+
+# Lab 14 — Build a Document Q&A with RAG
+
+## What You're Building
+
+A complete RAG pipeline that takes a set of text documents, indexes them as embeddings, and answers natural language questions by retrieving relevant chunks and passing them to Claude.
+
+You will implement four components:
+
+1. **`build_index(documents)`** — embeds each document and returns an in-memory vector index
+2. **`retrieve_chunks(query, index, top_k=3)`** — embeds a query and returns the most similar chunks
+3. **`answer_question(question, index)`** — ties retrieval and generation together; returns a structured result with answer, sources, and chunk count
+4. **`RAGPipeline` class** — a clean wrapper that holds the index and exposes a single `.ask(question)` method
+
+## Functions to Implement
+
+### `build_index(documents: list[dict]) -> list[dict]`
+
+- Input: list of dicts, each with `"id"`, `"text"`, and `"source"` keys
+- For each document, call the OpenAI embeddings API (`text-embedding-3-small`)
+- Return the same list with an `"embedding"` key added to each dict
+
+### `retrieve_chunks(query: str, index: list[dict], top_k: int = 3) -> list[dict]`
+
+- Embed the query using the same embedding model
+- Compute cosine similarity between the query vector and every chunk's vector
+- Return the top `top_k` results sorted by similarity descending
+- Each returned dict should include a `"similarity"` key
+
+### `answer_question(question: str, index: list[dict], top_k: int = 3) -> dict`
+
+- Call `retrieve_chunks` to get top-k chunks
+- Format context as: `[Source: {source}]\n{text}` for each chunk, joined by `\n\n`
+- Call Claude with `RAG_SYSTEM_PROMPT` and `RAG_PROMPT_TEMPLATE`
+- Return `{"answer": str, "sources": list[str], "chunks_used": int}`
+- `sources` must be deduplicated (unique values only)
+
+### `RAGPipeline` class
+
+```python
+class RAGPipeline:
+    def __init__(self, documents: list[dict]):
+        self.index = build_index(documents)
+
+    def ask(self, question: str, top_k: int = 3) -> dict:
+        return answer_question(question, self.index, top_k)
+```
+
+## Files
+
+| File | Purpose |
+|------|---------|
+| `starter/solution.py` | Your starting point — fill in the TODOs |
+| `solution/solution.py` | Reference solution |
+| `tests/test_solution.py` | Verify your implementation |
+| `problem.md` | Detailed problem statement |
+
+## Getting Started
+
+```bash
+cd curriculum/tier-2-builder/14-rag-core/lab/starter
+python solution.py
+```
+
+## Acceptance Criteria
+
+- [ ] `build_index(documents)` returns a list of dicts, each containing an `"embedding"` key
+- [ ] `build_index(documents)` calls the OpenAI embeddings API once per document
+- [ ] `retrieve_chunks(query, index)` returns results sorted by similarity descending
+- [ ] `retrieve_chunks(query, index, top_k=2)` returns exactly 2 results
+- [ ] `cosine_similarity(v, v)` returns `1.0` for identical vectors
+- [ ] `cosine_similarity` returns approximately `0.0` for orthogonal vectors
+- [ ] `answer_question(question, index)` returns a dict with `"answer"`, `"sources"`, and `"chunks_used"` keys
+- [ ] `sources` in the result contains only unique values
+- [ ] `RAGPipeline` indexes on construction and answers via `.ask(question)`
+- [ ] All tests pass: `pytest tests/ -v`
+
+## Running Tests
+
+```bash
+cd curriculum/tier-2-builder/14-rag-core/lab
+pytest tests/ -v
+```

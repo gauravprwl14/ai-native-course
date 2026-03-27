@@ -1,0 +1,76 @@
+---
+title: "Quiz: Human-in-the-Loop (HITL)"
+sidebar_position: 5
+description: "Test your understanding of escalation criteria, approval workflows, confidence thresholds, and async HITL patterns."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz: Human-in-the-Loop (HITL)
+
+<Quiz
+  questions={[
+    {
+      id: "q1",
+      text: "An agent is about to delete a file. The agent's confidence score is 0.95. Should it escalate?",
+      options: [
+        "A) No — confidence is high, so it can proceed autonomously",
+        "B) Yes — delete_file is a destructive, irreversible action and should always require approval",
+        "C) Only if the file is larger than a certain size",
+        "D) Only if the user is not currently active"
+      ],
+      correct: 1,
+      explanation: "Confidence threshold is one escalation trigger, but action type is another. Destructive, irreversible actions like deleting files should always require human approval regardless of confidence. High confidence doesn't mean the action is safe — it means the model is certain about what it's doing, which could be confidently wrong."
+    },
+    {
+      id: "q2",
+      text: "What is the primary purpose of using a `get_input` parameter instead of calling `input()` directly in `request_approval`?",
+      options: [
+        "A) It's faster than the built-in input()",
+        "B) It allows tests to inject a mock function without patching builtins",
+        "C) input() doesn't work in Python 3",
+        "D) It enables async approval workflows"
+      ],
+      correct: 1,
+      explanation: "Dependency injection via parameters is the standard pattern for making functions testable. By accepting get_input as a parameter (defaulting to the built-in input), callers in tests can pass a mock function like `lambda _: 'y'`. This avoids patching builtins globally, which can cause test interference."
+    },
+    {
+      id: "q3",
+      text: "Your HITL agent is processing a batch of 10,000 records overnight. At record 42, it needs human approval. Synchronous HITL (blocking input()) is:",
+      options: [
+        "A) The correct approach — humans should always be immediately available",
+        "B) Wrong — it blocks the process indefinitely; use async HITL with state persistence instead",
+        "C) Fine if you increase the timeout to 8 hours",
+        "D) Only a problem if the batch runs in a container"
+      ],
+      correct: 1,
+      explanation: "Synchronous HITL blocks the running process. For overnight batch jobs, this means the job stalls at record 42, your server sits idle for hours, and if the process crashes you lose position. Async HITL persists the agent's state, sends a notification, and allows the process to terminate. When the human approves, the agent is reconstructed from saved state and resumes."
+    },
+    {
+      id: "q4",
+      text: "What is the confidence threshold used for in a HITL agent?",
+      options: [
+        "A) To decide which model to use for inference",
+        "B) To automatically escalate to a human when the agent is uncertain about an action",
+        "C) To determine the maximum number of retries",
+        "D) To set the temperature on the LLM call"
+      ],
+      correct: 1,
+      explanation: "The confidence threshold is a numeric cutoff (e.g., 0.7). If the agent rates its confidence in an action below this threshold, it automatically escalates to a human for approval — even if the action type is not on the high-risk allowlist. This catches edge cases where the agent is in unfamiliar territory."
+    },
+    {
+      id: "q5",
+      text: "A team reports that their human approvers are rubber-stamping every approval request without reading them. This is a symptom of:",
+      options: [
+        "A) The confidence threshold being set too low",
+        "B) Approval fatigue from escalating too many low-risk actions",
+        "C) The async HITL queue being too slow",
+        "D) Missing logging in the action_log"
+      ],
+      correct: 1,
+      explanation: "Approval fatigue occurs when humans are asked to approve so many actions that they stop evaluating them carefully. The fix is to narrow escalation: only route genuinely high-stakes or highly uncertain actions to humans. The goal is for every approval request to represent a decision a human actually needs to make — not a formality they click through."
+    }
+  ]}
+  chapterId="tier3-ch28"
+  passMark={70}
+/>

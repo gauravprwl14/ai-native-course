@@ -1,0 +1,178 @@
+---
+title: "Patterns: Human-in-the-Loop (HITL)"
+sidebar_position: 3
+description: "Synchronous approval, confidence-based escalation, action allowlists, and common HITL anti-patterns."
+---
+
+# Patterns: Human-in-the-Loop (HITL)
+
+## Pattern 1: Synchronous HITL
+
+The simplest pattern: the agent asks and waits for a human to type a response. Works well for CLI tools, notebooks, and development.
+
+```python
+def request_approval(action: str, context: str) -> bool:
+    """Ask the human for approval synchronously via terminal input."""
+    print(f"\n[APPROVAL REQUIRED]")
+    print(f"  Action:  {action}")
+    print(f"  Context: {context}")
+    response = input("  Approve? (y/n): ").strip().lower()
+    return "y" in response
+
+
+def execute_with_approval(action: str, context: str):
+    approved = request_approval(action, context)
+    if approved:
+        print(f"Executing: {action}")
+        # ... perform action ...
+    else:
+        print(f"Skipped: {action} (rejected by human)")
+```
+
+**When to use**: CLI tools, development/debug mode, interactive agents where the user is present.
+
+---
+
+## Pattern 2: Confidence-Based Escalation
+
+Ask the LLM to rate its own confidence (0.0–1.0) before every action. Escalate if below threshold.
+
+```python
+CONFIDENCE_THRESHOLD = 0.7
+
+def should_escalate(action: str, confidence: float) -> bool:
+    """Return True if the action requires human approval."""
+    HIGH_RISK_ACTIONS = {"delete_file", "send_email", "make_payment", "modify_database"}
+    if action in HIGH_RISK_ACTIONS:
+        return True
+    if confidence < CONFIDENCE_THRESHOLD:
+        return True
+    return False
+
+
+def plan_action_with_confidence(client, task: str) -> tuple[str, float]:
+    """Ask the LLM what action to take and how confident it is."""
+    response = client.messages.create(
+        model="claude-3-haiku-20240307",
+        max_tokens=256,
+        messages=[{
+            "role": "user",
+            "content": (
+                f"Task: {task}\n\n"
+                "Respond with JSON: "
+                '{"action": "action_name", "confidence": 0.0_to_1.0, "context": "reason"}'
+            )
+        }]
+    )
+    import json
+    data = json.loads(response.content[0].text)
+    return data["action"], data["confidence"]
+```
+
+**When to use**: Any agent where actions vary in risk level, or where input quality is unpredictable.
+
+---
+
+## Pattern 3: Action Allowlist
+
+Define which actions always require approval and which can run freely. Centralises policy in one place.
+
+```python
+from dataclasses import dataclass, field
+
+@dataclass
+class AgentPolicy:
+    """Defines which actions require human approval."""
+    always_approve: set[str] = field(default_factory=lambda: {
+        "delete_file",
+        "send_email",
+        "make_payment",
+        "modify_database",
+        "create_user",
+        "revoke_access",
+    })
+    auto_approve: set[str] = field(default_factory=lambda: {
+        "read_file",
+        "search_web",
+        "list_files",
+        "get_user_info",
+        "generate_report",
+    })
+    confidence_threshold: float = 0.7
+
+    def needs_approval(self, action: str, confidence: float) -> bool:
+        if action in self.always_approve:
+            return True
+        if action in self.auto_approve:
+            return False
+        # Unknown action: escalate if low confidence
+        return confidence < self.confidence_threshold
+
+
+policy = AgentPolicy()
+
+print(policy.needs_approval("send_email", 0.95))   # True  — always requires approval
+print(policy.needs_approval("read_file", 0.3))     # False — always auto-approved
+print(policy.needs_approval("custom_action", 0.4)) # True  — unknown + low confidence
+print(policy.needs_approval("custom_action", 0.9)) # False — unknown but high confidence
+```
+
+**When to use**: Production agents with predictable action sets. Makes the policy auditable and version-controllable.
+
+---
+
+## Pattern 4: Async HITL with State Persistence
+
+For agents that shouldn't block for hours waiting on human input.
+
+```python
+import json
+import uuid
+from datetime import datetime
+
+class AsyncHITLQueue:
+    """Simple in-memory queue for async approval requests (swap for DB/queue in production)."""
+
+    def __init__(self):
+        self._pending: dict[str, dict] = {}
+
+    def submit_for_approval(self, action: str, context: str, agent_state: dict) -> str:
+        """Pause the agent and queue an approval request. Returns a request ID."""
+        request_id = str(uuid.uuid4())
+        self._pending[request_id] = {
+            "id": request_id,
+            "action": action,
+            "context": context,
+            "agent_state": agent_state,
+            "submitted_at": datetime.utcnow().isoformat(),
+            "status": "pending",
+        }
+        # In production: send email/Slack/webhook here
+        print(f"[HITL] Approval request submitted: {request_id}")
+        return request_id
+
+    def resolve(self, request_id: str, approved: bool) -> dict:
+        """Human resolves the request. Returns the saved agent state."""
+        if request_id not in self._pending:
+            raise KeyError(f"No pending request: {request_id}")
+        entry = self._pending.pop(request_id)
+        entry["status"] = "approved" if approved else "rejected"
+        entry["resolved_at"] = datetime.utcnow().isoformat()
+        return entry
+```
+
+---
+
+## Anti-Patterns
+
+| Anti-Pattern | Why It's a Problem | Better Approach |
+|---|---|---|
+| **Approve everything** | Human fatigue; approval becomes a rubber stamp; defeats automation | Only escalate genuinely risky or uncertain actions |
+| **Never ask for approval** | Irreversible actions taken on ambiguous input cause real damage | Start with a broad allowlist; narrow it over time as you gain confidence |
+| **Ignoring rejections** | Agent re-tries the same rejected action or proceeds anyway | Log every rejection; abort the current action; surface the rejection in the final response |
+| **Synchronous HITL in batch jobs** | A batch of 1000 records stalls at item 3 waiting for `input()` | Use async HITL with state persistence for batch or scheduled workflows |
+| **No timeout on async requests** | Approval request sits unanswered indefinitely; agent never resumes | Set a timeout and define a default (auto-approve safe, auto-reject risky) |
+
+---
+
+Next: [Lab — Agent That Asks Before Acting](./lab.mdx)

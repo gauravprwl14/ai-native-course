@@ -1,0 +1,78 @@
+---
+title: "Quiz: Zero/Few-shot Prompting"
+sidebar_position: 5
+description: "Test your understanding of zero-shot and few-shot prompting."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz 09 — Zero/Few-shot Prompting
+
+Test your understanding before moving to Chapter 10.
+
+<Quiz
+  chapterId="tier2-ch09"
+  passMark={70}
+  questions={[
+    {
+      id: "q1",
+      text: "In few-shot prompting, examples are:",
+      options: [
+        "A) Used to fine-tune the model's weights before the request",
+        "B) Included in the prompt at inference time",
+        "C) Stored in a database and retrieved automatically by the API",
+        "D) Pre-cached by the API to reduce latency"
+      ],
+      correct: 1,
+      explanation: "Few-shot examples are just text included in the prompt — they exist inside the context window at inference time. The model's weights are never updated. This is called in-context learning: the model infers the task pattern from the examples during the forward pass."
+    },
+    {
+      id: "q2",
+      text: "You're classifying toxic comments. Your dataset is 5% toxic, 95% normal. You build a few-shot prompt with 10 examples, all labeled 'normal'. What will happen?",
+      options: [
+        "A) Accuracy will improve because there are more examples",
+        "B) The model will be biased toward predicting 'normal' for almost every input",
+        "C) The model will ignore the examples and use its own judgment",
+        "D) The model will learn to detect toxic content from the 'normal' examples"
+      ],
+      correct: 1,
+      explanation: "Label imbalance in few-shot examples directly biases the model. If all 10 examples are 'normal', the model sees 'normal' as overwhelmingly likely. It will predict 'normal' even for clearly toxic inputs. Always balance examples across classes — or weight them by real class frequency."
+    },
+    {
+      id: "q3",
+      text: "When would few-shot prompting NOT help compared to zero-shot?",
+      options: [
+        "A) When the task is completely novel and the model has no prior knowledge",
+        "B) When the model already handles the task correctly from pre-training",
+        "C) When you need very high accuracy",
+        "D) When the task involves complex reasoning"
+      ],
+      correct: 1,
+      explanation: "If the model already nails the task zero-shot, adding examples costs tokens (and money) on every API call without improving accuracy. Always test zero-shot first. Add examples only if accuracy is insufficient. Simpler, cheaper, faster is better when it works."
+    },
+    {
+      id: "q4",
+      text: "Your few-shot examples are all formal business emails. The model now performs poorly on casual social media posts. What is this called?",
+      options: [
+        "A) Overfitting — the model memorised the training data",
+        "B) Distribution mismatch — the examples don't represent the real input distribution",
+        "C) Label bias — the examples have unbalanced class labels",
+        "D) Context overflow — too many examples exceeded the context window"
+      ],
+      correct: 1,
+      explanation: "Distribution mismatch happens when your few-shot examples come from a different distribution than your real inputs. The model 'learns' to handle formal email language and applies that style to casual posts — hurting accuracy. Examples must represent the actual inputs you'll encounter in production."
+    },
+    {
+      id: "q5",
+      text: "What is 'in-context learning'?",
+      options: [
+        "A) A technique where the model updates its weights based on examples in the prompt",
+        "B) The model inferring the task from examples at inference time without weight updates",
+        "C) A fine-tuning technique that uses context from previous requests",
+        "D) Using chain-of-thought reasoning to solve problems step by step"
+      ],
+      correct: 1,
+      explanation: "In-context learning is what happens when a model uses examples in the prompt to infer and perform a task — all during a single forward pass, with no weight updates. The term comes from Brown et al. (2020) GPT-3 paper. It's what makes few-shot prompting work: the model is not being trained, it's reading examples and generalising on the fly."
+    }
+  ]}
+/>

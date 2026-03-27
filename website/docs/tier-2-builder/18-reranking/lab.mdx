@@ -1,0 +1,50 @@
+---
+title: "Lab: Improve RAG Precision with Re-ranking"
+sidebar_position: 4
+description: "Implement LLM-as-reranker and a two-stage retrieval pipeline to improve RAG answer quality."
+---
+
+# Lab 18 — Improve RAG Precision with Re-ranking
+
+## What You're Building
+
+A re-ranking module with three functions that form a complete two-stage retrieval pipeline:
+
+1. **`score_chunk_relevance(query, chunk)`** — uses an LLM to score how relevant a single chunk is to a query (returns integer 1–10)
+2. **`llm_rerank(query, chunks, top_k=5)`** — scores all chunks, sorts by score, returns the top-k as `(chunk, score)` tuples
+3. **`two_stage_retrieve(query, chunks, chunk_embeddings, query_embedding, initial_k=20, final_k=5)`** — runs vector search to get `initial_k` candidates, then re-ranks to `final_k`
+
+## Files
+
+| File | Purpose |
+|------|---------|
+| `starter/solution.py` | Your starting point — fill in the TODOs |
+| `solution/solution.py` | Reference solution |
+| `tests/test_solution.py` | Verify your implementation |
+| `problem.md` | Detailed problem statement |
+
+## Getting Started
+
+```bash
+cd curriculum/tier-2-builder/18-reranking/lab/starter
+python solution.py
+```
+
+## Acceptance Criteria
+
+- [ ] `score_chunk_relevance(query, chunk)` calls the LLM API with `temperature=0`
+- [ ] `score_chunk_relevance` returns an integer between 1 and 10 (inclusive)
+- [ ] `score_chunk_relevance` clamps the score to the 1–10 range even if the LLM returns an out-of-range value
+- [ ] `llm_rerank(query, chunks, top_k=5)` returns a list of exactly `top_k` `(str, int)` tuples
+- [ ] `llm_rerank` sorts results by score in descending order (highest relevance first)
+- [ ] `two_stage_retrieve` computes cosine similarity to select the initial candidate set
+- [ ] `two_stage_retrieve` returns a list of strings (chunk text only, no scores)
+- [ ] `two_stage_retrieve` returns at most `final_k` items
+- [ ] All tests pass: `pytest tests/ -v`
+
+## Running Tests
+
+```bash
+cd curriculum/tier-2-builder/18-reranking/lab
+pytest tests/ -v
+```

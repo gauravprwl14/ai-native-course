@@ -1,0 +1,107 @@
+---
+title: "Quiz: A2A & ACP Protocols"
+sidebar_position: 5
+description: "Test your understanding of agent-to-agent protocols, agent cards, capability-based discovery, and task delegation."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz 42 — A2A & ACP Protocols
+
+<Quiz
+  chapterId="tier4-ch42"
+  passMark={70}
+  questions={[
+    {
+      id: "q1",
+      text: "What is an 'agent card' in the A2A protocol?",
+      points: 1,
+      options: [
+        "A) A UI card component that displays agent status in a dashboard",
+        "B) A JSON manifest published by an agent describing its name, capabilities, and endpoint — used for discovery",
+        "C) A credit card used to pay for API calls to remote agents",
+        "D) A session token that authenticates an agent to the registry"
+      ],
+      correct: 1,
+      explanation: "An agent card is a JSON manifest that acts as a machine-readable capabilities advertisement. It contains the agent's name, description, list of capabilities, endpoint URL, and optionally input/output schemas. In A2A, agent cards are published at /.well-known/agent.json so any client can discover them."
+    },
+    {
+      id: "q2",
+      text: "What is the key advantage of capability-based routing over hardcoding which agent to call?",
+      points: 2,
+      options: [
+        "A) It is faster because it avoids network calls",
+        "B) The orchestrator is decoupled from specific agents — new specialists can be added or replaced without changing the orchestrator",
+        "C) It guarantees the best agent is always selected based on real-time performance metrics",
+        "D) It eliminates the need for an orchestrator entirely"
+      ],
+      correct: 1,
+      explanation: "Capability-based routing means the orchestrator describes what it needs ('translation') rather than which agent to call. New agents can register with the required capability, old agents can be retired, and the orchestrator code never changes. This is the same decoupling principle as dependency injection in software engineering."
+    },
+    {
+      id: "q3",
+      text: "In the A2A protocol, where should an agent publish its agent card by convention?",
+      points: 1,
+      options: [
+        "A) /api/agent-info",
+        "B) /agent.json at the root",
+        "C) /.well-known/agent.json",
+        "D) /metadata/capabilities"
+      ],
+      correct: 2,
+      explanation: "A2A follows the .well-known URI convention (RFC 5785) — a standard pattern for service discovery endpoints. By publishing at /.well-known/agent.json, any client that knows an agent's base URL can automatically discover its capabilities without additional configuration."
+    },
+    {
+      id: "q4",
+      text: "Which protocol is best described as 'message-centric with structured threading and rich metadata, favoured in enterprise settings'?",
+      points: 1,
+      options: [
+        "A) A2A (Agent-to-Agent) by Google",
+        "B) MCP (Model Context Protocol) by Anthropic",
+        "C) ACP (Agent Communication Protocol) by IBM/BeeAI",
+        "D) JSON-RPC 2.0"
+      ],
+      correct: 2,
+      explanation: "ACP (Agent Communication Protocol) from IBM/BeeAI is designed around structured message threads with rich metadata for traceability and audit trails — requirements common in enterprise environments. A2A is task-centric (send a task, get a result). MCP connects LLMs to tools/data, not agents to agents."
+    },
+    {
+      id: "q5",
+      text: "An orchestrator delegates a task to a research agent that takes 5 minutes to respond. What anti-pattern does this represent, and what is the fix?",
+      points: 2,
+      options: [
+        "A) Infinite delegation loop — fix by tracking delegation depth",
+        "B) No timeout on delegated tasks — fix by setting a deadline and returning a failure TaskResult if exceeded",
+        "C) Overlapping capabilities — fix by narrowing the agent's capability list",
+        "D) Hardcoded endpoint — fix by using capability-based discovery"
+      ],
+      correct: 1,
+      explanation: "The anti-pattern is failing to set a timeout on delegated tasks. A slow or unresponsive agent will block the orchestrator indefinitely. The fix is to wrap delegation in a timeout (e.g., Future.result(timeout=30)) and return a failure TaskResult with an appropriate error message if the deadline is exceeded. Never wait forever for an external agent."
+    },
+    {
+      id: "q6",
+      text: "What happens in an 'infinite delegation loop' and how do you prevent it?",
+      points: 2,
+      options: [
+        "A) The registry runs out of memory storing agent registrations — fix by limiting registry size",
+        "B) Agent A delegates to Agent B which delegates back to Agent A — fix by tracking delegation depth and raising an error above a maximum",
+        "C) The orchestrator calls the same agent twice for the same task — fix by caching task results",
+        "D) Multiple agents return conflicting results — fix by adding a consensus step"
+      ],
+      correct: 1,
+      explanation: "Infinite delegation loops occur when agents delegate to each other in a cycle: A → B → A → B → ... This can happen if capability definitions are too broad and multiple agents list each other's capabilities. The fix is to pass a delegation_depth counter through each delegation call and raise an error (or return a failure TaskResult) if the depth exceeds a maximum like 5."
+    },
+    {
+      id: "q7",
+      text: "You need an orchestrator that can research a topic AND summarise it. The research and summarise steps are independent. Which execution strategy is best?",
+      points: 2,
+      options: [
+        "A) Sequential: research then summarise (always)",
+        "B) Sequential is required because the summary needs the research output — research first, then summarise the results",
+        "C) Parallel execution of both tasks, then aggregate results",
+        "D) Delegate both to the same agent to avoid coordination overhead"
+      ],
+      correct: 1,
+      explanation: "Research and summarise are NOT independent here — the summary step should summarise the research results, not a random topic. The correct order is: research first, then pass the research output to the summarise step. Sequential execution is correct when there is a data dependency between steps. Parallel execution is only appropriate when steps are truly independent (e.g., researching two different topics simultaneously)."
+    }
+  ]}
+/>

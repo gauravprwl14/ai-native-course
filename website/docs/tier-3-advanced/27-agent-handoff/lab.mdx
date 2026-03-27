@@ -1,0 +1,49 @@
+---
+title: "Lab: Router → Specialist Agents"
+sidebar_position: 4
+description: "Build an intent classifier, a route-and-execute function, and an AgentRouter class that dispatches requests to the right specialist with context."
+---
+
+# Lab 27 — Router → Specialist Agents
+
+## What You're Building
+
+A routing system that classifies user messages and delegates them to the right specialist agent. You will implement:
+
+1. **`classify_intent(message, intents)`** — call the LLM with the message and intent descriptions; return the matched intent label (or "general" if no match)
+2. **`route_and_execute(message, agents, conversation_history=None)`** — classify the message, select the matching agent callable, pass context, and return the response string
+3. **`AgentRouter`** — a class that holds a specialist registry and a fallback agent, exposes a `chat(message)` method, and maintains conversation history across calls
+
+## Files
+
+| File | Purpose |
+|------|---------|
+| `starter/solution.py` | Your starting point — fill in the TODOs |
+| `solution/solution.py` | Reference solution |
+| `tests/test_solution.py` | Verify your implementation |
+
+## Getting Started
+
+```bash
+cd curriculum/tier-3-advanced/27-agent-handoff/lab/starter
+python solution.py
+```
+
+## Acceptance Criteria
+
+- [ ] `classify_intent(message, intents)` calls the LLM and returns a label present in `intents`
+- [ ] `classify_intent(message, intents)` returns `"general"` for an unrecognised label
+- [ ] `route_and_execute(message, agents)` calls the agent function matching the classified intent
+- [ ] `route_and_execute` passes `conversation_history` to the agent when provided
+- [ ] `route_and_execute` falls back to the `"general"` agent if no specialist matches
+- [ ] `AgentRouter.chat(message)` returns a non-empty string
+- [ ] `AgentRouter.chat(message)` appends each turn to internal conversation history
+- [ ] `AgentRouter.chat(message)` uses the fallback agent when no specialist matches
+- [ ] All tests pass: `pytest tests/ -v`
+
+## Running Tests
+
+```bash
+cd curriculum/tier-3-advanced/27-agent-handoff/lab
+pytest tests/ -v
+```

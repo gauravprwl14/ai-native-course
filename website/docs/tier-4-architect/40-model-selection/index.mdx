@@ -1,0 +1,48 @@
+---
+title: "Chapter 40: Model Selection Trade-offs"
+sidebar_position: 1
+description: "How to choose the right LLM for your task: capability vs cost vs latency, benchmark families, and model cascade patterns."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 40 — Model Selection Trade-offs
+
+## What You'll Learn
+
+With hundreds of models available, picking the wrong one means you're either paying 10x too much or delivering a poor user experience. This chapter gives you a systematic framework for model selection: understand the dimensions, read benchmarks critically, and build a benchmark harness to test models on your actual tasks.
+
+## Prerequisites
+
+- Tier 3 complete
+- Chapter 39 (LLM APIs Deep-dive) — cost and token counting
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 20 min |
+| Patterns | 20 min |
+| Lab | 25 min |
+| Quiz | 10 min |
+| **Total** | **~75 min** |
+
+## What You'll Learn
+
+- The **five dimensions** of model selection: capability, cost, latency, context window, deployment options
+- How to read **benchmark families**: MMLU, HumanEval, MT-Bench, Arena ELO, GPQA
+- The **model tiers**: frontier, mid-tier, small/fast — and when each is appropriate
+- **Model cascade** — try cheap first, escalate only when needed
+- **Task routing** — classify the task and route to the best model
+- How to build a **benchmark harness** to test models on your specific use case
+
+## How This Connects
+
+You'll use everything from Chapter 39 (cost calculation, token counting) to compare models systematically. This feeds into every chapter that follows: when to use a local model (Ch 43), when to use a gateway to route between models (Ch 46), and how to optimize latency (Ch 45).
+
+<ConceptMap
+  current="model-selection"
+  related={["llm-apis", "llm-hosting", "latency-optimization", "ai-gateway"]}
+/>
+
+➡️ Next: [Concepts — Choosing the Right LLM](./concepts.mdx)

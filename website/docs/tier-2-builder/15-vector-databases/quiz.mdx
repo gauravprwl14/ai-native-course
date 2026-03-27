@@ -1,0 +1,81 @@
+---
+title: "Quiz: Vector Databases"
+sidebar_position: 5
+description: "Test your understanding of ANN search, HNSW, Chroma, metadata filtering, and when to choose a vector database."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz 15 — Vector Databases
+
+<Quiz
+  chapterId="tier2-ch15"
+  passMark={70}
+  questions={[
+    {
+      id: "q1",
+      text: "ANN, as used in vector database search, stands for:",
+      points: 1,
+      options: [
+        "A) Artificial Neural Network",
+        "B) Approximate Nearest Neighbor",
+        "C) Advanced Node Network",
+        "D) Automatic Name Normalization"
+      ],
+      correct: 1,
+      explanation: "ANN stands for Approximate Nearest Neighbor. It is a family of algorithms that trade a tiny accuracy loss for a massive speed gain over exact nearest neighbor search. Instead of comparing every vector in the index (O(n)), ANN navigates an index structure to find the approximate top-k results in O(log n) time."
+    },
+    {
+      id: "q2",
+      text: "You are building a RAG system that needs to search 10 million product descriptions in under 50ms. Which option is most appropriate?",
+      points: 2,
+      options: [
+        "A) In-memory Python list with cosine similarity",
+        "B) Chroma EphemeralClient",
+        "C) Pinecone managed service",
+        "D) JSON file with linear scan"
+      ],
+      correct: 2,
+      explanation: "Pinecone is a managed cloud vector database purpose-built for production scale. It auto-scales to billions of vectors and delivers sub-millisecond ANN search. An in-memory Python list requires O(n) brute-force comparison — impractical at 10M vectors. Chroma EphemeralClient stores data in memory and loses it on restart, and is better suited for development and small corpora. A JSON file has no indexing at all."
+    },
+    {
+      id: "q3",
+      text: "Metadata filtering in a vector database allows you to:",
+      points: 2,
+      options: [
+        "A) Change the embedding model used at query time",
+        "B) Narrow the search space before vector comparison",
+        "C) Sort results by date only",
+        "D) Improve HNSW recall accuracy"
+      ],
+      correct: 1,
+      explanation: "Metadata filtering (e.g., where={\"source\": {\"$eq\": \"policy.pdf\"}}) restricts the candidate set before the ANN search runs. Only documents matching the filter are considered for vector comparison. This improves both relevance (no results from irrelevant sources) and speed (smaller search space). It does not change the embedding model or directly affect HNSW parameters."
+    },
+    {
+      id: "q4",
+      text: "You restart your Python process and all your Chroma data is gone. What did you forget to do?",
+      points: 2,
+      options: [
+        "A) Use a GPU for indexing",
+        "B) Use PersistentClient instead of EphemeralClient",
+        "C) Add metadata to every document",
+        "D) Configure the HNSW ef_construction parameter"
+      ],
+      correct: 1,
+      explanation: "chromadb.EphemeralClient() stores everything in memory. When the process exits, all data is lost. chromadb.PersistentClient(path=\"./chroma_db\") writes the HNSW index and SQLite metadata to disk, so data survives restarts. This is one of the most common mistakes when moving from a Chroma prototype to a longer-running environment."
+    },
+    {
+      id: "q5",
+      text: "Why is ANN search faster than exact nearest neighbor search?",
+      points: 3,
+      options: [
+        "A) It uses less memory than exact search",
+        "B) It sacrifices a small amount of accuracy to skip searching most of the index",
+        "C) It offloads computation to a GPU",
+        "D) It compresses vectors to fewer dimensions"
+      ],
+      correct: 1,
+      explanation: "ANN algorithms like HNSW build an index structure (a multi-layer graph) that enables the search to navigate directly to the relevant neighborhood of the query vector, skipping the vast majority of the index. This reduces search from O(n) — comparing every vector — to roughly O(log n). The trade-off is a tiny accuracy loss: ANN finds the approximate top-k, not the exact top-k. In practice, with well-tuned parameters, recall is 95-99% and the speed gain is orders of magnitude."
+    }
+  ]}
+/>

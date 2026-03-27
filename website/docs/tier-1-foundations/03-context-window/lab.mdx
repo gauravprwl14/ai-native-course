@@ -1,0 +1,82 @@
+---
+title: "Lab: Build a Context-Aware Q&A System"
+sidebar_position: 15
+description: "Build a chatbot that manages conversation history within a token budget."
+---
+
+# Lab 03 — Build a Context-Aware Q&A System
+
+## What You're Building
+
+A Python module that manages conversation history for a multi-turn chatbot. The system must stay within a configurable token budget, automatically truncating old messages when the context fills up.
+
+## Files
+
+| File | Purpose |
+|------|---------|
+| `starter/solution.py` | Your starting point — fill in the TODOs |
+| `solution/solution.py` | Reference solution |
+| `tests/test_solution.py` | Verify your implementation |
+| `problem.md` | Full problem statement |
+
+## Getting Started
+
+```bash
+cd curriculum/tier-1-foundations/03-context-window/lab/starter
+pip install tiktoken anthropic
+python solution.py
+```
+
+## Acceptance Criteria
+
+- [ ] `count_history_tokens(history)` returns total token count for a list of messages
+- [ ] `truncate_history(history, max_tokens)` removes oldest messages to fit within budget
+- [ ] `chat_with_history(user_message, history, max_tokens)` returns `(response_text, updated_history)`
+- [ ] Original history list is never mutated
+- [ ] All tests pass: `pytest tests/ -v`
+
+## How to Run Tests
+
+```bash
+cd curriculum/tier-1-foundations/03-context-window/lab
+pytest tests/ -v
+```
+
+## Function Signatures
+
+### `count_history_tokens(history: list[dict]) -> int`
+
+Count total tokens for a list of message dicts. Each dict has `role` and `content` keys.
+
+```python
+history = [
+    {"role": "user", "content": "What is Python?"},
+    {"role": "assistant", "content": "Python is a programming language."},
+]
+count_history_tokens(history)  # returns ~20
+```
+
+### `truncate_history(history: list[dict], max_tokens: int) -> list[dict]`
+
+Remove the oldest messages until the history fits within `max_tokens`. Return a new list — do not mutate the original.
+
+```python
+truncate_history(history, max_tokens=10)
+# Returns history with oldest messages removed to fit within 10 tokens
+```
+
+### `chat_with_history(user_message, history, max_tokens=4000) -> tuple[str, list[dict]]`
+
+Send a message to Claude with managed conversation history.
+
+```python
+response, new_history = chat_with_history(
+    "What is the capital of France?",
+    [],
+)
+# response = "Paris is the capital of France."
+# new_history = [
+#   {"role": "user", "content": "What is the capital of France?"},
+#   {"role": "assistant", "content": "Paris is the capital of France."},
+# ]
+```

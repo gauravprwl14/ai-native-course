@@ -1,0 +1,127 @@
+---
+title: "Lab: Agent Delegation System"
+sidebar_position: 4
+description: "Implement a simplified A2A-style agent registry with capability-based discovery and task delegation."
+---
+
+# Lab 42 — Agent Delegation System
+
+In this lab you will implement a simplified A2A-style agent delegation system in pure Python. No external dependencies required — the focus is on the core protocol mechanics: registration, discovery, and delegation.
+
+## What You'll Build
+
+| Component | Description |
+|-----------|-------------|
+| `AgentCard` | Dataclass: agent name, description, capabilities, endpoint |
+| `TaskResult` | Dataclass: agent name, task, result string, success flag |
+| `AgentRegistry` | Register agents; discover by capability; retrieve handlers |
+| `delegate_task` | Find best agent for a capability; call its handler; return TaskResult |
+| `compose_multi_agent` | Delegate a list of `(task, capability)` tuples; return all results |
+
+## Starter File
+
+Open `curriculum/tier-4-architect/42-a2a-acp/lab/starter/solution.py`.
+
+## Your Tasks
+
+### Task A: `AgentRegistry.register`
+
+Store the `AgentCard` in `self._agents` keyed by `card.name`. Store the `handler` function in `self._handlers` keyed by `card.name`.
+
+### Task B: `AgentRegistry.discover`
+
+Return a list of `AgentCard` objects where `capability` appears in `card.capabilities`. An empty list is valid if no agents match.
+
+### Task C: `AgentRegistry.get_handler`
+
+Return the handler function for `agent_name`. Raise `KeyError` if not found.
+
+### Task D: `delegate_task`
+
+1. Call `registry.discover(required_capability)` to get candidates
+2. If no candidates, return:
+   ```python
+   TaskResult(agent_name="none", task=task, result="No agent found", success=False)
+   ```
+3. Pick `candidates[0]` (first match)
+4. Call `handler(task)` to get the result string
+5. Return `TaskResult(agent_name=chosen.name, task=task, result=result, success=True)`
+
+### Task E: `compose_multi_agent`
+
+For each `(task, capability)` tuple in the input list, call `delegate_task`. Return the list of all `TaskResult` objects.
+
+## Two Mock Agents to Register
+
+The tests will register two agents for you. Here are the expected agent definitions for reference:
+
+```python
+registry = AgentRegistry()
+
+registry.register(
+    AgentCard(
+        name="ResearchAgent",
+        description="Searches for and summarises factual information",
+        capabilities=["research", "fact-finding"],
+    ),
+    handler=lambda task: f"[Research] Key facts about: {task}"
+)
+
+registry.register(
+    AgentCard(
+        name="SummaryAgent",
+        description="Creates concise summaries",
+        capabilities=["summarise", "writing"],
+    ),
+    handler=lambda task: f"[Summary] {task[:30]}..."
+)
+```
+
+## Running the Tests
+
+```bash
+cd curriculum/tier-4-architect/42-a2a-acp/lab
+pytest tests/ -v
+```
+
+## Stretch Goals
+
+1. Add a `priority` field to `AgentCard` (default 0) and update `discover` to return agents sorted by priority descending
+2. Add a `delegate_with_fallback` function that tries the next candidate if the first agent raises an exception
+3. Implement `compose_multi_agent_parallel` using `ThreadPoolExecutor`
+4. Add a `max_delegation_depth` guard to `delegate_task` that prevents infinite loops (pass `depth=0` and raise if `depth > 5`)
+
+## Expected Behaviour
+
+```python
+registry = AgentRegistry()
+registry.register(
+    AgentCard("ResearchAgent", "Does research", ["research"]),
+    handler=lambda task: f"Research: {task}"
+)
+
+# Discovery works
+agents = registry.discover("research")
+assert len(agents) == 1
+assert agents[0].name == "ResearchAgent"
+
+# Delegation works
+result = delegate_task("climate change facts", "research", registry)
+assert result.success is True
+assert result.agent_name == "ResearchAgent"
+assert "Research:" in result.result
+
+# Unknown capability
+result = delegate_task("something", "translation", registry)
+assert result.success is False
+assert result.agent_name == "none"
+
+# Multi-task composition
+results = compose_multi_agent(
+    [("climate facts", "research"), ("summarise", "writing")],
+    registry
+)
+assert len(results) == 2
+```
+
+Next: [Quiz — A2A & ACP Protocols](./quiz.mdx)

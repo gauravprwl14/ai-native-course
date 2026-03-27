@@ -35,13 +35,20 @@ A good problem in this bank:
 ## Problems Index
 
 ### Prompting
-- [ ] p001 — Adversarial Summarizer *(coming soon)*
-- [ ] p002 — Chain of Density Compression *(coming soon)*
-- [ ] p003 — Self-Consistency Voting *(coming soon)*
+
+| File | Problem | Difficulty | Key Concepts | Time |
+|------|---------|------------|--------------|------|
+| [p01-prompt-injection-defense.md](prompting/p01-prompt-injection-defense.md) | **Prompt Injection Defense** — Design a defense architecture for a customer service chatbot that handles role-play injection attacks | Hard | prompt injection, system prompt isolation, input sanitization, defense in depth | 30–45 min |
+| [p02-token-budget-overflow.md](prompting/p02-token-budget-overflow.md) | **Token Budget Overflow** — A developer says "just stuff everything in, we have 200k context." What are they missing at 1,000 requests/day? | Medium | context window economics, prompt caching, cost optimization, token budget management | 20–35 min |
+| [p03-few-shot-contamination.md](prompting/p03-few-shot-contamination.md) | **Few-Shot Contamination** — Sentiment classifier achieves 95% on Apple products but 67% on Samsung. What's the bug? | Medium | few-shot contamination, distribution shift, in-context learning limitations, entity anchoring | 25–40 min |
 
 ### Agents
-- [ ] p010 — Self-Healing Pipeline *(coming soon)*
-- [ ] p011 — Infinite Loop Detection *(coming soon)*
+
+| File | Problem | Difficulty | Key Concepts | Time |
+|------|---------|------------|--------------|------|
+| [p01-tool-call-loop.md](agents/p01-tool-call-loop.md) | **Tool Call Loop** — Agent costs $0.12/request instead of $0.02. It loops search→parse→search forever. Fix it without breaking legitimate long tasks. | Hard | agent loop control, tool call budget, convergence detection, max iterations guard | 30–45 min |
+| [p02-parallel-tool-race-condition.md](agents/p02-parallel-tool-race-condition.md) | **Parallel Tool Race Condition** — Parallelized tool execution causes 0.3% of requests to return inconsistent state. Fix it without serializing everything. | Expert | tool execution ordering, read-after-write consistency, tool dependency graph, optimistic vs pessimistic concurrency | 35–45 min |
+| [p03-memory-poisoning.md](agents/p03-memory-poisoning.md) | **Memory Poisoning** — Agent with long-term memory gives contradictory answers. Vector search returns "name is Alice" even though user updated to "Bob" two weeks ago. | Expert | memory versioning, recency vs relevance trade-off, memory consolidation, semantic deduplication | 35–45 min |
 
 ### RAG
 - [ ] p020 — Context Poisoning Detection *(coming soon)*

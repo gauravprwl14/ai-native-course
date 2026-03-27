@@ -1,0 +1,46 @@
+---
+title: "Lab: Self-improving Summarizer"
+sidebar_position: 4
+description: "Build a summarizer that critiques and improves its own summaries using a generate-critique-revise loop."
+---
+
+# Lab 26 — Self-improving Summarizer
+
+## What You're Building
+
+A summariser that does not just generate once — it reads its own output critically and revises until satisfied. You will implement three functions:
+
+1. **`generate_summary(text)`** — produce an initial summary of the input text
+2. **`critique_summary(original_text, summary)`** — evaluate the summary: identify what is missing, overstated, or unclear
+3. **`improve_summary(text, max_iterations=3)`** — run the G-C-R loop: generate, then repeatedly critique and revise until the critique says "no major issues" or `max_iterations` is reached
+
+## Files
+
+| File | Purpose |
+|------|---------|
+| `starter/solution.py` | Your starting point — fill in the TODOs |
+| `solution/solution.py` | Reference solution |
+| `tests/test_solution.py` | Verify your implementation |
+
+## Getting Started
+
+```bash
+cd curriculum/tier-3-advanced/26-reflection/lab/starter
+python solution.py
+```
+
+## Acceptance Criteria
+
+- [ ] `generate_summary(text)` calls the LLM and returns a non-empty string
+- [ ] `critique_summary(original_text, summary)` returns a string identifying weaknesses
+- [ ] `improve_summary(text, max_iterations=3)` returns a revised summary string
+- [ ] `improve_summary` stops early when the critique includes "NO MAJOR ISSUES"
+- [ ] `improve_summary` does not exceed `max_iterations` revisions
+- [ ] All tests pass: `pytest tests/ -v`
+
+## Running Tests
+
+```bash
+cd curriculum/tier-3-advanced/26-reflection/lab
+pytest tests/ -v
+```

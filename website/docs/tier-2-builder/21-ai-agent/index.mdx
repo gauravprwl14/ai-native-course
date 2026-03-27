@@ -1,0 +1,43 @@
+---
+title: "Chapter 21: AI Agent (Full)"
+sidebar_position: 1
+description: "Build a complete multi-tool AI agent with memory, error recovery, and structured output. The full package."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 21 — AI Agent (Full)
+
+## What You'll Learn
+
+- How to assemble a production-ready agent from the building blocks covered in Chapters 19–20
+- The tool registry pattern — a clean way to manage multiple tools
+- Conversation memory and how the context window is the agent's working memory
+- Error budgets — tracking consecutive failures and aborting gracefully
+- Agent system prompt design — how the system prompt shapes agent behavior
+
+## Prerequisites
+
+- Chapter 19 (Tool Use) — tool definitions, tool_use stop reason, tool_result messages
+- Chapter 20 (Agentic Loop) — the ReAct pattern, observe-think-act, stopping conditions
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 20 min |
+| Patterns | 20 min |
+| Lab | 45 min |
+| Quiz | 10 min |
+| **Total** | **~95 min** |
+
+## How This Connects
+
+In Chapter 19 you learned to make a single tool call. In Chapter 20 you learned to loop — think, act, observe, repeat. This chapter assembles those pieces into a full agent: one with a system prompt, a tool registry, conversation memory, and error recovery. This is the architecture you'd actually deploy.
+
+<ConceptMap
+  current="agents"
+  related={["tool-use", "agentic-loop", "multi-agent", "memory", "planning"]}
+/>
+
+➡️ Next: [Concepts — Full AI Agents](./concepts.mdx)

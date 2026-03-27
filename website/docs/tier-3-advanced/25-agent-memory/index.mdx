@@ -1,0 +1,43 @@
+---
+title: "Chapter 25: Agent Memory"
+sidebar_position: 1
+description: "Give agents persistent memory. Implement short-term, long-term, and semantic memory patterns for stateful AI agents."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 25 — Agent Memory
+
+## What You'll Learn
+
+- The four memory types: short-term, long-term, semantic, and episodic — and how each maps to agent implementation
+- In-context memory vs. external memory and the trade-offs of each
+- How to retrieve relevant memories at query time using embedding-based search
+- Forgetting strategies: when and how to summarise or discard old memories to avoid context overflow
+- How to implement a `MemoryStore` class that persists, retrieves, and searches agent memories
+
+## Prerequisites
+
+- Chapter 21 (Full Agent) — you should understand the agentic loop, tool use, and how conversations are managed before adding persistent memory
+- Python 3.10+, `anthropic` and `openai` packages installed
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 25 min |
+| Patterns | 20 min |
+| Lab | 35 min |
+| Quiz | 10 min |
+| **Total** | **~90 min** |
+
+## How This Connects
+
+Without memory, every agent conversation starts from zero. The agent has no knowledge of past sessions, no recollection of user preferences, and cannot build on what it has learned. Memory is what separates a stateless chatbot from a truly intelligent assistant. Chapter 14 (RAG Core) introduced retrieval — memory is retrieval applied to the agent's own history. Chapter 15 (Vector Databases) taught you where to store high-dimensional data — semantic memory uses exactly those techniques applied to the agent's accumulated knowledge.
+
+<ConceptMap
+  current="memory"
+  related={["agents", "rag", "agentic-loop", "vector-databases", "context-window"]}
+/>
+
+➡️ Next: [Concepts — Agent Memory](./concepts.mdx)

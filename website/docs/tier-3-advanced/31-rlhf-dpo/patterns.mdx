@@ -1,0 +1,177 @@
+---
+title: "Patterns: RLHF & DPO"
+sidebar_position: 3
+description: "Three practical patterns for constructing and validating DPO preference datasets."
+---
+
+# Patterns: RLHF & DPO
+
+---
+
+## Pattern 1: DPO Pair Construction
+
+The most important step in DPO is building high-quality `(prompt, chosen, rejected)` pairs. The chosen response should be clearly better — more accurate, more helpful, better structured. The rejected response should illustrate a realistic failure mode, not a trivially nonsensical answer.
+
+```python
+def create_preference_pair(prompt: str, chosen: str, rejected: str) -> dict:
+    """Construct a validated DPO preference pair."""
+    pair = {
+        "prompt": prompt.strip(),
+        "chosen": chosen.strip(),
+        "rejected": rejected.strip(),
+    }
+    valid, errors = validate_preference_pair(pair)
+    if not valid:
+        raise ValueError(f"Invalid preference pair: {errors}")
+    return pair
+
+# Good pair: chosen is clearly better
+pair = create_preference_pair(
+    prompt="What is the capital of France?",
+    chosen="The capital of France is Paris. It has been the country's capital since the 10th century.",
+    rejected="France has a capital city somewhere in Europe.",
+)
+
+# Bad pair (will raise): chosen == rejected
+try:
+    create_preference_pair(
+        prompt="What is 2+2?",
+        chosen="4",
+        rejected="4",   # identical — no learning signal
+    )
+except ValueError as e:
+    print(e)  # Invalid preference pair: ['chosen and rejected must differ']
+```
+
+**When to use:** Any time you are manually curating preference data for DPO fine-tuning.
+
+---
+
+## Pattern 2: Dataset Quality Checks
+
+Before training, run a full sweep of your dataset to catch structural problems. A broken dataset will silently train a broken model.
+
+```python
+def validate_preference_pair(pair: dict) -> tuple[bool, list[str]]:
+    """
+    Validate a DPO preference pair.
+    Returns (is_valid, list_of_errors).
+    """
+    errors = []
+    required_keys = {"prompt", "chosen", "rejected"}
+
+    # Check all required keys are present
+    for key in required_keys:
+        if key not in pair:
+            errors.append(f"missing key: '{key}'")
+
+    if errors:
+        return False, errors
+
+    # Check no field is empty
+    for key in required_keys:
+        if not pair[key].strip():
+            errors.append(f"'{key}' must not be empty")
+
+    # Check chosen != rejected
+    if pair.get("chosen", "").strip() == pair.get("rejected", "").strip():
+        errors.append("chosen and rejected must differ")
+
+    return len(errors) == 0, errors
+
+
+def audit_dataset(dataset: list[dict]) -> dict:
+    """Audit a full dataset. Returns summary statistics."""
+    total = len(dataset)
+    invalid = []
+    for i, pair in enumerate(dataset):
+        valid, errors = validate_preference_pair(pair)
+        if not valid:
+            invalid.append({"index": i, "errors": errors})
+
+    return {
+        "total": total,
+        "valid": total - len(invalid),
+        "invalid_count": len(invalid),
+        "invalid_examples": invalid[:5],  # first 5 for review
+    }
+
+# Usage
+dataset = [
+    {"prompt": "What is ML?", "chosen": "Machine learning is...", "rejected": "Dunno"},
+    {"prompt": "What is AI?", "chosen": "", "rejected": "AI is..."},  # bad: empty chosen
+    {"prompt": "2+2?", "chosen": "4", "rejected": "4"},               # bad: identical
+]
+report = audit_dataset(dataset)
+print(f"Valid: {report['valid']}/{report['total']}")
+```
+
+**When to use:** As a CI step before any DPO training run. Fail the pipeline if `invalid_count > 0`.
+
+---
+
+## Pattern 3: Synthetic Rejection Generation
+
+When you have high-quality chosen responses but need rejected responses at scale, you can prompt an LLM to generate a deliberately worse version. **Always human-review the output** — LLMs tend to produce responses that are subtly wrong rather than clearly bad.
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+MODEL = "claude-3-haiku-20240307"
+
+DEGRADATION_PROMPT = """You are helping construct a preference dataset for AI alignment training.
+
+Given a prompt and a high-quality response, generate a WORSE version of the response.
+The worse version should be realistic — something a less capable model might produce.
+Make it vague, incomplete, or subtly inaccurate. Do NOT make it obviously nonsensical.
+
+Prompt: {prompt}
+
+High-quality response:
+{chosen}
+
+Generate a worse version (rejected response):"""
+
+def generate_rejection(prompt: str, chosen: str) -> str:
+    """Use LLM to generate a deliberately worse version of the chosen response."""
+    response = client.messages.create(
+        model=MODEL,
+        max_tokens=512,
+        temperature=0.7,   # some variety
+        messages=[{
+            "role": "user",
+            "content": DEGRADATION_PROMPT.format(prompt=prompt, chosen=chosen)
+        }]
+    )
+    return response.content[0].text.strip()
+
+# Usage
+prompt = "Explain what gradient descent is."
+chosen = ("Gradient descent is an optimization algorithm that iteratively adjusts "
+          "model parameters in the direction that minimizes the loss function. "
+          "At each step, it computes the gradient of the loss with respect to the "
+          "parameters and subtracts a fraction (the learning rate) of that gradient.")
+rejected = generate_rejection(prompt, chosen)
+print(rejected)
+# Example output: "Gradient descent is a way to train neural networks by adjusting
+# the weights. It uses math to make the model better over time."
+```
+
+**When to use:** When you have many high-quality chosen responses and need to scale dataset construction. Always spot-check generated rejections before using them in training.
+
+---
+
+## Anti-Patterns
+
+| Anti-pattern | What Goes Wrong | Fix |
+|--------------|----------------|-----|
+| **chosen == rejected** | Zero gradient signal — model doesn't learn anything from this pair | Validate before adding to dataset; deduplicate chosen/rejected per pair |
+| **Vague preference** | chosen is only marginally better than rejected; annotators disagree | Define clear quality axes (accuracy, completeness, safety); use annotation rubric |
+| **LLM-generated rejections without human review** | Synthetic bad examples may be subtly wrong or too similar to chosen | Require human sign-off on ≥20% of synthetic pairs before using |
+| **Unbalanced topics** | Dataset covers only a few domains; model aligns well there but not elsewhere | Sample prompts uniformly across your deployment domains |
+| **Length confounding** | Chosen responses are systematically longer than rejected; model learns "be verbose" | Control for response length when selecting pairs |
+
+---
+
+Next: [Lab — Construct a DPO Dataset](./lab.mdx)

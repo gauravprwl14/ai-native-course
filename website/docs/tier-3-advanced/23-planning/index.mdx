@@ -1,0 +1,44 @@
+---
+title: "Chapter 23: Planning & Task Decomposition"
+sidebar_position: 1
+description: "Break complex tasks into executable steps. Build a planner agent that decomposes goals into sub-tasks and executes them in order."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 23 — Planning & Task Decomposition
+
+## What You'll Learn
+
+- How to decompose a high-level goal into concrete, executable sub-tasks
+- The plan generation loop: from goal to ordered task list
+- Sequential vs parallel execution and when to use each
+- Plan validation: checking dependencies before execution
+- Replanning: recovering gracefully when a step fails
+
+## Prerequisites
+
+- Chapter 20 (Agentic Loop) — you should understand the observe-think-act loop and tool calls
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 25 min |
+| Patterns | 20 min |
+| Lab | 40 min |
+| Quiz | 10 min |
+| **Total** | **~95 min** |
+
+## How This Connects
+
+Chapter 20 gave you a loop that can call tools repeatedly. But what happens when the task itself is too complex to reason about in a single context? "Write a full market analysis report" is too large for one LLM call. You need a layer above the agent loop — something that breaks the goal apart before execution begins.
+
+Planning is that layer. A planner LLM turns a goal into an ordered list of sub-tasks. An executor then works through them one by one (or in parallel). If a step fails, the planner can regenerate the remaining steps with the new context. This is the foundation of every sophisticated autonomous system.
+
+<ConceptMap
+  current="planning"
+  related={["agentic-loop", "multi-agent", "agents", "reflection", "tool-use"]}
+/>
+
+Next: [Concepts — Planning & Task Decomposition](./concepts.mdx)

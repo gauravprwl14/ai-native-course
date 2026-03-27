@@ -1,0 +1,85 @@
+---
+title: "Lab: Build a Tracer"
+sidebar_position: 4
+description: "Implement a Span, Trace, create_span, and calculate_cost_from_trace to add observability to any AI pipeline."
+---
+
+# Lab: Build a Tracer
+
+## Goal
+
+Implement a lightweight tracing system in pure Python. No API calls needed — this lab is about data structures and timing logic.
+
+## What You'll Build
+
+| Class / Function | Description |
+|-----------------|-------------|
+| `Span` | Dataclass: name, model, input_tokens, output_tokens, latency_ms, error |
+| `Trace` | Dataclass: list of spans + `total_tokens` and `total_latency_ms` properties |
+| `calculate_cost_from_trace(trace)` | Sums input + output token costs for each span using `COST_PER_1K_TOKENS` |
+| `create_span(name, fn, *args, **kwargs)` | Executes `fn(*args, **kwargs)`, records latency and errors, returns `(span, result)` |
+
+## Starter File
+
+Location: `curriculum/tier-3-advanced/35-tracing/lab/starter/solution.py`
+
+```python
+COST_PER_1K_TOKENS = {"claude-3-haiku-20240307": {"input": 0.00025, "output": 0.00125}}
+
+@dataclass
+class Span:
+    name: str
+    model: str = ""
+    input_tokens: int = 0
+    output_tokens: int = 0
+    latency_ms: float = 0.0
+    error: str = None
+
+@dataclass
+class Trace:
+    spans: list[Span] = field(default_factory=list)
+    def add_span(self, span: Span): self.spans.append(span)
+    @property
+    def total_tokens(self): return sum(s.input_tokens + s.output_tokens for s in self.spans)
+    @property
+    def total_latency_ms(self): return sum(s.latency_ms for s in self.spans)
+
+def calculate_cost_from_trace(trace: Trace) -> float:
+    # TODO: for each span, look up COST_PER_1K_TOKENS[span.model],
+    # calculate input_cost + output_cost, return total.
+    raise NotImplementedError()
+
+def create_span(name: str, fn, *args, **kwargs) -> tuple[Span, any]:
+    # TODO: time fn(*args, **kwargs), catch exceptions, store in Span.error.
+    # Return (span, result). Result is None on exception.
+    raise NotImplementedError()
+```
+
+## Acceptance Criteria
+
+- `calculate_cost_from_trace` returns a float for a trace with known token counts
+- `calculate_cost_from_trace` returns 0.0 for a trace with no spans or unknown models
+- `create_span` returns a tuple of `(Span, result)`
+- `create_span` records `latency_ms > 0` for any function call
+- `create_span` captures exceptions in `span.error` without re-raising
+- `Trace.total_tokens` sums input and output tokens across all spans
+- `Trace.total_latency_ms` sums latency across all spans
+- All 8 tests pass: `pytest tests/ -v`
+
+## How to Run
+
+```bash
+cd curriculum/tier-3-advanced/35-tracing/lab
+pytest tests/ -v
+```
+
+## Hints
+
+1. `calculate_cost_from_trace`: use `COST_PER_1K_TOKENS.get(span.model)` — if it returns `None`, skip that span.
+2. `create_span`: use `time.time()` before and after the call. Calculate `(end - start) * 1000` for milliseconds.
+3. `create_span` should catch all exceptions (`except Exception as e`), store `str(e)` in `span.error`, and return `(span, None)` rather than re-raising.
+4. The `Trace` dataclass properties are already provided in the starter — no need to rewrite them.
+
+---
+
+Next: [Quiz — Tracing & Observability](./quiz.mdx)

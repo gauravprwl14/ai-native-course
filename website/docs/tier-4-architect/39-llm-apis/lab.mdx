@@ -1,0 +1,72 @@
+---
+title: "Lab: Cost Estimator CLI"
+sidebar_position: 4
+description: "Build a CLI tool that counts tokens, estimates cost across multiple models, and prints a formatted comparison table."
+---
+
+# Lab: Cost Estimator CLI
+
+## Goal
+
+Build a command-line tool that accepts a text input, counts tokens, estimates cost across four LLM models, and prints a formatted comparison table.
+
+## What You'll Build
+
+### Functions to Implement
+
+| Function | Input | Output |
+|----------|-------|--------|
+| `count_tokens(text, model)` | string + encoding name | int (token count) |
+| `estimate_cost(input_tokens, output_tokens, model)` | ints + model name | dict with cost breakdown |
+| `format_cost_table(estimates)` | list of estimate dicts | formatted string table |
+| `estimate_all_models(text, estimated_output_tokens)` | text + expected output size | sorted list of estimates |
+
+### Expected Output
+
+```
+Model                        Input Tokens  Output Tokens   Input Cost  Output Cost   Total Cost
+--------------------------------------------------------------------------------------------
+gpt-4o-mini                          342            500     $0.000051     $0.000300     $0.000351
+claude-3-haiku-20240307              342            500     $0.000086     $0.000625     $0.000711
+claude-3-5-sonnet-20241022           342            500     $0.001026     $0.007500     $0.008526
+gpt-4o                               342            500     $0.001710     $0.007500     $0.009210
+```
+
+### Models to Support
+
+| Model | Input (per 1M tokens) | Output (per 1M tokens) |
+|-------|----------------------|------------------------|
+| `claude-3-haiku-20240307` | $0.25 | $1.25 |
+| `claude-3-5-sonnet-20241022` | $3.00 | $15.00 |
+| `gpt-4o-mini` | $0.15 | $0.60 |
+| `gpt-4o` | $5.00 | $15.00 |
+
+## Acceptance Criteria
+
+- `count_tokens("Hello world")` returns an integer
+- `estimate_cost(1000, 500, "gpt-4o-mini")` returns a dict with keys: `model`, `input_tokens`, `output_tokens`, `input_cost`, `output_cost`, `total_cost`
+- `format_cost_table(estimates)` returns a string containing the header `Model`
+- `estimate_all_models("some text", 500)` returns a list sorted by `total_cost` ascending
+- All tests pass: `pytest tests/ -v`
+
+## How to Run
+
+```bash
+cd curriculum/tier-4-architect/39-llm-apis/lab
+pytest tests/ -v
+
+# Run manually
+cd starter
+python solution.py
+```
+
+## Hints
+
+1. `tiktoken.get_encoding("cl100k_base")` works for both OpenAI and Anthropic models as a close approximation.
+2. For the cost formula: `cost = tokens / 1_000_000 * price_per_million`
+3. `estimate_all_models` should sort by `total_cost` ascending so the cheapest model is first.
+4. The table header row should be wide enough for model names (at least 30 chars wide).
+
+---
+
+➡️ Next: [Quiz — LLM APIs](./quiz.mdx)

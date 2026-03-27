@@ -1,0 +1,81 @@
+---
+title: "Quiz: Planning & Task Decomposition"
+sidebar_position: 5
+description: "Test your understanding of task decomposition, plan formats, replanning, and execution strategies."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz 23 — Planning & Task Decomposition
+
+<Quiz
+  chapterId="tier3-ch23"
+  passMark={70}
+  questions={[
+    {
+      id: "q1",
+      text: "What is the primary purpose of a planning phase before agentic execution?",
+      points: 1,
+      options: [
+        "A) To reduce the number of API calls by batching everything into one prompt",
+        "B) To decompose a complex goal into concrete, bounded sub-tasks that can be executed reliably",
+        "C) To validate that the LLM has the correct system prompt",
+        "D) To cache previous results so the agent doesn't repeat work"
+      ],
+      correct: 1,
+      explanation: "Planning breaks a complex, ambiguous goal into concrete sub-tasks. Each sub-task is small enough to execute reliably in a single LLM call or tool invocation. Without decomposition, the LLM attempts to do everything at once and produces shallow, unfocused output."
+    },
+    {
+      id: "q2",
+      text: "A planner generates this task: {\"id\": \"task-3\", \"description\": \"Write conclusions\", \"depends_on\": [\"task-1\", \"task-2\"]}. Task-2 failed. What is the correct behavior?",
+      points: 2,
+      options: [
+        "A) Execute task-3 anyway and hope the LLM figures it out",
+        "B) Skip task-3 and continue with task-4",
+        "C) Mark task-3 as failed (dependency failed) and trigger replanning",
+        "D) Retry task-2 indefinitely until it succeeds"
+      ],
+      correct: 2,
+      explanation: "When a dependency fails, the dependent task cannot run with correct context. The right behavior is to mark it as failed and trigger replanning — ask the LLM to revise the remaining plan given what succeeded so far. Retrying indefinitely is dangerous and skipping silently produces incorrect output."
+    },
+    {
+      id: "q3",
+      text: "Which plan format provides the best balance between machine-readability and reliable LLM generation?",
+      points: 1,
+      options: [
+        "A) A prose paragraph describing the steps",
+        "B) A numbered list of plain text instructions",
+        "C) A JSON array of task objects with id, description, and depends_on fields",
+        "D) A full dependency graph with adjacency matrix"
+      ],
+      correct: 2,
+      explanation: "JSON with id, description, and depends_on is the sweet spot. It is structured enough to parse and execute programmatically (topological sort, dependency checking), but simple enough that LLMs generate it reliably. Full adjacency matrices and DAG formats are more error-prone for LLMs to produce correctly."
+    },
+    {
+      id: "q4",
+      text: "When is parallel task execution appropriate in a planner?",
+      points: 2,
+      options: [
+        "A) Always — parallel is always faster than sequential",
+        "B) Only when all tasks in the plan have no dependencies",
+        "C) When tasks have empty depends_on lists and do not share mutable state",
+        "D) Only for tasks that call external APIs"
+      ],
+      correct: 2,
+      explanation: "Tasks are safe to run in parallel when they have no dependencies on each other (empty depends_on or non-overlapping dependency sets) and do not write to shared mutable state. Running dependent tasks in parallel produces incorrect results because the context from prior tasks is missing."
+    },
+    {
+      id: "q5",
+      text: "A planner generates 50 sub-tasks for the goal 'Write a 200-word summary'. What is the main problem?",
+      points: 2,
+      options: [
+        "A) 50 tasks will always exceed the context window",
+        "B) Over-decomposition: the planning overhead exceeds the work itself, wasting time and tokens",
+        "C) The LLM cannot generate more than 20 tasks at once",
+        "D) Parallel execution is impossible with more than 10 tasks"
+      ],
+      correct: 1,
+      explanation: "Over-decomposition is a real anti-pattern. A 50-task plan for a 200-word summary means you spend more time and tokens on planning and coordination than on the actual work. Good task granularity is roughly 30 seconds to 5 minutes of work per task. For a simple summary, 2-4 tasks is appropriate."
+    }
+  ]}
+/>

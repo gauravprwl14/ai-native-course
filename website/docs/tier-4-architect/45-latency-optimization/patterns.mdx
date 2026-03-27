@@ -1,0 +1,224 @@
+---
+title: "Latency Optimization Patterns"
+sidebar_position: 3
+description: "Code patterns for streaming, parallel tool execution, speculative prefetch, and model cascade for LLM latency optimization."
+---
+
+# Latency Optimization Patterns
+
+## Pattern 1: Streaming with Progressive Rendering
+
+Show tokens as they arrive. Don't wait for the full response.
+
+```python
+import anthropic
+import sys
+
+client = anthropic.Anthropic()
+
+def stream_to_stdout(prompt: str) -> str:
+    """Stream LLM response, printing each token as it arrives."""
+    full_response = []
+
+    with client.messages.stream(
+        model="claude-3-5-haiku-20241022",
+        max_tokens=1024,
+        messages=[{"role": "user", "content": prompt}],
+    ) as stream:
+        for text in stream.text_stream:
+            print(text, end="", flush=True)  # print immediately, no newline buffer
+            full_response.append(text)
+
+    print()  # final newline
+    return "".join(full_response)
+```
+
+**TTFT measurement with streaming**:
+
+```python
+import time
+
+def stream_with_ttft(prompt: str) -> tuple[str, float, float]:
+    """Returns (response, ttft_ms, total_ms)."""
+    start = time.perf_counter()
+    ttft_ms = None
+    tokens = []
+
+    with client.messages.stream(
+        model="claude-3-5-haiku-20241022",
+        max_tokens=512,
+        messages=[{"role": "user", "content": prompt}],
+    ) as stream:
+        for text in stream.text_stream:
+            if ttft_ms is None:
+                ttft_ms = (time.perf_counter() - start) * 1000
+            tokens.append(text)
+
+    total_ms = (time.perf_counter() - start) * 1000
+    return "".join(tokens), ttft_ms or 0.0, total_ms
+```
+
+## Pattern 2: Parallel Tool Execution
+
+When a pipeline requires multiple independent tool calls (e.g., search + database + API), run them concurrently with `asyncio.gather`.
+
+```python
+import asyncio
+import time
+
+async def fetch_weather(city: str) -> str:
+    await asyncio.sleep(0.3)  # simulate 300ms API call
+    return f"Weather in {city}: 22°C, sunny"
+
+async def fetch_news(topic: str) -> str:
+    await asyncio.sleep(0.3)  # simulate 300ms API call
+    return f"Latest news on {topic}: ..."
+
+async def fetch_calendar(user_id: str) -> str:
+    await asyncio.sleep(0.3)  # simulate 300ms API call
+    return f"Calendar for {user_id}: Meeting at 3pm"
+
+# Sequential: 900ms total
+async def gather_context_sequential(city, topic, user_id):
+    start = time.perf_counter()
+    weather = await fetch_weather(city)
+    news = await fetch_news(topic)
+    calendar = await fetch_calendar(user_id)
+    elapsed = (time.perf_counter() - start) * 1000
+    print(f"Sequential: {elapsed:.0f}ms")
+    return weather, news, calendar
+
+# Parallel: ~300ms total
+async def gather_context_parallel(city, topic, user_id):
+    start = time.perf_counter()
+    weather, news, calendar = await asyncio.gather(
+        fetch_weather(city),
+        fetch_news(topic),
+        fetch_calendar(user_id),
+    )
+    elapsed = (time.perf_counter() - start) * 1000
+    print(f"Parallel: {elapsed:.0f}ms")
+    return weather, news, calendar
+```
+
+**Rule**: If tool calls don't depend on each other's results, always run them in parallel.
+
+## Pattern 3: Speculative Prefetch
+
+Start generating before the user has finished their request. This works well for predictable follow-up queries.
+
+```python
+import threading
+from typing import Optional
+
+class SpeculativePrefetcher:
+    """Pre-generate likely follow-up responses while user reads current response."""
+
+    def __init__(self, llm_caller):
+        self.llm_caller = llm_caller
+        self._cache: dict[str, str] = {}
+        self._pending: set[str] = set()
+
+    def prefetch(self, likely_next_prompt: str) -> None:
+        """Start generating in background if not already cached."""
+        if likely_next_prompt in self._cache or likely_next_prompt in self._pending:
+            return
+        self._pending.add(likely_next_prompt)
+
+        def _generate():
+            result = self.llm_caller(likely_next_prompt)
+            self._cache[likely_next_prompt] = result
+            self._pending.discard(likely_next_prompt)
+
+        thread = threading.Thread(target=_generate, daemon=True)
+        thread.start()
+
+    def get(self, prompt: str) -> Optional[str]:
+        """Return prefetched result if available, else None."""
+        return self._cache.pop(prompt, None)
+
+    def generate(self, prompt: str) -> str:
+        """Return prefetched result or generate synchronously."""
+        cached = self.get(prompt)
+        if cached is not None:
+            return cached
+        return self.llm_caller(prompt)
+```
+
+## Pattern 4: Model Cascade — Fast First, Escalate if Needed
+
+Use a small fast model for all requests. Only escalate to a large model if confidence is low.
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+FAST_MODEL = "claude-3-5-haiku-20241022"    # ~200ms, low cost
+CAPABLE_MODEL = "claude-3-5-sonnet-20241022" # ~800ms, higher cost
+
+def cascade_generate(prompt: str, max_fast_tokens: int = 100) -> str:
+    """Try fast model first; escalate to capable model if response is short/uncertain."""
+
+    # First attempt: fast cheap model
+    fast_response = client.messages.create(
+        model=FAST_MODEL,
+        max_tokens=max_fast_tokens,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    fast_text = fast_response.content[0].text
+
+    # Escalation heuristic: if response hit max tokens, task may need more depth
+    if fast_response.stop_reason == "max_tokens":
+        capable_response = client.messages.create(
+            model=CAPABLE_MODEL,
+            max_tokens=2048,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return capable_response.content[0].text
+
+    return fast_text
+```
+
+**Cascade routing heuristics**:
+- Output truncated at max_tokens → escalate
+- Response contains "I'm not sure" / "I don't know" → escalate
+- Task type classification → route by task before generating
+
+## Anti-Patterns
+
+**Waiting for full response before showing anything**
+```python
+# Bad: user stares at a blank screen for 5 seconds
+response = client.messages.create(model="claude-3-5-sonnet", ...)
+display(response.content[0].text)
+
+# Good: stream tokens as they arrive
+with client.messages.stream(...) as stream:
+    for text in stream.text_stream:
+        display_token(text)
+```
+
+**Sequential independent tool calls**
+```python
+# Bad: 300ms + 300ms + 300ms = 900ms total
+result_a = await tool_a()
+result_b = await tool_b()
+result_c = await tool_c()
+
+# Good: all three run concurrently = ~300ms total
+result_a, result_b, result_c = await asyncio.gather(tool_a(), tool_b(), tool_c())
+```
+
+**Measuring average latency instead of percentiles**
+```python
+# Bad: average hides outliers
+avg = sum(latencies) / len(latencies)
+
+# Good: use p95/p99 to catch tail latency
+import statistics
+p95 = statistics.quantiles(latencies, n=100)[94]
+p99 = statistics.quantiles(latencies, n=100)[98]
+```
+
+➡️ Next: [Lab — Latency Profiler](./lab.mdx)

@@ -1,0 +1,83 @@
+---
+title: "Quiz: Inference vs Training"
+sidebar_position: 5
+description: "Test your understanding of the difference between inference and training."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz 06 — Inference vs Training
+
+Test your understanding before moving to Chapter 07.
+
+<Quiz
+  chapterId="tier1-ch06"
+  passMark={70}
+  questions={[
+    {
+      id: "q1",
+      text: "During inference, which computational passes occur?",
+      points: 1,
+      options: [
+        "A) Only the forward pass",
+        "B) Forward pass and backward pass",
+        "C) Only the backward pass",
+        "D) Gradient update"
+      ],
+      correct: 0,
+      explanation: "Inference runs only the forward pass — input tokens flow through the transformer layers to produce output logits. The backward pass and gradient updates only happen during training. This is why inference is much cheaper and faster than training."
+    },
+    {
+      id: "q2",
+      text: "Training modifies which part of the model?",
+      points: 1,
+      options: [
+        "A) Input prompts",
+        "B) Model weights and parameters",
+        "C) API response format",
+        "D) Token embeddings at inference time"
+      ],
+      correct: 1,
+      explanation: "Training adjusts the model's weights (also called parameters) — the billions of numbers that encode what the model knows. During inference, these weights are completely fixed. Prompts are inputs, not model internals, and cannot teach the model anything permanently."
+    },
+    {
+      id: "q3",
+      text: "You need a customer service bot that always responds in a specific JSON format. The base Claude model does it inconsistently even with clear instructions in the prompt. What is the best approach?",
+      points: 3,
+      options: [
+        "A) Increase the temperature to make outputs more creative",
+        "B) Fine-tune on 1000+ customer service examples with correct JSON responses",
+        "C) Use a larger context window",
+        "D) Add more examples directly in the system prompt"
+      ],
+      correct: 1,
+      explanation: "Fine-tuning is ideal when you need consistent output format AND you have sufficient data AND prompt engineering is already failing. With 1000+ examples of correct JSON responses, fine-tuning will teach the model the exact format reliably. Note: always try option D (few-shot examples in prompt) first — if that fails consistently, then fine-tune."
+    },
+    {
+      id: "q4",
+      text: "Why is fine-tuning significantly more expensive than running inference?",
+      points: 2,
+      options: [
+        "A) Fine-tuned models use more tokens per request",
+        "B) It requires gradient computation and weight updates across the full model",
+        "C) Fine-tuned models are larger in size",
+        "D) API rate limits are lower for fine-tuning jobs"
+      ],
+      correct: 1,
+      explanation: "Fine-tuning runs the backward pass — computing gradients across all model parameters for every training example. This requires storing activations from the forward pass, computing partial derivatives via backpropagation, and updating billions of weights. Inference only runs the forward pass with no gradient tracking, which is orders of magnitude cheaper."
+    },
+    {
+      id: "q5",
+      text: "You're prototyping a new AI feature and don't yet know if the approach will work. What should you do first?",
+      points: 2,
+      options: [
+        "A) Fine-tune a model to get the best possible results before evaluating",
+        "B) Use the inference API with prompt engineering to validate the idea",
+        "C) Train a model from scratch for maximum control",
+        "D) Build a labelled dataset before writing any code"
+      ],
+      correct: 1,
+      explanation: "Always prototype with the inference API first. It takes minutes to iterate, costs pennies, and lets you validate whether the approach works at all before investing in fine-tuning. Fine-tune only after you've confirmed via inference that the task is solvable and you need better consistency or performance than prompting can achieve."
+    }
+  ]}
+/>

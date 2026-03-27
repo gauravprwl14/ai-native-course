@@ -1,0 +1,258 @@
+---
+title: "GraphRAG Implementation Patterns"
+sidebar_position: 3
+description: "Five patterns for building GraphRAG systems: entity extraction, triple extraction, graph-vector hybrid search, community summaries, and avoiding common pitfalls."
+---
+
+# GraphRAG Implementation Patterns
+
+---
+
+## Pattern 1: Entity Extraction with spaCy or LLM-Based NER
+
+**Problem:** You need to identify entities in text before you can build a graph.
+
+**Solution A — spaCy (fast, deterministic):**
+
+```python
+import spacy
+
+nlp = spacy.load("en_core_web_sm")
+
+def extract_entities_spacy(text: str) -> list[dict]:
+    doc = nlp(text)
+    entities = []
+    seen = set()
+    for ent in doc.ents:
+        if ent.text not in seen:
+            entities.append({"name": ent.text, "type": ent.label_})
+            seen.add(ent.text)
+    return entities
+
+# Example:
+text = "Elon Musk founded SpaceX in Hawthorne, California."
+# → [{"name": "Elon Musk", "type": "PERSON"},
+#    {"name": "SpaceX", "type": "ORG"},
+#    {"name": "Hawthorne", "type": "GPE"},
+#    {"name": "California", "type": "GPE"}]
+```
+
+**Solution B — LLM-based NER (slower, more flexible):**
+
+```python
+def extract_entities_llm(text: str, llm_client) -> list[dict]:
+    prompt = f"""
+Extract all named entities from this text.
+Return JSON: [{{"name": "...", "type": "PERSON|ORG|PRODUCT|LOCATION|CONCEPT"}}]
+
+Text: {text}
+
+Entities:"""
+    response = llm_client.complete(prompt)
+    return json.loads(response)
+```
+
+**When to use each:**
+- spaCy: high-volume processing, simple entity types (person/org/place), no API cost
+- LLM NER: complex domain entities, relationship extraction needed alongside NER, quality over speed
+
+---
+
+## Pattern 2: Triple Extraction (Subject–Predicate–Object)
+
+**Problem:** Entities alone are not enough. You need to capture how they relate to each other.
+
+**Solution:** Extract triples from text, either with rule-based co-occurrence or LLM-based extraction.
+
+**Rule-based (co-occurrence in a sentence):**
+
+```python
+def extract_triples_cooccurrence(
+    text: str, entities: list[str]
+) -> list[tuple[str, str, str]]:
+    """If two entities appear in the same sentence, create a RELATED_TO triple."""
+    triples = []
+    sentences = text.split(". ")
+    for sentence in sentences:
+        sentence_entities = [e for e in entities if e.lower() in sentence.lower()]
+        if len(sentence_entities) >= 2:
+            # Create relationship between the first two co-occurring entities
+            triples.append((sentence_entities[0], "RELATED_TO", sentence_entities[1]))
+    return triples
+```
+
+**LLM-based (richer, more accurate):**
+
+```python
+def extract_triples_llm(text: str, llm_client) -> list[tuple[str, str, str]]:
+    prompt = f"""
+Extract relationships as triples (subject, predicate, object).
+Use uppercase verbs for predicates: WORKS_AT, MAKES, FOUNDED, ACQUIRED, LOCATED_IN, etc.
+Return JSON: [{{"subject": "...", "predicate": "...", "object": "..."}}]
+
+Text: {text}"""
+    response = llm_client.complete(prompt)
+    raw = json.loads(response)
+    return [(r["subject"], r["predicate"], r["object"]) for r in raw]
+
+# Example output:
+# [("Elon Musk", "FOUNDED", "SpaceX"),
+#  ("SpaceX", "LOCATED_IN", "Hawthorne"),
+#  ("Elon Musk", "CEO_OF", "Tesla")]
+```
+
+---
+
+## Pattern 3: Graph + Vector Hybrid Search
+
+**Problem:** Pure graph traversal finds connected entities but may miss relevant chunks that aren't about a specific named entity. Pure vector search misses multi-hop relationships.
+
+**Solution:** Combine both. Use vector search for initial candidate retrieval, then expand using graph traversal.
+
+```python
+def hybrid_search(
+    query: str,
+    vector_store,
+    knowledge_graph: KnowledgeGraph,
+    top_k: int = 5,
+    max_hops: int = 2,
+) -> dict:
+    # Step 1: vector search for semantically similar chunks
+    vector_results = vector_store.search(query, top_k=top_k)
+
+    # Step 2: extract entities mentioned in the query
+    query_entities = [
+        name for name in knowledge_graph.entities
+        if name.lower() in query.lower()
+    ]
+
+    # Step 3: graph traversal from query entities
+    graph_entities = set()
+    for entity in query_entities:
+        connected = find_connected(knowledge_graph, entity, max_hops=max_hops)
+        graph_entities.update(connected)
+
+    # Step 4: merge results
+    return {
+        "vector_chunks": vector_results,
+        "graph_entities": list(graph_entities),
+        "query_entities": query_entities,
+    }
+```
+
+**Context construction for LLM:**
+
+```python
+def build_context(search_results: dict) -> str:
+    context = "Relevant document chunks:\n"
+    for chunk in search_results["vector_chunks"]:
+        context += f"- {chunk['text']}\n"
+
+    context += "\nRelated entities from knowledge graph:\n"
+    context += ", ".join(search_results["graph_entities"])
+
+    return context
+```
+
+---
+
+## Pattern 4: Community Summaries (Microsoft GraphRAG Style)
+
+**Problem:** Users ask broad thematic questions ("What are the main risks in this corpus?") that no single chunk or entity can answer.
+
+**Solution:** Cluster entities using community detection, then generate a summary for each community cluster. Use these summaries for global queries.
+
+```python
+def build_community_summaries(
+    graph: KnowledgeGraph,
+    llm_client,
+    max_community_size: int = 10,
+) -> dict[str, str]:
+    """
+    Simplified community detection using connected components.
+    (Real GraphRAG uses the Leiden algorithm.)
+    """
+    # Find connected components (simplified)
+    visited = set()
+    communities = []
+
+    for entity_name in graph.entities:
+        if entity_name not in visited:
+            # BFS to find this community
+            community = []
+            queue = [entity_name]
+            while queue:
+                node = queue.pop()
+                if node in visited:
+                    continue
+                visited.add(node)
+                community.append(node)
+                for _, neighbor in graph.adjacency.get(node, []):
+                    if neighbor not in visited:
+                        queue.append(neighbor)
+            if len(community) > 1:  # skip isolated nodes
+                communities.append(community[:max_community_size])
+
+    # Generate summary for each community
+    summaries = {}
+    for i, community_entities in enumerate(communities):
+        # Get all relationships within this community
+        triples = [
+            r for r in graph.relationships
+            if r.subject in community_entities or r.obj in community_entities
+        ]
+        triple_text = "\n".join(
+            f"{r.subject} {r.predicate} {r.obj}" for r in triples[:20]
+        )
+
+        prompt = f"""
+Summarize the following knowledge graph community in 2-3 sentences.
+Focus on the main entities and their relationships.
+
+Entities: {', '.join(community_entities)}
+Relationships:
+{triple_text}
+
+Summary:"""
+        summaries[f"community_{i}"] = llm_client.complete(prompt)
+
+    return summaries
+```
+
+---
+
+## Anti-Patterns
+
+### Anti-Pattern 1: Building a Graph for Small Document Sets
+
+```python
+# BAD: overkill for a 50-page PDF
+graph = build_knowledge_graph(documents)
+run_leiden_community_detection(graph)
+generate_community_summaries(graph, llm)
+# ... 30 minutes of processing for a doc set that flat RAG handles in 30 seconds
+```
+
+GraphRAG indexing is expensive: multiple LLM calls per chunk for entity and relation extraction, graph construction, community detection, and summary generation. For fewer than ~100 documents, the overhead is not justified. Use flat RAG.
+
+### Anti-Pattern 2: Not Validating Extracted Entities
+
+```python
+# BAD: blindly trust LLM extraction
+triples = llm_extract_triples(all_documents)
+graph = build_graph(triples)
+# Graph now contains:
+# ("Apple", "COMPETES_WITH", "itself")  ← hallucinated
+# ("Microsoft", "OWNS", "Google")        ← hallucinated
+# ("apple", "IS", "Apple")               ← duplicate
+```
+
+LLMs hallucinate relationships, especially for less prominent entities. Best practices:
+- Deduplicate and normalize entity names (lowercase + strip)
+- Filter triples where subject equals object
+- Spot-check a random sample of extracted triples before indexing
+- Consider using confidence scores if your extraction model supports them
+
+---
+
+➡️ Next: [Lab — Build a Mini GraphRAG Pipeline](./lab.mdx)

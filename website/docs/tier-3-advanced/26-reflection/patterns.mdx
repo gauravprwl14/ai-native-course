@@ -1,0 +1,264 @@
+---
+title: "Patterns: Reflection & Self-critique"
+sidebar_position: 3
+description: "Practical patterns for generate-critique-revise loops, constitutional critique, and stop-when-satisfied reflection."
+---
+
+# Patterns: Reflection & Self-critique
+
+## Pattern 1: Simple G-C-R Loop (2 Iterations)
+
+Generate a draft, critique it, revise once. This captures most of the quality gain with a fixed, predictable cost (3 LLM calls total).
+
+```python
+from anthropic import Anthropic
+
+client = Anthropic()
+MODEL = "claude-3-haiku-20240307"
+
+
+def generate(prompt: str) -> str:
+    """Generate an initial response."""
+    response = client.messages.create(
+        model=MODEL,
+        max_tokens=1024,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return response.content[0].text
+
+
+def critique(original_prompt: str, draft: str) -> str:
+    """Identify specific flaws in the draft."""
+    critique_prompt = (
+        f"Original request: {original_prompt}\n\n"
+        f"Draft response:\n{draft}\n\n"
+        "Critique this response. List specific flaws: inaccuracies, missing points, "
+        "verbosity, unclear phrasing, or any other weaknesses. Be specific and direct."
+    )
+    response = client.messages.create(
+        model=MODEL,
+        max_tokens=512,
+        messages=[{"role": "user", "content": critique_prompt}],
+    )
+    return response.content[0].text
+
+
+def revise(original_prompt: str, draft: str, critique_text: str) -> str:
+    """Revise the draft to address the critique."""
+    revise_prompt = (
+        f"Original request: {original_prompt}\n\n"
+        f"Draft response:\n{draft}\n\n"
+        f"Critique:\n{critique_text}\n\n"
+        "Write an improved version that addresses all the identified issues. "
+        "Output only the revised response, no meta-commentary."
+    )
+    response = client.messages.create(
+        model=MODEL,
+        max_tokens=1024,
+        messages=[{"role": "user", "content": revise_prompt}],
+    )
+    return response.content[0].text
+
+
+def gcr_loop(prompt: str, iterations: int = 2) -> str:
+    """Generate-Critique-Revise for a fixed number of iterations."""
+    draft = generate(prompt)
+    for i in range(iterations):
+        critique_text = critique(prompt, draft)
+        draft = revise(prompt, draft, critique_text)
+    return draft
+
+
+# Usage
+result = gcr_loop(
+    "Summarise the key differences between supervised and unsupervised learning.",
+    iterations=2,
+)
+print(result)
+```
+
+**When to use:** any task where output quality matters and you can tolerate 3x the normal LLM cost. Two iterations is the sweet spot for most use cases.
+
+---
+
+## Pattern 2: Constitutional Critique Against a Principle List
+
+Evaluate the output against named principles. The critique returns a structured verdict for each principle, making quality assessment auditable and targetable.
+
+```python
+from anthropic import Anthropic
+
+client = Anthropic()
+MODEL = "claude-3-haiku-20240307"
+
+PRINCIPLES = [
+    "Accurate: does not state anything false or unverified",
+    "Helpful: directly addresses the user's actual question",
+    "Concise: no unnecessary padding or repetition",
+    "Safe: does not contain harmful, misleading, or inappropriate content",
+]
+
+
+def constitutional_critique(prompt: str, draft: str, principles: list[str]) -> str:
+    """Evaluate the draft against each principle and identify violations."""
+    principles_block = "\n".join(f"{i+1}. {p}" for i, p in enumerate(principles))
+    critique_prompt = (
+        f"User request: {prompt}\n\n"
+        f"Response to evaluate:\n{draft}\n\n"
+        f"Evaluate this response against each of these principles:\n{principles_block}\n\n"
+        "For each principle, state: PASS or FAIL, and if FAIL explain why in one sentence."
+    )
+    response = client.messages.create(
+        model=MODEL,
+        max_tokens=512,
+        messages=[{"role": "user", "content": critique_prompt}],
+    )
+    return response.content[0].text
+
+
+def constitutional_revise(prompt: str, draft: str, violations: str) -> str:
+    """Revise the draft to fix constitutional violations."""
+    revise_prompt = (
+        f"User request: {prompt}\n\n"
+        f"Draft:\n{draft}\n\n"
+        f"Violations found:\n{violations}\n\n"
+        "Rewrite the response to fix all violations. Output only the revised response."
+    )
+    response = client.messages.create(
+        model=MODEL,
+        max_tokens=1024,
+        messages=[{"role": "user", "content": revise_prompt}],
+    )
+    return response.content[0].text
+
+
+# Usage
+prompt = "Explain how vaccines work."
+draft_response = client.messages.create(
+    model=MODEL,
+    max_tokens=512,
+    messages=[{"role": "user", "content": prompt}],
+).content[0].text
+
+violations = constitutional_critique(prompt, draft_response, PRINCIPLES)
+print("Violations:\n", violations)
+
+if "FAIL" in violations:
+    improved = constitutional_revise(prompt, draft_response, violations)
+    print("\nImproved:\n", improved)
+```
+
+**When to use:** production systems where specific quality requirements must be met and violations need to be logged. The explicit principle list is auditable — you can trace exactly why a revision was triggered.
+
+---
+
+## Pattern 3: Stop-When-Satisfied — Continue Until Critique Approves
+
+Keep revising until the critique says there are no major issues, or until a maximum iteration count is reached. Dynamically terminates when quality is sufficient.
+
+```python
+from anthropic import Anthropic
+
+client = Anthropic()
+MODEL = "claude-3-haiku-20240307"
+MAX_ITERATIONS = 3
+
+
+def generate_initial(prompt: str) -> str:
+    response = client.messages.create(
+        model=MODEL,
+        max_tokens=1024,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return response.content[0].text
+
+
+def critique_with_verdict(prompt: str, draft: str) -> tuple[str, bool]:
+    """
+    Returns (critique_text, satisfied).
+    satisfied=True means no major issues — stop iterating.
+    """
+    critique_prompt = (
+        f"Request: {prompt}\n\nDraft:\n{draft}\n\n"
+        "List any significant issues with this response. "
+        "If there are no major issues, end your response with the exact phrase: NO MAJOR ISSUES"
+    )
+    response = client.messages.create(
+        model=MODEL,
+        max_tokens=512,
+        messages=[{"role": "user", "content": critique_prompt}],
+    )
+    critique_text = response.content[0].text
+    satisfied = "NO MAJOR ISSUES" in critique_text.upper()
+    return critique_text, satisfied
+
+
+def revise_draft(prompt: str, draft: str, critique_text: str) -> str:
+    revise_prompt = (
+        f"Request: {prompt}\n\nDraft:\n{draft}\n\nIssues:\n{critique_text}\n\n"
+        "Write an improved version addressing all issues. Output only the revised response."
+    )
+    response = client.messages.create(
+        model=MODEL,
+        max_tokens=1024,
+        messages=[{"role": "user", "content": revise_prompt}],
+    )
+    return response.content[0].text
+
+
+def reflect_until_satisfied(prompt: str) -> str:
+    """Iterate until satisfied or MAX_ITERATIONS reached."""
+    draft = generate_initial(prompt)
+
+    for iteration in range(MAX_ITERATIONS):
+        critique_text, satisfied = critique_with_verdict(prompt, draft)
+        if satisfied:
+            print(f"Satisfied after {iteration} revisions.")
+            break
+        draft = revise_draft(prompt, draft, critique_text)
+    else:
+        print(f"Reached max iterations ({MAX_ITERATIONS}).")
+
+    return draft
+
+
+# Usage
+final = reflect_until_satisfied(
+    "Write a 2-sentence explanation of transformer attention for a junior engineer."
+)
+print(final)
+```
+
+**When to use:** when quality thresholds vary — some prompts need zero revisions, others need two. More efficient than a fixed-iteration loop because easy prompts exit early.
+
+---
+
+## Anti-Patterns
+
+<div className="antipattern">
+
+**Too many iterations — diminishing returns**
+
+```python
+# Bad — 5 iterations almost never justifies the 10x cost
+result = gcr_loop(prompt, iterations=5)
+
+# Good — 2 iterations captures most of the quality gain
+result = gcr_loop(prompt, iterations=2)
+```
+
+**Critique that is too vague to act on**
+
+```python
+# Bad — the model cannot improve without knowing what is wrong
+critique_prompt = "Is this response good? Make it better."
+
+# Good — specific criteria, specific violations
+critique_prompt = (
+    "Review this response. Identify: (1) factual errors, "
+    "(2) missing key points from the source, "
+    "(3) verbose sentences that should be cut."
+)
+```
+
+</div>

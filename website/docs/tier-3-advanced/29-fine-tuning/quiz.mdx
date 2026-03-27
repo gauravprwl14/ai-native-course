@@ -1,0 +1,76 @@
+---
+title: "Quiz: Fine-tuning Basics"
+sidebar_position: 5
+description: "Test your understanding of when to fine-tune, JSONL format, overfitting, and data quality requirements."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz: Fine-tuning Basics
+
+<Quiz
+  questions={[
+    {
+      id: "q1",
+      text: "When is fine-tuning the RIGHT tool to use?",
+      options: [
+        "A) When you need the model to follow simple step-by-step instructions",
+        "B) When you have 2000 examples of the exact response format and brand voice you want",
+        "C) When you want the model to reason better on math problems",
+        "D) When your system prompt is too long"
+      ],
+      correct: 1,
+      explanation: "Fine-tuning is ideal for consistent style, format, and domain-specific behaviour when you have enough high-quality examples. It is NOT effective for teaching reasoning — base models reason better than fine-tuned ones for novel tasks. And a long system prompt is not a reason to fine-tune; use a vector database or RAG instead."
+    },
+    {
+      id: "q2",
+      text: "What does a JSONL fine-tuning file look like?",
+      options: [
+        "A) A CSV with 'prompt' and 'completion' columns",
+        "B) One JSON object per line, each with a 'messages' array containing role/content pairs",
+        "C) A Python list of dicts saved as a .json file",
+        "D) A plain text file with Q: and A: labels"
+      ],
+      correct: 1,
+      explanation: "JSONL (JSON Lines) format has one JSON object per line. For chat fine-tuning, each object has a 'messages' key containing a list of role/content dicts — same format as the chat API. Each line is a complete, independent training example. This makes it easy to stream large datasets without loading everything into memory."
+    },
+    {
+      id: "q3",
+      text: "During fine-tuning, your training loss decreases every epoch but your validation loss stops improving after epoch 3. This is a sign of:",
+      options: [
+        "A) A well-converged model — training loss is what matters",
+        "B) Overfitting — the model is memorising training data and not generalising",
+        "C) Underfitting — you need more training data",
+        "D) A bug in your validation set"
+      ],
+      correct: 1,
+      explanation: "When training loss decreases but validation loss plateaus or increases, the model is overfitting — memorising the training examples rather than learning generalisable patterns. The fix: stop training at the epoch where validation loss was lowest (early stopping), reduce epochs, add more diverse data, or add regularisation."
+    },
+    {
+      id: "q4",
+      text: "You have 500 LLM-generated customer service examples ready for fine-tuning. What should you do before uploading?",
+      options: [
+        "A) Upload immediately — more data is always better",
+        "B) Have humans review a sample for accuracy and quality before training",
+        "C) Run the examples through another LLM to check for errors",
+        "D) Duplicate the dataset to reach 1000 examples"
+      ],
+      correct: 1,
+      explanation: "LLM-generated data contains hallucinations, inconsistencies, and subtle quality issues the original model learned from its own training. Training on unreviewed LLM output teaches your model to reproduce those errors. Always have humans review a meaningful sample — ideally 10-20% — before using generated data for fine-tuning."
+    },
+    {
+      id: "q5",
+      text: "Why do you need a train/validation split before fine-tuning?",
+      options: [
+        "A) The fine-tuning API requires it",
+        "B) To detect overfitting: the validation set measures how well the model generalises to unseen examples",
+        "C) To reduce the cost of fine-tuning by using fewer training examples",
+        "D) To ensure the model sees each example exactly once"
+      ],
+      correct: 1,
+      explanation: "The validation set is held out during training — the model never sees it. After each epoch, you evaluate the model on the validation set. If validation loss stops improving while training loss continues to decrease, you're overfitting. Without a validation split, you have no signal to detect this until you've already deployed a model that fails on new data."
+    }
+  ]}
+  chapterId="tier3-ch29"
+  passMark={70}
+/>

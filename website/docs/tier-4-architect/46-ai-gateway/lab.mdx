@@ -1,0 +1,172 @@
+---
+title: "Lab — Build a Mini AI Gateway"
+sidebar_position: 4
+description: "Implement a Python AI gateway with provider routing, per-key rate limiting, cost tracking, and audit logging — no real API calls required."
+---
+
+# Lab — Build a Mini AI Gateway
+
+## Overview
+
+In this lab you will build a simplified AI gateway in pure Python. You will implement routing, rate limiting, caching, cost calculation, and audit logging. All provider calls are simulated with mock functions so no real API keys are required.
+
+**Time:** ~35 minutes
+
+---
+
+## What You Will Build
+
+A `AIGateway` class that:
+
+1. **Routes** requests to different backend "providers" based on model name prefix
+2. **Rate limits** per API key (sliding window, N requests per minute)
+3. **Caches** responses using a hash of model + prompt
+4. **Calculates cost** based on provider pricing and token counts
+5. **Logs** every request with timestamp, key, model, provider, tokens, and cost
+6. **Reports** total cost grouped by API key
+
+---
+
+## Getting Started
+
+```bash
+cd curriculum/tier-4-architect/46-ai-gateway/lab
+# Edit starter/solution.py
+# Run tests: pytest tests/ -v
+```
+
+---
+
+## Step 1: Rate Limiter
+
+Implement `RateLimiter.is_allowed(key)` using a sliding window:
+
+```python
+def is_allowed(self, key: str) -> bool:
+    # 1. Get current time
+    # 2. Evict timestamps older than 60 seconds from self._windows[key]
+    # 3. If count >= self.rpm, return False
+    # 4. Append current timestamp, return True
+```
+
+**Test:** Two keys should not share a rate limit window.
+
+---
+
+## Step 2: Provider Registration and Routing
+
+Implement `register_provider` and `_get_provider`:
+
+```python
+def register_provider(self, name: str, handler: Callable) -> None:
+    # Store handler in self._providers[name]
+
+def _get_provider(self, model: str) -> str:
+    # Check MODEL_PROVIDER_MAP keys
+    # If model.startswith(key), return the mapped provider
+    # Default: return "openai"
+```
+
+---
+
+## Step 3: Cost Calculation
+
+Implement `_calculate_cost`:
+
+```python
+def _calculate_cost(self, provider: str, input_tokens: int, output_tokens: int) -> float:
+    # Look up MODEL_PRICING[provider] (fall back to openai pricing if not found)
+    # Return (input_tokens * input_price + output_tokens * output_price) / 1_000_000
+```
+
+Pricing constants (already provided in starter):
+
+```python
+MODEL_PRICING = {
+    "anthropic": {"input": 3.0, "output": 15.0},  # per 1M tokens
+    "openai":    {"input": 5.0, "output": 15.0},
+    "local":     {"input": 0.0, "output": 0.0},
+}
+```
+
+---
+
+## Step 4: Gateway Route Method
+
+Implement `AIGateway.route(request)` — the main entry point:
+
+```python
+def route(self, request: GatewayRequest) -> GatewayResponse:
+    # 1. Check rate limit → raise ValueError("Rate limit exceeded") if denied
+    # 2. Compute cache key: hashlib.md5(f"{request.model}:{request.prompt}".encode()).hexdigest()
+    # 3. If cache hit → return cached response with cached=True, also log it
+    # 4. Determine provider from model name
+    # 5. Call self._providers[provider](model, prompt, max_tokens)
+    # 6. Calculate cost
+    # 7. Build GatewayResponse
+    # 8. Store in self._cache
+    # 9. Append to self.logs
+    # 10. Return response
+```
+
+---
+
+## Step 5: Cost Report
+
+Implement `get_cost_by_key()`:
+
+```python
+def get_cost_by_key(self) -> dict[str, float]:
+    # Sum cost_usd from self.logs grouped by log.key
+```
+
+---
+
+## Expected Behavior
+
+```python
+# Register a mock provider
+def mock_anthropic(model, prompt, max_tokens):
+    return ("Mock response", 100, 50)  # (text, input_tokens, output_tokens)
+
+gw = AIGateway(rate_limiter=RateLimiter(requests_per_minute=5))
+gw.register_provider("anthropic", mock_anthropic)
+
+# First call — goes to provider
+r1 = gw.route(GatewayRequest(key="team-a", model="claude-sonnet", prompt="Hello"))
+assert r1.provider == "anthropic"
+assert r1.cached == False
+assert r1.cost_usd > 0
+
+# Second identical call — served from cache
+r2 = gw.route(GatewayRequest(key="team-a", model="claude-sonnet", prompt="Hello"))
+assert r2.cached == True
+
+# Cost report
+costs = gw.get_cost_by_key()
+assert "team-a" in costs
+```
+
+---
+
+## Running the Tests
+
+```bash
+cd curriculum/tier-4-architect/46-ai-gateway/lab
+pytest tests/ -v
+```
+
+All 15 tests should pass with green checkmarks when your implementation is correct.
+
+---
+
+## Extension Challenges
+
+1. Add a `fallback_provider` parameter to `route()` — if the primary provider raises an exception, try the fallback
+2. Add a `get_cost_by_provider()` method
+3. Add a TTL to the cache so entries expire after N seconds
+4. Implement a simple circuit breaker that opens after 3 consecutive failures from the same provider
+
+---
+
+➡️ Next: [Quiz — AI Gateway](./quiz.mdx)

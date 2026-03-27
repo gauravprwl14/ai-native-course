@@ -1,0 +1,81 @@
+---
+title: "Quiz: LLM-as-Judge"
+sidebar_position: 5
+description: "Test your understanding of LLM-as-judge use cases, position bias, pairwise vs rubric evaluation, and calibration."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz 33 — LLM-as-Judge
+
+<Quiz
+  chapterId="tier3-ch33"
+  passMark={70}
+  questions={[
+    {
+      id: "q1",
+      text: "Which of the following tasks is LLM-as-judge MOST suited for?",
+      points: 1,
+      options: [
+        "A) Checking whether a model output exactly matches a database record",
+        "B) Measuring ROUGE-L overlap between a summary and the source document",
+        "C) Evaluating whether a customer support response is helpful and appropriately toned",
+        "D) Counting the number of tokens in a model response"
+      ],
+      correct: 2,
+      explanation: "LLM-as-judge excels at evaluating subjective, qualitative dimensions like helpfulness, tone, coherence, and reasoning quality — things that text-overlap metrics (ROUGE, exact match) cannot capture. Tasks A, B, and D are deterministic measurements that don't require LLM judgment."
+    },
+    {
+      id: "q2",
+      text: "What is position bias in pairwise LLM evaluation?",
+      points: 2,
+      options: [
+        "A) The judge always scores shorter responses lower regardless of quality",
+        "B) The judge systematically prefers whichever response is presented first (or second) in the prompt",
+        "C) The judge is biased toward responses that use formal language",
+        "D) The judge gives higher scores when the rubric has more dimensions"
+      ],
+      correct: 1,
+      explanation: "Position bias is the tendency of LLM judges to prefer whichever response appears first (or second) in the comparison prompt, independent of actual quality. Studies show this effect is strong enough to change ~20-30% of judgments. The standard mitigation is to run the judge twice with swapped response order and treat disagreements as ties."
+    },
+    {
+      id: "q3",
+      text: "You run a pairwise judge twice: first with (A, B) order and second with (B, A) order. Run 1 picks A. Run 2 picks A (with B shown first, meaning the judge preferred the first-shown response again). What is the debiased verdict?",
+      points: 2,
+      options: [
+        "A) A wins — both runs independently chose A",
+        "B) Tie — the judge showed position bias in both runs",
+        "C) B wins — the second run should override the first",
+        "D) The result is inconclusive; re-run with a different model"
+      ],
+      correct: 1,
+      explanation: "When B is shown first in run 2 and the judge says A (the second-shown response), that means run 2 actually preferred B (the first-shown response). This disagrees with run 1 which preferred A. When runs disagree, it indicates position bias was a factor — the result is a tie. Only when both runs agree on the SAME response (after label inversion) do we have a confident winner."
+    },
+    {
+      id: "q4",
+      text: "Why should you use a different model as judge from the model being evaluated?",
+      points: 2,
+      options: [
+        "A) Different models have different token limits, enabling longer rubrics",
+        "B) Using the same model introduces self-enhancement bias — the model rates its own style and phrasing more favorably",
+        "C) The same model cannot read its own outputs due to context limitations",
+        "D) Different models produce more diverse rubric interpretations"
+      ],
+      correct: 1,
+      explanation: "Self-enhancement bias is well-documented: LLMs tend to score responses in their own style higher than equivalently good responses in a different style. If you use Claude to judge Claude's outputs, the scores are systematically inflated. Using a separate model (ideally stronger or from a different family) produces less biased evaluations."
+    },
+    {
+      id: "q5",
+      text: "You calibrate your LLM judge against 100 human-labeled examples and find 45% agreement (judge score within 1 point of human score). What should you do?",
+      points: 2,
+      options: [
+        "A) Deploy the judge — 45% is above chance for a 5-point scale",
+        "B) Revisit the rubric design and/or try a stronger judge model; 45% is too low for reliable evaluation",
+        "C) Increase max_tokens to allow the judge to write longer explanations",
+        "D) Switch to pairwise evaluation — rubric scoring is always unreliable"
+      ],
+      correct: 1,
+      explanation: "45% agreement is too low for a reliable judge. A well-calibrated judge should achieve 70-85% agreement with human labels on well-defined rubrics. Below 60% suggests the rubric is ambiguous (unclear score anchors), the judge model is too weak for this task, or the task itself is too subjective. Revisit the rubric with clearer examples for each score level, or try a more capable judge model."
+    }
+  ]}
+/>

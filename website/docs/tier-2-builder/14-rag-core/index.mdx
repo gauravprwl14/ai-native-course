@@ -1,0 +1,44 @@
+---
+title: "Chapter 14: RAG — Core Concept"
+sidebar_position: 1
+description: "Build a document Q&A system using Retrieval-Augmented Generation. Combine semantic search with LLM generation to answer questions about your documents."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 14 — RAG: Core Concept
+
+## What You'll Learn
+
+- What RAG (Retrieval-Augmented Generation) is and why it exists
+- How RAG solves the LLM knowledge cutoff problem without fine-tuning
+- The 3-step RAG pipeline: embed, retrieve, generate
+- When RAG is the right tool and when it isn't
+- How to build a working document Q&A system from scratch
+
+## Prerequisites
+
+- **Chapter 05 — Embeddings**: you should understand vectors, cosine similarity, and semantic search
+- **Chapter 11 — System Prompts**: you should know how to control model behaviour with system-level instructions
+- Python 3.10+, `anthropic` and `openai` packages installed
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 30 min |
+| Patterns | 20 min |
+| Lab | 40 min |
+| Quiz | 10 min |
+| **Total** | **~100 min** |
+
+## How This Connects
+
+RAG is the most widely deployed pattern in production AI systems. It bridges the gap between static LLM training data and the dynamic, private knowledge that organisations actually need to query. Embeddings (Chapter 05) power the retrieval step. System prompts (Chapter 11) control how the LLM uses retrieved context. Vector databases (Chapter 15) scale RAG to millions of documents. Advanced RAG variants add chunking strategies, re-ranking, and hybrid search on top of this core pattern.
+
+<ConceptMap
+  current="rag"
+  related={["embeddings", "vector-databases", "chunking", "hybrid-search", "re-ranking", "agents"]}
+/>
+
+➡️ Next: [Concepts — RAG](./concepts.mdx)

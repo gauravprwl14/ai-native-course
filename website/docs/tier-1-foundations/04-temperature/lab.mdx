@@ -1,0 +1,101 @@
+---
+title: "Lab: Compare Outputs at Different Temperatures"
+sidebar_position: 20
+description: "Build a tool that generates the same prompt at multiple temperature settings and analyzes the difference."
+---
+
+# Lab 04 — Compare Outputs at Different Temperatures
+
+## What You're Building
+
+A Python module that calls the Anthropic API at multiple temperature settings and surfaces the differences. You'll implement three functions:
+
+1. **`generate_at_temperature`** — generate `n` responses from a prompt at a given temperature
+2. **`compare_temperatures`** — run the same prompt across a list of temperatures, returning all responses
+3. **`is_valid_json_output`** — validate whether a string is valid JSON (useful for testing structured outputs)
+
+## Files
+
+| File | Purpose |
+|------|---------|
+| `starter/solution.py` | Your starting point — fill in the TODOs |
+| `solution/solution.py` | Reference solution |
+| `tests/test_solution.py` | Verify your implementation |
+| `problem.md` | Full problem statement |
+
+## Getting Started
+
+```bash
+cd curriculum/tier-1-foundations/04-temperature/lab/starter
+export ANTHROPIC_API_KEY=your_key_here
+python solution.py
+```
+
+## Function Signatures
+
+```python
+def generate_at_temperature(prompt: str, temperature: float, n: int = 3) -> list[str]:
+    """
+    Call the API n times with the given temperature and return all responses.
+
+    Args:
+        prompt: The user message to send
+        temperature: Sampling temperature (0.0–2.0)
+        n: Number of responses to generate (default 3)
+
+    Returns:
+        List of n response strings
+    """
+
+def compare_temperatures(
+    prompt: str,
+    temperatures: list[float] = [0.0, 0.5, 1.0]
+) -> dict[float, list[str]]:
+    """
+    Generate responses at each temperature in the list.
+
+    Args:
+        prompt: The user message
+        temperatures: List of temperature values to compare
+
+    Returns:
+        Dict mapping each temperature to a list of responses
+        e.g. {0.0: ["response1", "response2", "response3"], 0.5: [...], ...}
+    """
+
+def is_valid_json_output(text: str) -> bool:
+    """
+    Check whether a string is valid JSON.
+
+    Args:
+        text: String to validate
+
+    Returns:
+        True if text can be parsed as JSON, False otherwise
+    """
+```
+
+## Acceptance Criteria
+
+- [ ] `generate_at_temperature(prompt, 0.0, n=3)` returns a list of exactly 3 strings
+- [ ] `generate_at_temperature` passes the correct temperature to the API
+- [ ] `compare_temperatures` returns a dict with one key per temperature value
+- [ ] Each dict value is a list of `n` response strings
+- [ ] `is_valid_json_output('{"key": "value"}')` returns `True`
+- [ ] `is_valid_json_output("not json")` returns `False`
+- [ ] All tests pass: `pytest tests/ -v`
+
+## How to Run Tests
+
+```bash
+cd curriculum/tier-1-foundations/04-temperature/lab
+pytest tests/ -v
+```
+
+## Stretch Goals
+
+Once the core functions work, try these extensions:
+
+1. **Uniqueness score** — for a given prompt and temperature, what fraction of the `n` responses are distinct?
+2. **JSON success rate** — generate 10 responses asking for JSON output at temperature=0.0 vs temperature=1.0. What fraction is valid JSON at each setting?
+3. **Longest common substring** — measure how similar responses are to each other at different temperatures.

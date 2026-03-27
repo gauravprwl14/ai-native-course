@@ -1,0 +1,77 @@
+---
+title: "Lab: LoRA Dataset & Config Preparation"
+sidebar_position: 4
+description: "Prepare a LoRA config, format a dataset for HuggingFace Trainer, and estimate trainable parameter counts — no GPU required."
+---
+
+# Lab: LoRA Dataset & Config Preparation
+
+## Goal
+
+Build the configuration and dataset preparation pipeline for a LoRA fine-tuning run. Actual training requires a GPU — this lab focuses on the pure Python logic that happens before training begins.
+
+## What You'll Build
+
+| Function | Description |
+|----------|-------------|
+| `create_lora_config(rank, alpha, target_modules)` | Returns a `LoRAConfig` dataclass with the given parameters |
+| `format_for_trainer(examples)` | Converts `{"instruction", "output"}` dicts to `{"text": "### Instruction:\n...\n### Response:\n..."}` format |
+| `estimate_trainable_params(total_model_params, rank, num_lora_layers, layer_dim)` | Estimates trainable LoRA parameters vs total and returns percentage |
+
+## Starter File
+
+Location: `curriculum/tier-3-advanced/30-lora/lab/starter/solution.py`
+
+```python
+@dataclass
+class LoRAConfig:
+    rank: int
+    alpha: float
+    target_modules: list[str]
+    dropout: float = 0.1
+
+    @property
+    def scaling(self) -> float:
+        return self.alpha / self.rank
+
+def create_lora_config(rank, alpha, target_modules) -> LoRAConfig:
+    # TODO: return LoRAConfig(rank=rank, alpha=alpha, target_modules=target_modules)
+    raise NotImplementedError()
+
+def format_for_trainer(examples: list[dict]) -> list[dict]:
+    # TODO: return [{"text": f"### Instruction:\n{e['instruction']}\n### Response:\n{e['output']}"} for e in examples]
+    raise NotImplementedError()
+
+def estimate_trainable_params(total_model_params, rank, num_lora_layers, layer_dim=4096) -> dict:
+    # TODO: trainable = 2 * rank * layer_dim * num_lora_layers
+    # return {"trainable": int, "total": int, "percentage": float}
+    raise NotImplementedError()
+```
+
+## Acceptance Criteria
+
+- `create_lora_config(8, 16, ["q_proj", "v_proj"])` returns a `LoRAConfig` with `rank=8`, `alpha=16`
+- `config.scaling` returns `alpha / rank` (e.g., 16/8 = 2.0)
+- `format_for_trainer([{"instruction": "...", "output": "..."}])` returns a list with a `"text"` key
+- The `"text"` value starts with `"### Instruction:\n"`
+- `estimate_trainable_params(7_000_000_000, 8, 12)` returns a dict with `"trainable"`, `"total"`, `"percentage"` keys
+- `percentage` is approximately `(2 * 8 * 4096 * 12) / 7_000_000_000 * 100`
+- All 8 tests pass: `pytest tests/ -v`
+
+## How to Run
+
+```bash
+cd curriculum/tier-3-advanced/30-lora/lab
+pytest tests/ -v
+```
+
+## Hints
+
+1. `LoRAConfig.scaling` is a `@property` that returns `self.alpha / self.rank`
+2. `format_for_trainer` builds the text using an f-string with `### Instruction:\n` and `### Response:\n` markers
+3. `estimate_trainable_params`: each LoRA layer adds two matrices — A (layer_dim × rank) and B (rank × layer_dim). Per layer: `2 × rank × layer_dim` params
+4. The `percentage` is `(trainable / total) * 100`, rounded to 4 decimal places
+
+---
+
+Next: [Quiz — LoRA / QLoRA](./quiz.mdx)

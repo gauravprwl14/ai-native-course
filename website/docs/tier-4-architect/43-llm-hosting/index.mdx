@@ -1,0 +1,48 @@
+---
+title: "Chapter 43: LLM Hosting — Running Models Locally"
+sidebar_position: 1
+description: "Self-host LLMs with Ollama: quantization, GGUF formats, OpenAI-compatible APIs, and when to run local vs cloud."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 43 — LLM Hosting: Running Models Locally
+
+## What You'll Learn
+
+In this chapter you'll move beyond cloud API calls and learn how to run large language models on your own hardware. You'll understand the full spectrum of self-hosting options, how quantization shrinks models to fit on consumer hardware, and how Ollama gives you an OpenAI-compatible API on localhost in minutes.
+
+## Prerequisites
+
+- Chapters 39–42 complete
+- Basic familiarity with REST APIs and Python HTTP clients
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 30 min |
+| Patterns | 20 min |
+| Lab | 30 min |
+| Quiz | 10 min |
+| **Total** | **~90 min** |
+
+## What You'll Learn
+
+- **Self-hosted vs API trade-offs** — when each option wins on cost, privacy, and latency
+- **Ollama** — the easiest way to run open-weight models locally with a REST API
+- **OpenAI-compatible APIs** — drop-in replacement so your existing code just works
+- **Quantization** — how FP32 → FP16 → INT8 → INT4 GGUF shrinks model size vs quality
+- **GGUF format** — the llama.cpp portable model format, CPU-friendly and widely supported
+- **Memory requirements** — how much RAM/VRAM you actually need for each model size
+
+## How This Connects
+
+Self-hosting is one pillar of the production LLM architecture. It pairs with caching (Chapter 44) and latency optimization (Chapter 45) to give you full control over cost, privacy, and performance.
+
+<ConceptMap
+  current="llm-hosting"
+  related={["model-selection", "llm-caching", "latency-optimization", "ai-gateway"]}
+/>
+
+➡️ Next: [Concepts — Self-Hosted LLMs](./concepts.mdx)

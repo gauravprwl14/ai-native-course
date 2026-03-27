@@ -1,0 +1,46 @@
+---
+title: "Chapter 31: RLHF & DPO"
+sidebar_position: 1
+description: "Understand how LLMs are aligned with human preferences. Learn RLHF fundamentals and build a DPO dataset."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 31 — RLHF & DPO
+
+## What You'll Learn
+
+- The three-stage RLHF pipeline: SFT → Reward Model → PPO
+- What a reward model is and how it learns human preferences
+- How DPO simplifies alignment by skipping the reward model entirely
+- The preference dataset format: `{"prompt", "chosen", "rejected"}`
+- How to construct and validate high-quality DPO pairs
+
+## Prerequisites
+
+- Chapter 29 (Fine-tuning) — you should understand supervised fine-tuning on instruction datasets
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 30 min |
+| Patterns | 15 min |
+| Lab | 25 min |
+| Quiz | 10 min |
+| **Total** | **~80 min** |
+
+## How This Connects
+
+Fine-tuning (Chapter 29) teaches a model to follow instructions by example. But a well-fine-tuned model can still produce harmful, dishonest, or unhelpful outputs — because the training signal was "predict the next token", not "be good". RLHF and DPO are the techniques the industry uses to close this gap.
+
+OpenAI used RLHF to create InstructGPT (the predecessor to ChatGPT). Anthropic uses Constitutional AI, a variant of the same ideas, to train Claude. Every major aligned LLM today was shaped by these methods.
+
+In this chapter you will understand how they work and build the foundational artifact they depend on: a preference dataset.
+
+<ConceptMap
+  current="rlhf"
+  related={["fine-tuning", "lora", "foundation-models", "evals"]}
+/>
+
+Next: [Concepts — RLHF & DPO](./concepts.mdx)

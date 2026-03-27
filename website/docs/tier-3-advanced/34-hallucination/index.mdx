@@ -1,0 +1,45 @@
+---
+title: "Chapter 34: Hallucination Detection"
+sidebar_position: 1
+description: "Detect and reduce LLM hallucinations. Build a faithfulness checker that verifies answers against source documents."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 34 — Hallucination Detection
+
+## What You'll Learn
+
+- Why LLMs hallucinate and when it matters most
+- The difference between hallucination, faithfulness, and groundedness
+- How NLI and LLM-based faithfulness checkers work
+- How to detect contradictions at the sentence level
+- How to verify RAG answers against retrieved source chunks
+
+## Prerequisites
+
+- Chapter 14 (RAG Core) — you should understand how retrieval-augmented generation works
+- Chapter 32 (Evals) — familiarity with automated LLM evaluation
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 20 min |
+| Patterns | 15 min |
+| Lab | 35 min |
+| Quiz | 10 min |
+| **Total** | **~80 min** |
+
+## Why This Matters
+
+RAG systems are only as trustworthy as the answers they produce. A system that retrieves the right documents but then generates an answer that contradicts them is worse than useless — it's confidently wrong. Hallucination detection is the quality gate that turns a "mostly works" RAG prototype into a production-grade system.
+
+Faithfulness checking is now a standard component in enterprise AI pipelines. Every major evaluation framework (RAGAS, TruLens, DeepEval) includes a faithfulness metric. Understanding how to build and interpret these checks is a core skill for production AI engineering.
+
+<ConceptMap
+  current="hallucination-detection"
+  related={["rag", "evals", "llm-as-judge", "guardrails"]}
+/>
+
+Next: [Concepts — Hallucination Detection](./concepts.mdx)

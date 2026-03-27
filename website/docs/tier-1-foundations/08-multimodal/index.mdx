@@ -1,0 +1,45 @@
+---
+title: "Chapter 08: Multimodal Models"
+sidebar_position: 1
+description: "Go beyond text. Learn how vision-language models process images, what multimodal means in practice, and how to describe images via API."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 08 — Multimodal Models
+
+## What You'll Learn
+
+- What "multimodal" means and why it matters for real-world AI applications
+- How vision-language models (VLMs) process images alongside text
+- Image input formats: base64 encoding vs URL references
+- Practical use cases: document extraction, chart reading, screenshot analysis
+- Limitations of vision models and how to work around them
+
+## Prerequisites
+
+- [Chapter 01 — LLMs & How They Work](../01-llms/index.mdx)
+- [Chapter 02 — Tokens & Tokenization](../02-tokens/index.mdx)
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 25 min |
+| Patterns | 15 min |
+| Lab | 30 min |
+| Quiz | 10 min |
+| **Total** | **~80 min** |
+
+## How This Connects
+
+<ConceptMap
+  current="multimodal"
+  related={["llms", "tokens", "embeddings", "computer-use", "structured-output"]}
+/>
+
+Text-only models are powerful, but the real world is full of images: invoices, screenshots, charts, diagrams, photos. Multimodal models bridge that gap — they accept images as input and reason about them just like text.
+
+This chapter unlocks a whole class of applications: document processing, visual QA, UI testing, and more.
+
+➡️ Next: [Concepts — How Vision Models Work](./concepts.mdx)

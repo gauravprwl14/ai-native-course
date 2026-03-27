@@ -1,0 +1,120 @@
+---
+title: "Quiz: Durable Agentic Workflows"
+sidebar_position: 5
+description: "Test your understanding of checkpointing, idempotency, saga pattern, workflow engines, and resume-on-failure in AI pipelines."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz 48 — Durable Agentic Workflows
+
+<Quiz
+  chapterId="tier4-ch48"
+  passMark={70}
+  questions={[
+    {
+      id: "q1",
+      text: "An AI workflow has 5 steps. It crashes at step 4. Without any durability mechanism, what happens when you restart it?",
+      points: 1,
+      options: [
+        "A) It automatically continues from step 4",
+        "B) It restarts from step 1, re-executing all completed steps",
+        "C) It skips to step 5 and completes",
+        "D) It enters a paused state waiting for manual intervention"
+      ],
+      correct: 1,
+      explanation: "Without checkpointing, all workflow state lives in memory. A crash erases it entirely. The only option is a full restart from step 1 — re-running (and re-paying for) all the work that was already done. This is the core problem that durable workflows solve."
+    },
+    {
+      id: "q2",
+      text: "What is the minimum information that a checkpoint must store to enable resume from the last completed step?",
+      points: 2,
+      options: [
+        "A) The full source code of the workflow",
+        "B) The workflow ID, the list of completed step names, and their outputs",
+        "C) Only the workflow ID and current step number",
+        "D) The full LLM conversation history for every step"
+      ],
+      correct: 1,
+      explanation: "To resume correctly, the checkpoint needs: (1) the workflow ID so you can load the right checkpoint, (2) the list of completed step names so you know which steps to skip, and (3) the outputs of completed steps so later steps can use them as inputs. Storing the full LLM conversation history would make checkpoints unnecessarily large."
+    },
+    {
+      id: "q3",
+      text: "What is an idempotency key and why is it critical for durable workflows?",
+      points: 2,
+      options: [
+        "A) A cryptographic signature that proves a step ran securely",
+        "B) A unique key per (workflow, step) that prevents re-executing a step that already completed, even if the process crashed before saving the checkpoint",
+        "C) A key used to encrypt checkpoint data at rest",
+        "D) A lock that prevents two workflows from running the same step concurrently"
+      ],
+      correct: 1,
+      explanation: "Idempotency keys solve the 'crash between completion and checkpoint save' problem. If a step completes but crashes before the checkpoint is written, a naive resume would re-run the step. An idempotency key stored atomically with the result (e.g., in a database) ensures the step result is returned immediately on retry without re-execution. This is critical for steps that charge money, send emails, or write to databases."
+    },
+    {
+      id: "q4",
+      text: "In the saga pattern, what is a compensating transaction?",
+      points: 2,
+      options: [
+        "A) A retry of the failed step with different inputs",
+        "B) An action that undoes the effect of a completed step, used to restore consistency when a later step fails",
+        "C) A transaction that runs in parallel with the main step for performance",
+        "D) A database rollback of all uncommitted writes"
+      ],
+      correct: 1,
+      explanation: "A compensating transaction is the undo action for a completed step. Because distributed systems cannot roll back across service boundaries like a database can, the saga pattern manually defines compensations: cancel_flight() undoes book_flight(), refund_card() undoes charge_card(). When a step fails, all preceding steps run their compensations in reverse order, leaving the system in a consistent state."
+    },
+    {
+      id: "q5",
+      text: "Which workflow engine is most purpose-built for LLM agent workflows with branching and cycles?",
+      points: 1,
+      options: [
+        "A) Temporal — designed for enterprise durable execution",
+        "B) Prefect — designed for data pipeline orchestration",
+        "C) LangGraph — models LLM workflows as state graphs with built-in checkpointing",
+        "D) Celery — a general-purpose distributed task queue"
+      ],
+      correct: 2,
+      explanation: "LangGraph is built specifically for LLM agent workflows. It models the workflow as a directed graph where nodes are LLM calls or tool executions. It natively supports cycles (agent retry loops), conditional branching (route based on LLM output), and pluggable checkpointers (memory, SQLite, PostgreSQL) for persistence. Temporal and Prefect are more general-purpose and require more setup for LLM-specific patterns."
+    },
+    {
+      id: "q6",
+      text: "A step in your workflow fails due to a network timeout. What is the correct durability response?",
+      points: 2,
+      options: [
+        "A) Restart the entire workflow from step 1",
+        "B) Retry only the failed step with exponential backoff; leave completed steps as-is",
+        "C) Mark the entire workflow as failed and require manual restart",
+        "D) Skip the failed step and continue with the next one"
+      ],
+      correct: 1,
+      explanation: "Step-level retry is the correct response to transient failures. The completed steps' results are preserved in the checkpoint. Only the failing step is retried, with exponential backoff to avoid hammering a struggling service. Restarting the entire workflow wastes money and time. Skipping a failed step leaves the workflow in an inconsistent state."
+    },
+    {
+      id: "q7",
+      text: "Why is it a mistake to store entire LLM responses in checkpoints?",
+      points: 1,
+      options: [
+        "A) LLM responses contain copyrighted content that cannot be stored",
+        "B) Checkpoint files can grow to hundreds of MB, making reads/writes slow and storage expensive",
+        "C) LLM responses are non-deterministic and cannot be replayed",
+        "D) Most checkpoint formats do not support Unicode text"
+      ],
+      correct: 1,
+      explanation: "A typical LLM response for a research task might be 2,000-4,000 tokens (~8-16 KB). Across 100 steps with multi-turn history, a checkpoint can easily exceed 100 MB. This makes checkpoint reads/writes slow (blocking the workflow) and storage expensive. The fix is to store only step output summaries or identifiers and re-fetch the full content from the source if needed on resume."
+    },
+    {
+      id: "q8",
+      text: "In LangGraph, what does the `thread_id` in the run config control?",
+      points: 2,
+      options: [
+        "A) The number of parallel threads used to execute the graph",
+        "B) The unique identifier for a single workflow run, allowing its state to be loaded and resumed independently",
+        "C) The thread-safety mode for concurrent node execution",
+        "D) The maximum execution time before the run is killed"
+      ],
+      correct: 1,
+      explanation: "In LangGraph, `thread_id` is the key that identifies a specific workflow run in the checkpointer. Every invocation with the same `thread_id` loads and resumes from that run's saved state. Different `thread_id` values represent independent workflow runs stored separately. This is what enables crash-and-resume: restart with the same `thread_id` and LangGraph automatically skips completed nodes."
+    }
+  ]}
+/>

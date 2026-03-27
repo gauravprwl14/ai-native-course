@@ -1,0 +1,81 @@
+---
+title: "Quiz: Temperature & Sampling"
+sidebar_position: 21
+description: "Test your understanding of temperature, top-p, top-k, and when to use each."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz 04 — Temperature & Sampling
+
+<Quiz
+  chapterId="tier1-ch04"
+  passMark={70}
+  questions={[
+    {
+      id: "q1",
+      text: "What does temperature=0 produce?",
+      points: 1,
+      options: [
+        "A) Random output — anything could come out",
+        "B) The most likely token is always selected (greedy decoding)",
+        "C) Equal probability for all tokens in the vocabulary",
+        "D) The model refuses to answer"
+      ],
+      correct: 1,
+      explanation: "Temperature=0 divides all logits by a value approaching zero, making the highest-logit token dominate completely after softmax. This is called greedy decoding — the model always picks the single most probable next token, making output fully deterministic."
+    },
+    {
+      id: "q2",
+      text: "You're building a JSON extractor that reads invoice PDFs and outputs structured data. Which temperature should you use?",
+      points: 2,
+      options: [
+        "A) 0.0 — deterministic output for structured data",
+        "B) 0.7 — a balanced middle ground",
+        "C) 1.2 — more creativity means more thorough extraction",
+        "D) 2.0 — maximum coverage of all possible tokens"
+      ],
+      correct: 0,
+      explanation: "JSON extraction requires deterministic, machine-parseable output. High temperatures increase the probability of malformed JSON: missing brackets, invented keys, or invalid syntax. Always use temperature=0 for structured output tasks."
+    },
+    {
+      id: "q3",
+      text: "top-p=0.9 means the model will:",
+      points: 2,
+      options: [
+        "A) Only consider the top 90 tokens by rank",
+        "B) Sample only from the smallest set of tokens whose combined probability reaches 90%",
+        "C) Set temperature to 0.9 internally",
+        "D) Guarantee that 90% of the output is factually correct"
+      ],
+      correct: 1,
+      explanation: "top-p (nucleus sampling) sorts tokens by probability and accumulates them until the cumulative probability reaches p. At top-p=0.9, if the top 3 tokens cover 90% of the mass, only those 3 are considered. This dynamically adjusts the sampling window based on the model's confidence."
+    },
+    {
+      id: "q4",
+      text: "You're building a creative story generator and want output to vary meaningfully between runs. Which setting is most appropriate?",
+      points: 1,
+      options: [
+        "A) temperature=0.0",
+        "B) temperature=0.1",
+        "C) temperature=0.9",
+        "D) top-k=1"
+      ],
+      correct: 2,
+      explanation: "temperature=0.9 provides high variation while still producing coherent text. temperature=0.0 and 0.1 would produce nearly identical (or identical) output on every run. top-k=1 is equivalent to greedy decoding — the worst choice for creative variety."
+    },
+    {
+      id: "q5",
+      text: "Why might setting temperature=2.0 be problematic in a production system?",
+      points: 2,
+      options: [
+        "A) It increases API latency significantly",
+        "B) It produces incoherent text by over-flattening the probability distribution, making even nonsensical tokens likely",
+        "C) It makes API calls more expensive per token",
+        "D) It causes the model to ignore system prompts"
+      ],
+      correct: 1,
+      explanation: "At temperature=2.0, all logits are halved before softmax, drastically flattening the distribution. Tokens that are normally near-impossible gain meaningful probability mass. The result is text that feels random, incoherent, and often grammatically broken. Most real-world use cases have no benefit at this setting."
+    }
+  ]}
+/>

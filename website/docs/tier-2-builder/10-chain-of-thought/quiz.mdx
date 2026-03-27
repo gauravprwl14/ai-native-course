@@ -1,0 +1,83 @@
+---
+title: "Quiz: Chain-of-Thought Prompting"
+sidebar_position: 5
+description: "Test your understanding of chain-of-thought prompting, self-consistency, and when to apply CoT."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz 10 — Chain-of-Thought Prompting
+
+Test your understanding before moving to Chapter 11.
+
+<Quiz
+  chapterId="tier2-ch10"
+  passMark={70}
+  questions={[
+    {
+      id: "q1",
+      text: "What phrase is most commonly used to trigger zero-shot chain-of-thought reasoning?",
+      points: 1,
+      options: [
+        "A) \"Answer carefully\"",
+        "B) \"Let's think step by step\"",
+        "C) \"Be precise\"",
+        "D) \"Show your work\""
+      ],
+      correct: 1,
+      explanation: "\"Let's think step by step\" was identified by Kojima et al. (2022) as a remarkably effective trigger for zero-shot CoT. It works because the model has seen this phrase followed by careful, step-by-step reasoning throughout its training data, so appending it to a prompt cues that same behaviour."
+    },
+    {
+      id: "q2",
+      text: "You're building a math tutor app. A student asks: \"What's 7 × 8?\" Should you use chain-of-thought for this?",
+      points: 2,
+      options: [
+        "A) Yes — always use CoT for math questions",
+        "B) No — simple single-step multiplication doesn't require intermediate reasoning steps",
+        "C) Only for odd numbers",
+        "D) Yes — to show the student how the work was done"
+      ],
+      correct: 1,
+      explanation: "7 × 8 is a single-operation lookup, not a multi-step reasoning problem. Chain-of-thought adds no accuracy benefit here — it just makes the response longer and more expensive. Reserve CoT for problems that genuinely require multiple reasoning steps, like multi-hop word problems or logical deductions."
+    },
+    {
+      id: "q3",
+      text: "Why does self-consistency improve accuracy over a single chain-of-thought response?",
+      points: 2,
+      options: [
+        "A) It uses more API calls, which improves quality",
+        "B) Variance in reasoning paths means different chains catch different errors; majority vote reduces individual chain failures",
+        "C) It uses higher temperature, which makes the model smarter",
+        "D) It queries multiple different models and combines their outputs"
+      ],
+      correct: 1,
+      explanation: "Self-consistency works because each reasoning chain (sampled at temperature > 0) takes a slightly different path. Some paths make errors; others do not. If the problem has a definitive correct answer, most correct chains will converge on it while erroneous chains scatter. The majority vote filters out individual mistakes. It's a statistical improvement, not a qualitative one."
+    },
+    {
+      id: "q4",
+      text: "Your CoT response is: \"First, 3 × 4 = 12. Then, 12 + 5 = 17. Therefore the answer is 17.\" To return just the answer to your user, you should:",
+      points: 2,
+      options: [
+        "A) Return the full response — users benefit from seeing the reasoning",
+        "B) Parse the response to extract the final answer after \"Therefore\"",
+        "C) Set temperature=0 to get a shorter response",
+        "D) Ask the model a follow-up: \"What is just the number?\""
+      ],
+      correct: 1,
+      explanation: "The CoT response is the model's internal scratchpad. For most user-facing applications, you want to extract just the final answer. Use regex (e.g. r\"Therefore.*?(\\d+(?:\\.\\d+)?)\") or structured output to parse it. Returning 200 words of arithmetic to a user who asked a simple question is poor UX."
+    },
+    {
+      id: "q5",
+      text: "Chain-of-thought prompting is LEAST helpful for which type of task?",
+      points: 3,
+      options: [
+        "A) Multi-step arithmetic word problems",
+        "B) Logical deduction puzzles",
+        "C) Retrieving a fact (e.g., \"Who won the 2022 FIFA World Cup?\")",
+        "D) Solving a system of algebraic equations"
+      ],
+      correct: 2,
+      explanation: "CoT improves reasoning — the process of deriving an answer from known information. Factual retrieval is different: either the answer is in the model's weights or it is not. No chain of reasoning will cause the model to correctly recall a fact it doesn't know. For factual questions, use RAG (Chapter 14) to provide the facts in the prompt."
+    }
+  ]}
+/>

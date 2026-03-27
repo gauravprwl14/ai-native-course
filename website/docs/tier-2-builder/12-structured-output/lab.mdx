@@ -1,0 +1,67 @@
+---
+title: "Lab: Extract Structured Data from Text"
+sidebar_position: 4
+description: "Build a reliable invoice extractor that parses freeform invoice text into a validated Python dict using LLMs."
+---
+
+# Lab 12 — Extract Structured Data from Text
+
+## What You're Building
+
+An invoice extractor that takes freeform invoice text and reliably returns a structured Python dict. You'll implement three functions:
+
+1. **`parse_json_with_retry`** — calls the LLM and retries up to 3 times if JSON parsing fails, feeding error feedback to the model on each retry
+2. **`extract_invoice_data`** — formats the extraction prompt and calls `parse_json_with_retry` to get structured invoice data
+3. **`validate_invoice`** — checks the extracted dict for required fields and correct types
+
+## Target Schema
+
+Every extracted invoice should match this structure:
+
+```python
+{
+    "vendor": str,           # company name
+    "amount": float,         # total amount
+    "currency": str,         # e.g. "USD", "EUR"
+    "date": str,             # YYYY-MM-DD format
+    "items": [
+        {
+            "description": str,
+            "price": float
+        }
+    ]
+}
+```
+
+## Files
+
+| File | Purpose |
+|------|---------|
+| `starter/solution.py` | Your starting point — fill in the TODOs |
+| `solution/solution.py` | Reference solution |
+| `tests/test_solution.py` | Verify your implementation |
+| `problem.md` | Detailed problem statement |
+
+## Getting Started
+
+```bash
+cd curriculum/tier-2-builder/12-structured-output/lab/starter
+python solution.py
+```
+
+## Acceptance Criteria
+
+- [ ] `parse_json_with_retry(prompt)` returns a `dict` when the LLM responds with valid JSON
+- [ ] `parse_json_with_retry(prompt)` retries with error feedback when JSON parsing fails
+- [ ] `parse_json_with_retry(prompt)` raises `ValueError` after exhausting all retries
+- [ ] `extract_invoice_data(text)` returns a dict matching the invoice schema
+- [ ] `validate_invoice(data)` returns `(True, [])` for valid invoice data
+- [ ] `validate_invoice(data)` returns `(False, [errors])` for missing fields or wrong types
+- [ ] All tests pass: `pytest tests/ -v`
+
+## Running Tests
+
+```bash
+cd curriculum/tier-2-builder/12-structured-output/lab
+pytest tests/ -v
+```

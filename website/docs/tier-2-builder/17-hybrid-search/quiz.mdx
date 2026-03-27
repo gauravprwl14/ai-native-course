@@ -1,0 +1,81 @@
+---
+title: "Quiz: Hybrid Search"
+sidebar_position: 5
+description: "Test your understanding of BM25, Reciprocal Rank Fusion, and when to use hybrid vs. pure semantic search."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz 17 — Hybrid Search
+
+<Quiz
+  chapterId="tier2-ch17"
+  passMark={70}
+  questions={[
+    {
+      id: "q1",
+      text: "What is BM25?",
+      points: 1,
+      options: [
+        "A) A neural embedding model that produces dense vectors",
+        "B) A keyword-based ranking algorithm — a TF-IDF variant that scores by term frequency, inverse document frequency, and document length normalisation",
+        "C) A graph database query language",
+        "D) A chunking method for splitting long documents"
+      ],
+      correct: 1,
+      explanation: "BM25 (Best Match 25) is a probabilistic keyword ranking algorithm. It scores documents based on how often query terms appear (TF), how rare those terms are across the corpus (IDF), and normalises for document length so longer documents aren't unfairly favoured. It is 'sparse' retrieval — it works on exact token matches, not semantic meaning."
+    },
+    {
+      id: "q2",
+      text: "A user searches for 'AWS-EC2-t3.micro pricing 2024'. Which retrieval approach is most appropriate?",
+      points: 2,
+      options: [
+        "A) Pure semantic search — it understands context better",
+        "B) Hybrid search — BM25 handles the exact technical terms while vector search captures the semantic intent",
+        "C) Pure vector search — embedding models are always more accurate",
+        "D) No search needed — the LLM knows this from training"
+      ],
+      correct: 1,
+      explanation: "The query contains a specific product code ('t3.micro') and year ('2024') that semantic search may not match well — the embedding model may not have strong representations for exact AWS instance types. BM25 will find the exact string 't3.micro' as a keyword match. Hybrid search gives you both: exact keyword matching from BM25 and semantic context from vector search."
+    },
+    {
+      id: "q3",
+      text: "In Reciprocal Rank Fusion, why does rank 1 score higher than rank 100?",
+      points: 2,
+      options: [
+        "A) It uses alphabetical ordering of document IDs",
+        "B) The RRF score is 1/(k + rank), so a lower rank number (better position) produces a higher score",
+        "C) Higher temperature in the embedding model boosts rank-1",
+        "D) BM25 automatically promotes rank-1 documents"
+      ],
+      correct: 1,
+      explanation: "RRF score = 1/(k + rank). With k=60: rank 1 → 1/61 ≈ 0.0164, rank 100 → 1/160 ≈ 0.0063. A lower rank number means a better position, which produces a higher 1/(k+rank) score. The constant k=60 prevents rank-1 from dominating too aggressively, making the scores more balanced across positions."
+    },
+    {
+      id: "q4",
+      text: "BM25 returns results ranked [A, B, C] and vector search returns results ranked [B, C, A]. After applying RRF, which document is most likely to rank highest?",
+      points: 2,
+      options: [
+        "A) B — it ranks 1st in one list and 2nd in the other, giving it the highest combined RRF score",
+        "B) A — it was ranked first by BM25 so it always wins",
+        "C) The results are averaged so no document stands out",
+        "D) Only B appears in the final results"
+      ],
+      correct: 0,
+      explanation: "B ranks 1st in BM25 (score: 1/(60+1) ≈ 0.01639) and 2nd in vector (score: 1/(60+2) ≈ 0.01613), for a combined RRF score of ≈ 0.03252. A ranks 2nd in BM25 (≈ 0.01613) and 3rd in vector (≈ 0.01587), for ≈ 0.03200. B's combined score is higher. This is the key insight of RRF: a document that ranks well in both lists beats one that ranks first in only one."
+    },
+    {
+      id: "q5",
+      text: "When is pure semantic search BETTER than hybrid search?",
+      points: 2,
+      options: [
+        "A) When users are looking for product codes or part numbers",
+        "B) When the query uses natural language and paraphrasing matters — the user's words and the document's words may be different but mean the same thing",
+        "C) When queries contain specific version numbers",
+        "D) When searching legal documents with exact clause references"
+      ],
+      correct: 1,
+      explanation: "Pure semantic search excels when the vocabulary gap between query and document is large — e.g., the user asks 'how do I make my code faster?' and the document talks about 'performance optimisation and computational efficiency'. BM25 would fail (no keyword overlap), but semantic search succeeds (similar embedding vectors). Product codes, version numbers, and legal references all require exact matching where BM25 adds significant value."
+    }
+  ]}
+/>

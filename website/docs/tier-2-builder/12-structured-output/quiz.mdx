@@ -1,0 +1,81 @@
+---
+title: "Quiz: Structured Output"
+sidebar_position: 5
+description: "Test your understanding of structured output, JSON extraction, tool calling, and Pydantic validation."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz 12 — Structured Output
+
+<Quiz
+  chapterId="tier2-ch12"
+  passMark={70}
+  questions={[
+    {
+      id: "q1",
+      text: "What temperature should you use when extracting structured JSON from an LLM?",
+      points: 1,
+      options: [
+        "A) 1.0",
+        "B) 0.7",
+        "C) 0.0",
+        "D) 2.0"
+      ],
+      correct: 2,
+      explanation: "Temperature 0.0 makes token selection deterministic, minimising format variance. Higher temperatures introduce randomness that can cause the model to add preamble text, use code fences, or invent key names — all of which break json.loads."
+    },
+    {
+      id: "q2",
+      text: "Your LLM returns the string: \"Sure! Here's the JSON: {\\\"name\\\": \\\"Alice\\\"}\". What happens when you call json.loads() on this string?",
+      points: 2,
+      options: [
+        "A) It works fine — json.loads is smart enough to find the JSON",
+        "B) It fails because json.loads requires the input to start with { or [, not free text",
+        "C) It returns None",
+        "D) It returns a list"
+      ],
+      correct: 1,
+      explanation: "json.loads is strict: the input must be a valid JSON value from the very first character. The string starts with 'Sure!' which is not valid JSON, so json.loads raises JSONDecodeError. Always wrap json.loads in a try/except, and consider a retry loop to recover."
+    },
+    {
+      id: "q3",
+      text: "Why is tool calling more reliable than prompt-based JSON extraction?",
+      points: 2,
+      options: [
+        "A) It is faster because it uses fewer tokens",
+        "B) The API enforces the schema before returning, so invalid JSON is impossible",
+        "C) It works without a system prompt",
+        "D) Tool calling uses a different, better tokenizer"
+      ],
+      correct: 1,
+      explanation: "With tool calling, you define an input_schema and set tool_choice to force the model to use it. The Anthropic API validates the model's output against that schema before returning the response. The result in block.input is already a valid Python dict — no json.loads required. Prompt-based JSON is enforced only by the model's behaviour, not the API."
+    },
+    {
+      id: "q4",
+      text: "Your JSON parsing fails on the first attempt. What is the best next step?",
+      points: 2,
+      options: [
+        "A) Give up and return an empty dict",
+        "B) Retry with an error message that shows the model exactly what went wrong",
+        "C) Increase temperature to add more randomness",
+        "D) Switch to a different model immediately"
+      ],
+      correct: 1,
+      explanation: "LLMs can self-correct when given specific feedback. Passing the JSONDecodeError message back to the model ('Your response started with text, not {') tells it precisely what to fix. A retry loop with error feedback recovers from most one-off formatting failures. Increasing temperature makes format variance worse, not better."
+    },
+    {
+      id: "q5",
+      text: "You need to extract structured data from 10,000 invoices per day in a production pipeline. What is the most important consideration?",
+      points: 3,
+      options: [
+        "A) Model creativity — you want varied and interesting extractions",
+        "B) Reliability and valid JSON rate — use tool calling or a retry loop to guarantee parseable output",
+        "C) Response length — shorter responses are always better",
+        "D) System prompt length — longer system prompts produce better results"
+      ],
+      correct: 1,
+      explanation: "At 10,000 invoices/day, even a 1% parse failure rate means 100 failed extractions per day requiring manual review or silent data loss. Production structured output systems must prioritise reliability above all else. Use tool calling for API-enforced schema compliance, add a Pydantic validation step, and build a retry loop for the rare failures. Temperature=0 is also non-negotiable at this scale."
+    }
+  ]}
+/>

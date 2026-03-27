@@ -1,0 +1,58 @@
+---
+title: "Lab: Build Semantic Search with Embeddings"
+sidebar_position: 4
+description: "Implement embed_text, cosine_similarity, and find_most_similar to build a semantic search pipeline."
+---
+
+# Lab 05 — Build Semantic Search with Embeddings
+
+## What You're Building
+
+A Python module that embeds text and finds the most semantically similar string from a list of candidates — the core of any semantic search system.
+
+You will implement three functions:
+
+1. **`embed_text(text)`** — call the OpenAI embeddings API and return the vector
+2. **`cosine_similarity(v1, v2)`** — compute the cosine similarity between two vectors from scratch
+3. **`find_most_similar(query, candidates)`** — find the most semantically similar candidate for a given query
+
+## Files
+
+| File | Purpose |
+|------|---------|
+| `starter/solution.py` | Your starting point — fill in the TODOs |
+| `solution/solution.py` | Reference solution |
+| `tests/test_solution.py` | Verify your implementation |
+| `problem.md` | Detailed problem statement |
+
+## Getting Started
+
+```bash
+cd curriculum/tier-1-foundations/05-embeddings/lab/starter
+
+# Ensure your OpenAI key is set in curriculum/shared/.env
+# OPENAI_API_KEY=sk-...
+
+pip install openai
+python solution.py
+```
+
+## Acceptance Criteria
+
+- [ ] `embed_text(text)` returns a `list[float]` with 1536 elements
+- [ ] `embed_text` calls the OpenAI API with `model="text-embedding-3-small"`
+- [ ] `cosine_similarity([1,0], [1,0])` returns `1.0`
+- [ ] `cosine_similarity([1,0], [0,1])` returns `0.0`
+- [ ] `cosine_similarity([1,0], [-1,0])` returns `-1.0`
+- [ ] `find_most_similar("I love dogs", ["cats are great", "I enjoy dogs", "pizza is tasty"])` returns `("I enjoy dogs", score)` where score > 0.8
+- [ ] `find_most_similar` returns a `tuple[str, float]`
+- [ ] All tests pass: `pytest tests/ -v`
+
+## How to Run Tests
+
+```bash
+cd curriculum/tier-1-foundations/05-embeddings/lab
+pytest tests/ -v
+```
+
+Tests use `unittest.mock` — no real API calls are made during testing.

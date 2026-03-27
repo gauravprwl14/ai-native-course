@@ -1,0 +1,81 @@
+---
+title: "Quiz: Embeddings"
+sidebar_position: 5
+description: "Test your understanding of embeddings, cosine similarity, and semantic search."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz 05 — Embeddings
+
+<Quiz
+  chapterId="tier1-ch05"
+  passMark={70}
+  questions={[
+    {
+      id: "q1",
+      text: "An embedding converts a piece of text into:",
+      points: 1,
+      options: [
+        "A) A summary of the text",
+        "B) A JSON object with key-value pairs",
+        "C) A vector of numbers",
+        "D) A sequence of tokens"
+      ],
+      correct: 2,
+      explanation: "An embedding is a vector — a list of floating-point numbers (e.g., 1536 floats for text-embedding-3-small). This numerical representation encodes the semantic meaning of the text in a form that allows mathematical comparison."
+    },
+    {
+      id: "q2",
+      text: "Two sentences have a cosine similarity score of 0.95. What does this tell you?",
+      points: 2,
+      options: [
+        "A) They are 95% the same length",
+        "B) They are very semantically similar",
+        "C) They share 95% of the same words",
+        "D) They have 95% token overlap"
+      ],
+      correct: 1,
+      explanation: "Cosine similarity measures the angle between two vectors. A score of 0.95 means the vectors point in nearly the same direction — the texts have very similar meanings. It says nothing about length, shared words, or token overlap."
+    },
+    {
+      id: "q3",
+      text: "Why is keyword search worse than embedding search when dealing with synonyms?",
+      points: 2,
+      options: [
+        "A) Keyword search is slower for large corpora",
+        "B) Keyword search only matches exact strings, not meaning",
+        "C) Keyword search is more expensive per query",
+        "D) Keyword search requires more tokens"
+      ],
+      correct: 1,
+      explanation: "Keyword search (like BM25 or basic string matching) compares characters. 'puppy' and 'dog' are completely different strings, so a keyword search for 'puppy' won't return a document that only mentions 'dog'. Embeddings encode meaning — both words end up near each other in vector space, so embedding search finds the connection."
+    },
+    {
+      id: "q4",
+      text: "You have 10,000 product descriptions to search. What is the most efficient approach?",
+      points: 3,
+      options: [
+        "A) Embed all 10,000 descriptions at query time, on every user search",
+        "B) Pre-embed all descriptions once, cache the vectors, and embed only the query at runtime",
+        "C) Use keyword search instead — embedding 10,000 items is not feasible",
+        "D) Send all 10,000 descriptions in the prompt and ask the LLM to find the best match"
+      ],
+      correct: 1,
+      explanation: "Pre-embedding and caching is the correct pattern. Embedding 10,000 items on every query would be slow (10,000 API calls per search) and expensive. Instead: embed all descriptions once, store the vectors, then at query time embed only the query (1 API call) and run cosine similarity against the cached vectors. This is O(1) API calls per query regardless of corpus size."
+    },
+    {
+      id: "q5",
+      text: "What is a main disadvantage of very high-dimensional embeddings (e.g., 3072 vs 1536 dimensions)?",
+      points: 2,
+      options: [
+        "A) They cannot capture semantic meaning",
+        "B) They require more storage and compute for similarity search",
+        "C) They are less accurate than low-dimensional embeddings",
+        "D) They do not work with Claude"
+      ],
+      correct: 1,
+      explanation: "Higher-dimensional vectors take more memory to store and more compute to compare. For 1 million documents, 3072-dimensional vectors use roughly twice the RAM and compute of 1536-dimensional vectors. text-embedding-3-large (3072 dims) is more accurate on benchmarks, but for most use cases text-embedding-3-small (1536 dims) offers a better cost-accuracy trade-off."
+    }
+  ]}
+/>

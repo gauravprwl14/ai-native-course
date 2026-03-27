@@ -1,0 +1,78 @@
+---
+title: "Lab: Construct a DPO Dataset"
+sidebar_position: 4
+description: "Build a DPO preference dataset by implementing pair creation, validation, synthetic rejection generation, and a full dataset builder."
+---
+
+# Lab 31 — Construct a DPO Dataset
+
+In this lab you will implement a minimal DPO dataset construction pipeline that:
+
+1. Creates and validates `(prompt, chosen, rejected)` preference pairs
+2. Uses an LLM to generate synthetic rejected responses
+3. Assembles a complete dataset from a list of prompts
+
+## What You'll Build
+
+| Function | Description |
+|----------|-------------|
+| `create_preference_pair(prompt, chosen, rejected)` | Returns a validated `{"prompt", "chosen", "rejected"}` dict |
+| `validate_preference_pair(pair)` | Returns `(valid: bool, errors: list[str])` — checks keys, non-empty, chosen != rejected |
+| `generate_rejection(prompt, chosen)` | Asks the LLM to generate a deliberately vague/unhelpful version of the chosen response |
+| `build_dpo_dataset(prompts)` | For each prompt, generates a good response (chosen) and a bad response (rejected), returns a list of validated pairs |
+
+## Starter File
+
+Open `curriculum/tier-3-advanced/31-rlhf-dpo/lab/starter/solution.py`.
+
+The file contains function stubs with `# TODO` comments.
+
+## Your Tasks
+
+### Task A: `create_preference_pair`
+
+- Accept `prompt`, `chosen`, `rejected` as strings
+- Return `{"prompt": prompt, "chosen": chosen, "rejected": rejected}`
+- This is a pure constructor — keep it simple
+
+### Task B: `validate_preference_pair`
+
+- Check all three keys (`prompt`, `chosen`, `rejected`) exist in the dict
+- Check none are empty strings (after strip)
+- Check `chosen != rejected` (after strip)
+- Return `(True, [])` if valid, or `(False, [list of error strings])` if not
+
+### Task C: `generate_rejection`
+
+- Build a prompt asking the model to generate a **worse** version of `chosen`
+- Ask it to be vague, incomplete, or subtly inaccurate — not obviously nonsensical
+- Call the Anthropic API with `temperature=0.7` to introduce some variety
+- Return the model's response text
+
+### Task D: `build_dpo_dataset`
+
+- For each prompt in `prompts`:
+  1. Call the LLM to generate a good (chosen) response
+  2. Call `generate_rejection(prompt, chosen)` to get the rejected response
+  3. Call `create_preference_pair(prompt, chosen, rejected)` to assemble the pair
+  4. Validate the pair; skip any that fail validation
+- Return the list of valid pairs
+
+## Running the Tests
+
+```bash
+cd curriculum/tier-3-advanced/31-rlhf-dpo/lab
+pytest tests/ -v
+```
+
+## Stretch Goals
+
+1. Add a `min_length_diff` parameter to `validate_preference_pair` — reject pairs where chosen and rejected are nearly the same length (may indicate weak preference)
+2. Add deduplication to `build_dpo_dataset` — skip prompts that produce identical chosen/rejected pairs
+3. Export the dataset to JSONL format (one JSON object per line, standard for training frameworks)
+
+## Expected Output
+
+After completing the lab, `build_dpo_dataset(["What is Python?", "What is a neural network?"])` should return a list of two dicts, each with `prompt`, `chosen`, and `rejected` keys, where `chosen != rejected`.
+
+Next: [Quiz — RLHF & DPO](./quiz.mdx)

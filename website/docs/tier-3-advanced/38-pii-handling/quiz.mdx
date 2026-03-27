@@ -1,0 +1,81 @@
+---
+title: "Quiz: PII Handling"
+sidebar_position: 5
+description: "Test your understanding of PII detection, redaction, pseudonymization, re-identification, and compliance."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz 38 — PII Handling
+
+<Quiz
+  chapterId="tier3-ch38"
+  passMark={70}
+  questions={[
+    {
+      id: "q1",
+      text: "What is the key difference between redaction and pseudonymization?",
+      points: 2,
+      options: [
+        "A) Redaction uses regex; pseudonymization uses NER models",
+        "B) Redaction is irreversible (replaces with labels); pseudonymization is reversible (replaces with consistent fake values using a mapping)",
+        "C) Redaction removes PII from the database; pseudonymization removes it from prompts only",
+        "D) Pseudonymization is stronger than redaction because it uses encryption"
+      ],
+      correct: 1,
+      explanation: "Redaction replaces PII with type labels like [EMAIL_REDACTED] — you cannot get the original value back. Pseudonymization replaces PII with consistent placeholders (email_1, email_2) and stores a mapping, allowing re-identification after the LLM call. Use redaction when the LLM doesn't need the actual values; use pseudonymization when the LLM needs to reason about relationships between values."
+    },
+    {
+      id: "q2",
+      text: "A user sends: 'My name is John Smith and my SSN is 123-45-6789.' Your PII handler uses only a credit card regex. What is sent to the LLM API?",
+      points: 1,
+      options: [
+        "A) '[NAME_REDACTED] and [SSN_REDACTED]'",
+        "B) The original text with the name and SSN unchanged",
+        "C) An empty string — all PII is always blocked",
+        "D) 'My name is [REDACTED] and my SSN is 123-45-6789'"
+      ],
+      correct: 1,
+      explanation: "If only the credit card pattern is configured, the name and SSN are not detected and are sent to the API verbatim. This illustrates why you must run all relevant PII patterns, not just one type. PII detection needs to be comprehensive."
+    },
+    {
+      id: "q3",
+      text: "After pseudonymization, your LLM responds: 'I have updated the record for email_1.' Which step restores the original email address for the user?",
+      points: 1,
+      options: [
+        "A) Call the LLM again with the mapping to ask it to restore the values",
+        "B) Re-identification — use the local mapping dict to replace email_1 with the original value",
+        "C) Run the pseudonymization function again on the response",
+        "D) Look up email_1 in the user database"
+      ],
+      correct: 1,
+      explanation: "Re-identification uses the mapping dict created during pseudonymization (e.g., {'email_1': 'john@example.com'}) to replace placeholders with original values. This is a simple string replacement operation — no LLM call needed, and the mapping is stored locally (never sent to the API)."
+    },
+    {
+      id: "q4",
+      text: "Why is it a problem to use the same pseudonymization mapping across different users or sessions?",
+      points: 2,
+      options: [
+        "A) Performance degrades because the mapping grows too large",
+        "B) The same placeholder (e.g., email_1) could refer to different people's data in different contexts, creating a privacy violation",
+        "C) The LLM will recognise the same placeholders and infer the original values",
+        "D) Regex patterns cannot handle repeated use of the same placeholder"
+      ],
+      correct: 1,
+      explanation: "If you reuse a mapping across users, email_1 from User A's session might collide with email_1 from User B's session. The LLM or your application might associate User B's response with User A's data. Always create a fresh mapping per request or per user session to ensure isolation."
+    },
+    {
+      id: "q5",
+      text: "Which of the following PII types CANNOT be reliably detected with a regex pattern?",
+      points: 2,
+      options: [
+        "A) Email addresses",
+        "B) Social Security Numbers (SSN)",
+        "C) Credit card numbers",
+        "D) Full names like 'John Smith'"
+      ],
+      correct: 3,
+      explanation: "Emails, SSNs, and credit card numbers have a fixed format that regex can reliably detect. Full names ('John Smith') have no predictable pattern — they look like any other two-word phrase. Detecting names requires a Named Entity Recognition (NER) model trained to identify person entities in context."
+    }
+  ]}
+/>

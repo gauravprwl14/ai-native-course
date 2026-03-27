@@ -1,0 +1,44 @@
+---
+title: "Chapter 22: Streaming (SSE)"
+sidebar_position: 1
+description: "Stream LLM responses token-by-token for better UX. Learn SSE, Python generators, and how to build streaming endpoints."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 22 — Streaming (SSE)
+
+## What You'll Learn
+
+- What SSE (Server-Sent Events) is and why it's the right transport for streaming LLM responses
+- How to use the Anthropic SDK's streaming API (`client.messages.stream`)
+- How Python generators make streaming composable and testable
+- How to build a streaming FastAPI endpoint with `StreamingResponse`
+- How to measure TTFT (Time to First Token) — the key streaming UX metric
+
+## Prerequisites
+
+- Chapter 11 (System Prompts) — you should be comfortable making basic API calls with `messages.create`
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 20 min |
+| Patterns | 20 min |
+| Lab | 30 min |
+| Quiz | 10 min |
+| **Total** | **~80 min** |
+
+## How This Connects
+
+Every chapter so far has used `client.messages.create(...)` — a blocking call that waits for the full response. That's fine for labs. It's bad for UX: users stare at a blank screen for 5–10 seconds.
+
+Streaming fixes this by sending tokens as they're generated. The model starts responding in milliseconds. This chapter teaches you how to implement streaming end-to-end: from the Anthropic API to a Python generator to a web endpoint.
+
+<ConceptMap
+  current="streaming"
+  related={["llms", "agents", "tool-use", "context-window"]}
+/>
+
+➡️ Next: [Concepts — Streaming (SSE)](./concepts.mdx)

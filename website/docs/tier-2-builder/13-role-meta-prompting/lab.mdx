@@ -1,0 +1,81 @@
+---
+title: "Lab: Auto-generate Prompt Variants"
+sidebar_position: 4
+description: "Use meta-prompting to generate multiple prompt variants for a task, then evaluate which performs best on a test suite."
+---
+
+# Lab 13 — Auto-generate Prompt Variants
+
+## What You're Building
+
+A prompt testing pipeline that uses meta-prompting to generate multiple prompt variants for a task, then evaluates each variant against a set of test cases using keyword-based scoring. You'll implement three functions:
+
+1. **`apply_role_prompt(task, role_description)`** — wraps a task with a role and calls the LLM
+2. **`generate_prompt_variants(task_description, n=5)`** — uses a meta-prompt to generate N diverse prompts for a task
+3. **`evaluate_prompt(prompt, test_cases)`** — scores a prompt against test cases by checking for expected keywords in the response
+
+## Function Signatures
+
+```python
+def apply_role_prompt(task: str, role_description: str) -> str:
+    """Apply a role to a task and return the model's response."""
+
+def generate_prompt_variants(task_description: str, n: int = 5) -> list[str]:
+    """Use meta-prompting to generate n diverse prompt variants for a task."""
+
+def evaluate_prompt(prompt: str, test_cases: list[dict]) -> float:
+    """Evaluate a prompt on test cases. Returns fraction of cases where all expected_keywords appear."""
+```
+
+## Test Case Format
+
+Each test case is a dict with:
+- `"input"` — the user message to send
+- `"expected_keywords"` — list of strings that should all appear in the response (case-insensitive)
+
+```python
+test_cases = [
+    {
+        "input": "Explain what a for loop does",
+        "expected_keywords": ["iteration", "loop", "repeat"]
+    },
+    {
+        "input": "What is a variable?",
+        "expected_keywords": ["store", "value", "name"]
+    }
+]
+```
+
+## Files
+
+| File | Purpose |
+|------|---------|
+| `starter/solution.py` | Your starting point — fill in the TODOs |
+| `solution/solution.py` | Reference solution |
+| `tests/test_solution.py` | Verify your implementation |
+| `problem.md` | Detailed problem statement |
+
+## Getting Started
+
+```bash
+cd curriculum/tier-2-builder/13-role-meta-prompting/lab/starter
+python solution.py
+```
+
+## Acceptance Criteria
+
+- [ ] `apply_role_prompt(task, role_description)` returns a string response from the LLM
+- [ ] `apply_role_prompt` puts the role in the system prompt as "You are &#123;role_description&#125;."
+- [ ] `generate_prompt_variants(task_description, n)` returns a list of `n` prompt strings
+- [ ] `generate_prompt_variants` uses `temperature=0.8` (or higher) to encourage diversity
+- [ ] `evaluate_prompt(prompt, test_cases)` returns a float between 0.0 and 1.0
+- [ ] `evaluate_prompt` returns `1.0` when all expected keywords appear in every response
+- [ ] `evaluate_prompt` returns `0.0` when no keywords match any response
+- [ ] All tests pass: `pytest tests/ -v`
+
+## Running Tests
+
+```bash
+cd curriculum/tier-2-builder/13-role-meta-prompting/lab
+pytest tests/ -v
+```

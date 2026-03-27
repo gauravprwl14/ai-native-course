@@ -1,0 +1,70 @@
+---
+title: "Lab: Build an Auto-eval Pipeline"
+sidebar_position: 4
+description: "Implement a rubric-based judge, a position-debiased pairwise judge, and a full judge eval runner."
+---
+
+# Lab 33 — Build an Auto-eval Pipeline
+
+In this lab you will implement a complete LLM-as-judge system with:
+
+1. A rubric-based judge that scores responses on multiple dimensions
+2. A pairwise judge that picks the better response with position debiasing
+3. A pipeline runner that judges a batch of responses and aggregates scores
+
+## What You'll Build
+
+| Function | Description |
+|----------|-------------|
+| `score_response(prompt, response, rubric)` | Calls the judge LLM; returns `{dimension: int}` scores for each rubric key |
+| `pairwise_judge(prompt, response_a, response_b)` | Runs the judge twice (swapping order); returns `"A"`, `"B"`, or `"tie"` |
+| `run_judge_eval(dataset)` | Runs `score_response` on each item; returns `{"avg_scores": dict, "results": list}` |
+
+## Starter File
+
+Open `curriculum/tier-3-advanced/33-llm-as-judge/lab/starter/solution.py`.
+
+## Your Tasks
+
+### Task A: `score_response`
+
+- Build a prompt that includes the rubric (formatted as key: description), the original prompt, and the response
+- Ask the judge to return ONLY a JSON object with integer scores
+- Call the Anthropic API with `temperature=0` (for consistent scoring) and `max_tokens=256`
+- Parse the JSON response and return the dict
+- Use `DEFAULT_RUBRIC` if `rubric=None`
+
+### Task B: `pairwise_judge`
+
+- Write a helper that calls the judge once with a given (response_a, response_b) order and returns `"A"`, `"B"`, or `"tie"`
+- Run 1: call with A first, B second
+- Run 2: call with B first, A second — then **invert the label** (if judge said "A" with B first, that means B actually won)
+- If both runs agree: return the agreed winner
+- If runs disagree: return `"tie"`
+
+### Task C: `run_judge_eval`
+
+- For each item in `dataset` (`{"prompt": str, "response": str}`):
+  1. Call `score_response(item["prompt"], item["response"])` using the default rubric
+  2. Append `{"prompt", "response", "scores"}` to results
+- Compute `avg_scores`: for each rubric dimension, average across all items
+- Return `{"avg_scores": dict, "results": list}`
+
+## Running the Tests
+
+```bash
+cd curriculum/tier-3-advanced/33-llm-as-judge/lab
+pytest tests/ -v
+```
+
+## Stretch Goals
+
+1. Add a `calibrate(calibration_set)` function that computes agreement rate between judge scores and human scores
+2. Add a `top_k_worst(results, k)` function that returns the `k` lowest-scoring responses by mean rubric score
+3. Support custom rubrics in `run_judge_eval` (accept an optional `rubric` parameter)
+
+## Expected Output
+
+After completing the lab, `run_judge_eval([{"prompt": "What is Python?", "response": "Python is a high-level language."}])` should return a dict with `avg_scores` (one float per rubric dimension) and `results` (one entry per input).
+
+Next: [Quiz — LLM-as-Judge](./quiz.mdx)

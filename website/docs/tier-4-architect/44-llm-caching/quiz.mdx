@@ -1,0 +1,112 @@
+---
+title: "Quiz: LLM Caching"
+sidebar_position: 5
+description: "Test your knowledge of exact caching, semantic caching, prompt caching, TTL, cache invalidation, and caching anti-patterns."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz: LLM Caching
+
+<Quiz
+  questions={[
+    {
+      id: "q1",
+      text: "Which caching layer is most effective when many users ask exactly the same question (e.g., a FAQ bot)?",
+      options: [
+        "A) Semantic cache with cosine similarity",
+        "B) Exact cache with SHA256 key",
+        "C) Anthropic prompt caching",
+        "D) No cache — LLMs are fast enough"
+      ],
+      correct: 1,
+      explanation: "Exact cache is perfect for repeated identical queries. It's O(1) lookup with zero overhead and 100% accuracy. A FAQ bot where 'What are your opening hours?' is asked thousands of times per day benefits enormously from exact caching."
+    },
+    {
+      id: "q2",
+      text: "What is the key advantage of semantic caching over exact caching?",
+      options: [
+        "A) It's faster — cosine similarity is cheaper than SHA256",
+        "B) It matches semantically similar prompts even if the wording differs",
+        "C) It works with temperature > 0",
+        "D) It requires no embedding model"
+      ],
+      correct: 1,
+      explanation: "Semantic cache embeds the prompt and finds cached responses with high cosine similarity. 'What is the capital of France?' and 'Tell me France's capital city' would be a cache miss in an exact cache but a hit in a semantic cache with threshold ~0.95."
+    },
+    {
+      id: "q3",
+      text: "Anthropic's prompt caching charges cache reads at what fraction of normal input token cost?",
+      options: [
+        "A) 50% (0.5×)",
+        "B) 25% (0.25×)",
+        "C) 10% (0.1×)",
+        "D) Free (0×)"
+      ],
+      correct: 2,
+      explanation: "Anthropic charges cache reads at 10% (0.1×) of the normal input token price. Cache writes cost 1.25× (a one-time overhead to create the cached representation). For a prefix read many times, the effective cost reduction is up to 90%."
+    },
+    {
+      id: "q4",
+      text: "Why should you never cache LLM responses when temperature > 0?",
+      options: [
+        "A) High temperature responses are longer and waste cache storage",
+        "B) Responses are non-deterministic — the cached response is just one of many valid outputs",
+        "C) Temperature > 0 causes JSON parsing errors",
+        "D) The cache key algorithm breaks with temperature parameters"
+      ],
+      correct: 1,
+      explanation: "With temperature > 0, the same prompt produces different responses each time. Caching and returning the same response every time defeats the purpose of sampling — and may return a suboptimal answer that happened to be generated first."
+    },
+    {
+      id: "q5",
+      text: "What TTL policy is most appropriate for caching responses from an LLM-powered news summarizer?",
+      options: [
+        "A) No TTL (cache indefinitely)",
+        "B) TTL of 1 year",
+        "C) TTL of 1–24 hours, matching news freshness",
+        "D) TTL of 1 millisecond"
+      ],
+      correct: 2,
+      explanation: "News content changes frequently — a cached summary from yesterday may be outdated. A TTL of 1–24 hours balances cache hit rate (saving costs on repeated queries in that window) with freshness (expired entries force a fresh LLM call for updated content)."
+    },
+    {
+      id: "q6",
+      text: "What semantic similarity threshold would you use for a customer support bot to avoid returning wrong cached answers?",
+      options: [
+        "A) 0.50 — match loosely related queries",
+        "B) 0.75 — catch all similar-topic questions",
+        "C) 0.90 — moderate precision",
+        "D) 0.95 or higher — only near-identical queries"
+      ],
+      correct: 3,
+      explanation: "In customer support, a wrong answer is worse than a cache miss. A threshold of 0.95 or higher ensures only near-identical queries get the cached response. Lower thresholds risk matching semantically related but factually different queries."
+    },
+    {
+      id: "q7",
+      text: "You have a 15,000-token system prompt that is sent with every API call to Claude. Which caching approach gives the biggest cost reduction?",
+      options: [
+        "A) Exact cache — hash the system prompt and store it locally",
+        "B) Semantic cache — embed the system prompt and check similarity",
+        "C) Anthropic prompt caching — mark the system prompt with cache_control ephemeral",
+        "D) No caching needed — system prompts are not billed"
+      ],
+      correct: 2,
+      explanation: "Anthropic prompt caching caches the KV representation of prefix tokens on Anthropic's servers. A 15,000-token system prompt marked with cache_control is written once (at 1.25× cost) and read on subsequent requests at 0.1× cost — saving ~88% on those tokens."
+    },
+    {
+      id: "q8",
+      text: "In a two-level cache (exact + semantic), what is the correct order to check them?",
+      options: [
+        "A) Semantic first, then exact — semantic catches more cases",
+        "B) Exact first, then semantic — exact is O(1) with zero embedding cost",
+        "C) Both simultaneously — pick the higher confidence result",
+        "D) Alternate randomly between the two layers"
+      ],
+      correct: 1,
+      explanation: "Exact cache is O(1) with no embedding overhead. Always check it first. Only call the embedding model for a semantic similarity search if the exact cache misses. This minimizes the cost per cache lookup."
+    }
+  ]}
+  chapterId="tier4-ch44"
+  passMark={75}
+/>

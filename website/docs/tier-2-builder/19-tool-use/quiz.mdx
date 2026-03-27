@@ -1,0 +1,81 @@
+---
+title: "Quiz: Tool Use / Function Calling"
+sidebar_position: 5
+description: "Test your understanding of the tool use flow, tool definitions, error handling, and the difference between tool use and RAG."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz 19 — Tool Use / Function Calling
+
+<Quiz
+  chapterId="tier2-ch19"
+  passMark={70}
+  questions={[
+    {
+      id: "q1",
+      text: "When a model returns a `tool_use` block, it means:",
+      points: 1,
+      options: [
+        "A) The tool has already been executed by the API",
+        "B) The model is requesting that YOUR code executes the tool and returns the result",
+        "C) The API automatically called the function on your behalf",
+        "D) An error occurred in the model's reasoning"
+      ],
+      correct: 1,
+      explanation: "A tool_use block is a structured request, not an execution. The LLM outputs the tool name and its input parameters as text. Your code is responsible for reading that block, calling the actual function, and returning the result as a tool_result message. The model never executes code directly — all execution happens in your application layer."
+    },
+    {
+      id: "q2",
+      text: "Your tool execution raises an exception. You should:",
+      points: 2,
+      options: [
+        "A) Let the exception propagate and crash the program",
+        "B) Return the error message as a tool_result so the model can handle it gracefully",
+        "C) Silently ignore the error and return an empty string",
+        "D) Immediately retry the tool call 10 times in a loop"
+      ],
+      correct: 1,
+      explanation: "Crashing the program on tool errors makes your agent fragile and unrecoverable. Instead, catch the exception and return a descriptive error string as the tool_result content. The model then has the error in its context and can respond intelligently — for example, it might tell the user the tool is unavailable, suggest an alternative, or ask for clarification. Graceful error handling is a core requirement for production agents."
+    },
+    {
+      id: "q3",
+      text: "Why must you include tool results in the SAME conversation thread (message history)?",
+      points: 2,
+      options: [
+        "A) It's an arbitrary API requirement with no logical reason",
+        "B) The model needs the result in its context window to generate a coherent final answer",
+        "C) Tool results are stateful and expire if not attached to the conversation",
+        "D) Otherwise the tool runs twice on the next API call"
+      ],
+      correct: 1,
+      explanation: "LLMs are stateless — they have no memory between API calls. The only state they have is the messages array you pass each time. When the model requests a tool and you execute it, you must append both the model's tool_use response and your tool_result to the messages array before the next API call. Without this, the model has no way to know what the tool returned and cannot generate a coherent answer."
+    },
+    {
+      id: "q4",
+      text: "A model tries to call the same tool in an infinite loop. The best defense is:",
+      points: 2,
+      options: [
+        "A) Disable tool use entirely for that model",
+        "B) Add a max_iterations counter and break the loop when exceeded",
+        "C) Set temperature=0 to make the model deterministic",
+        "D) Remove all tool definitions from the API call"
+      ],
+      correct: 1,
+      explanation: "A max_iterations guard is the standard pattern for preventing runaway agent loops. After a set number of iterations (typically 10), you break the loop and return a fallback message. This is not a hypothetical concern — models can get stuck in loops when a tool keeps returning errors or when the task is ambiguous. Setting temperature=0 makes outputs deterministic but doesn't prevent loops; it may even make them more reliable (and thus more dangerous without a guard)."
+    },
+    {
+      id: "q5",
+      text: "What is the key difference between tool use and RAG?",
+      points: 2,
+      options: [
+        "A) RAG also uses tool use under the hood",
+        "B) Tool use executes external functions; RAG retrieves text chunks from a document store",
+        "C) They are functionally identical — just different names for the same pattern",
+        "D) RAG is faster because it doesn't require an extra API call"
+      ],
+      correct: 1,
+      explanation: "Tool use and RAG are complementary but distinct patterns. RAG retrieves relevant text chunks from a document store (vector database) and injects them into the prompt as context. Tool use calls external functions — APIs, calculators, databases — and returns their output as tool results. A sophisticated agent might use both: RAG to look up relevant documents and tool use to fetch live data or perform calculations. Understanding when to use each is a key architectural skill."
+    }
+  ]}
+/>

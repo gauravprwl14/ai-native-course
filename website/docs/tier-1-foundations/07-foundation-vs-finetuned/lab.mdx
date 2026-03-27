@@ -1,0 +1,98 @@
+---
+title: "Lab: Compare Model Outputs on Same Task"
+sidebar_position: 4
+description: "Run the same classification task across different API configurations and compare output consistency between models."
+---
+
+# Lab 07 — Compare Model Outputs on Same Task
+
+## What You're Building
+
+A Python module that runs the same sentiment classification task across multiple Claude model configurations and measures how often they agree. You will implement three functions:
+
+1. **`classify_sentiment`** — classify text sentiment using a specified model, returning "positive", "negative", or "neutral"
+2. **`compare_model_outputs`** — run the classification across a list of texts and multiple models, returning results by model
+3. **`calculate_agreement_rate`** — compute the fraction of texts where all models returned the same label
+
+## Files
+
+| File | Purpose |
+|------|---------|
+| `starter/solution.py` | Your starting point — fill in the TODOs |
+| `solution/solution.py` | Reference solution |
+| `tests/test_solution.py` | Verify your implementation |
+| `problem.md` | Full problem statement |
+
+## Getting Started
+
+```bash
+cd curriculum/tier-1-foundations/07-foundation-vs-finetuned/lab/starter
+export ANTHROPIC_API_KEY=your_key_here
+python solution.py
+```
+
+## Function Signatures
+
+```python
+def classify_sentiment(text: str, model: str = "haiku") -> str:
+    """
+    Classify text sentiment using specified model.
+    Returns "positive", "negative", or "neutral".
+
+    Args:
+        text:  The text to classify
+        model: Key into the MODELS dict ("haiku" or "sonnet")
+
+    Returns:
+        One of: "positive", "negative", "neutral"
+    """
+
+def compare_model_outputs(texts: list[str], models: list[str] = None) -> dict:
+    """
+    Run the same classification task on multiple texts using multiple models.
+
+    Args:
+        texts:  List of texts to classify
+        models: List of model keys to use (defaults to all keys in MODELS)
+
+    Returns:
+        {model_name: [result1, result2, ...]}
+    """
+
+def calculate_agreement_rate(results: dict) -> float:
+    """
+    Calculate how often all models agree on the same classification.
+
+    Args:
+        results: {model_name: [result1, result2, ...]} from compare_model_outputs
+
+    Returns:
+        Fraction (0.0–1.0) of texts where all models agreed
+    """
+```
+
+## Acceptance Criteria
+
+- [ ] `classify_sentiment` returns one of "positive", "negative", "neutral"
+- [ ] `classify_sentiment` uses `temperature=0` for deterministic output
+- [ ] `compare_model_outputs` returns a dict with one key per model
+- [ ] Each dict value is a list with one result per input text
+- [ ] `calculate_agreement_rate` returns `1.0` when all models agree on every text
+- [ ] `calculate_agreement_rate` returns `0.0` when no models agree on any text
+- [ ] `calculate_agreement_rate` returns `0.5` when models agree on half the texts
+- [ ] All tests pass: `pytest tests/ -v`
+
+## How to Run Tests
+
+```bash
+cd curriculum/tier-1-foundations/07-foundation-vs-finetuned/lab
+pytest tests/ -v
+```
+
+## Stretch Goals
+
+Once the core functions work, try these extensions:
+
+1. **Add a third model** — add `"opus": "claude-opus-4-5"` to the MODELS dict and see if agreement rates change.
+2. **Confidence from temperature** — run `classify_sentiment` at `temperature=0` vs `temperature=0.5` ten times on the same text. How often does the label change?
+3. **Disagreement analysis** — print the texts where models disagree. Are they ambiguous? Does one model seem more accurate?

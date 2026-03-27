@@ -1,0 +1,82 @@
+---
+title: "Lab: Classify Text — Zero vs Five Shot"
+sidebar_position: 4
+description: "Build a sentiment classifier and compare the accuracy of zero-shot vs few-shot prompting."
+---
+
+# Lab 09 — Classify Text: Zero vs Five Shot
+
+## What You're Building
+
+A Python sentiment classifier that:
+
+1. Classifies text using **zero-shot** prompting
+2. Classifies text using **few-shot** prompting (5 labeled examples)
+3. Evaluates and compares the accuracy of both approaches on a test set
+
+By the end you'll have concrete evidence of how much examples improve accuracy on edge cases like sarcasm and ambiguous phrasing.
+
+## Prerequisites
+
+```bash
+cd curriculum/shared
+pip install -r requirements.txt
+cp .env.example .env
+# Add your ANTHROPIC_API_KEY to .env
+```
+
+## Functions to Implement
+
+| Function | Description |
+|----------|-------------|
+| `classify_zero_shot(text)` | Classify sentiment with no examples |
+| `build_few_shot_prompt(examples, text)` | Build a formatted few-shot prompt string |
+| `classify_few_shot(text, examples)` | Classify sentiment using few-shot examples |
+| `evaluate_accuracy(predictions, labels)` | Compare predictions to ground truth, return 0.0–1.0 |
+
+## Files
+
+| File | Purpose |
+|------|---------|
+| `problem.md` | Full problem statement |
+| `starter/solution.py` | Your starting point — fill in the TODOs |
+| `solution/solution.py` | Reference solution (check after you finish) |
+| `tests/test_solution.py` | Verify your implementation |
+
+## Acceptance Criteria
+
+- [ ] `classify_zero_shot` returns `"positive"`, `"negative"`, or `"neutral"` (lowercase, stripped)
+- [ ] `build_few_shot_prompt` returns a string containing both the example texts and the input text
+- [ ] `classify_few_shot` returns a valid sentiment label
+- [ ] `evaluate_accuracy` returns `1.0` for perfect predictions, `0.0` for all wrong
+- [ ] All tests pass: `pytest tests/ -v`
+
+## Getting Started
+
+```bash
+cd curriculum/tier-2-builder/09-zero-few-shot/lab/starter
+# Open solution.py and fill in the TODOs
+python solution.py
+```
+
+## Run Tests
+
+```bash
+cd curriculum/tier-2-builder/09-zero-few-shot/lab
+pytest tests/ -v
+```
+
+## Key Concepts You'll Use
+
+- `ZERO_SHOT_PROMPT.format(text=text)` — inject text into the prompt template
+- `client.messages.create(temperature=0)` — deterministic output for classification
+- `response.content[0].text.strip().lower()` — parse and normalise the response
+- String formatting with `"\n\n".join(...)` — assemble few-shot examples
+
+## Challenge Extension
+
+Once the core functions work, try:
+
+1. Add 3 sarcastic examples to your few-shot set. Does accuracy improve on sarcastic inputs?
+2. Try 1-shot vs 3-shot vs 5-shot. At what point does adding examples stop helping?
+3. Deliberately unbalance your examples (all positive). What happens to predictions?

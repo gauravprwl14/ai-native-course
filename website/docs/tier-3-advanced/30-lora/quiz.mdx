@@ -1,0 +1,76 @@
+---
+title: "Quiz: LoRA / QLoRA"
+sidebar_position: 5
+description: "Test your understanding of LoRA rank, QLoRA memory savings, frozen weights, adapter merging, and when to use LoRA."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz: LoRA / QLoRA
+
+<Quiz
+  questions={[
+    {
+      id: "q1",
+      text: "What does the 'rank' parameter control in LoRA?",
+      options: [
+        "A) The number of attention layers the adapter is applied to",
+        "B) The inner dimension of the adapter matrices A and B, which controls their capacity",
+        "C) The learning rate used during LoRA training",
+        "D) The quantization precision (4-bit, 8-bit, etc.)"
+      ],
+      correct: 1,
+      explanation: "The rank r is the inner dimension of the two adapter matrices: A has shape (d × r) and B has shape (r × k). A lower rank means fewer trainable parameters and less capacity; a higher rank gives more capacity but uses more memory. Rank is independent of quantization and learning rate."
+    },
+    {
+      id: "q2",
+      text: "In QLoRA, which parts of the model are quantized to 4-bit?",
+      options: [
+        "A) The LoRA adapter matrices A and B",
+        "B) The frozen base model weights",
+        "C) The optimizer states",
+        "D) The tokenizer embeddings only"
+      ],
+      correct: 1,
+      explanation: "In QLoRA, the frozen base model weights are stored in 4-bit NF4 format. The LoRA adapter matrices A and B remain in 16-bit float because they are being trained — quantizing them would degrade gradient quality. This combination (4-bit base + 16-bit adapters) gives the memory savings of quantization without sacrificing training precision."
+    },
+    {
+      id: "q3",
+      text: "After LoRA training is complete and you want to deploy a single fine-tuned model with no inference overhead, you should:",
+      options: [
+        "A) Keep the adapters separate and load them on top of the base model at inference time",
+        "B) Merge the adapter weights into the base model using merge_and_unload()",
+        "C) Retrain the full model from scratch using the LoRA-generated weights as initialization",
+        "D) Convert the adapter to ONNX format"
+      ],
+      correct: 1,
+      explanation: "merge_and_unload() adds the LoRA adapter matrices into the corresponding base model weight matrices (W_eff = W + αAB/r) and returns a standard model with no adapter overhead. The result is a normal model that can be served like any other — no PEFT library needed at inference time."
+    },
+    {
+      id: "q4",
+      text: "Why does QLoRA reduce memory requirements so significantly compared to standard LoRA?",
+      options: [
+        "A) It uses gradient checkpointing to avoid storing all activations",
+        "B) It stores the frozen base model weights in 4-bit instead of 16-bit, reducing base model memory by 4×",
+        "C) It reduces the number of training steps required",
+        "D) It compresses the adapter matrices using sparse encoding"
+      ],
+      correct: 1,
+      explanation: "The dominant memory cost is storing the base model. Going from 16-bit to 4-bit reduces base model storage from 14GB to ~3.5GB for a 7B model. The LoRA adapters themselves are tiny (~50MB at r=8) and stay in 16-bit. Gradient checkpointing helps with activation memory separately but is a different technique."
+    },
+    {
+      id: "q5",
+      text: "When is LoRA preferred over full fine-tuning?",
+      options: [
+        "A) Always — LoRA is strictly better in all cases",
+        "B) When you have limited GPU memory, multiple fine-tuned variants to maintain, or want faster iteration",
+        "C) Only when training on datasets with fewer than 100 examples",
+        "D) Only for encoder models like BERT, not for generative models"
+      ],
+      correct: 1,
+      explanation: "LoRA is preferred when memory is constrained, when you want small adapter files instead of full model copies, or when you have multiple specializations sharing a base model (hot-swap). Full fine-tuning can occasionally achieve marginally better results on tasks where the full weight distribution needs to shift significantly, but LoRA matches or exceeds it on most practical tasks while using far less memory."
+    }
+  ]}
+  chapterId="tier3-ch30"
+  passMark={70}
+/>

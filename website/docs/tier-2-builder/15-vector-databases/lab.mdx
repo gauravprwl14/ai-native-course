@@ -1,0 +1,63 @@
+---
+title: "Lab: Index Documents in Chroma"
+sidebar_position: 4
+description: "Build a persistent document store using ChromaDB with metadata, OpenAI embeddings, and filtered retrieval."
+---
+
+# Lab 15 — Index Documents in Chroma
+
+## What You're Building
+
+A document store backed by ChromaDB. You'll implement four functions that cover the full lifecycle of a vector database collection:
+
+1. **`create_collection(name, persist_dir)`** — creates or retrieves a Chroma collection, using either `PersistentClient` or `EphemeralClient` depending on whether a persist directory is provided
+2. **`add_documents(collection, documents)`** — batch-embeds all documents via OpenAI and upserts them into the collection with metadata
+3. **`search(collection, query, top_k, filter)`** — embeds a query, runs ANN search with optional metadata filtering, and returns structured results
+4. **`delete_document(collection, doc_id)`** — removes a single document by ID
+
+## Document Schema
+
+Each document passed to `add_documents` has this shape:
+
+```python
+{
+    "id": str,       # unique document identifier
+    "text": str,     # the content to embed and store
+    "source": str,   # filename or URL — used for metadata filtering
+    # ...any additional metadata fields
+}
+```
+
+## Files
+
+| File | Purpose |
+|------|---------|
+| `starter/solution.py` | Your starting point — fill in the TODOs |
+| `solution/solution.py` | Reference solution |
+| `tests/test_solution.py` | Verify your implementation |
+| `problem.md` | Detailed problem statement |
+
+## Getting Started
+
+```bash
+cd curriculum/tier-2-builder/15-vector-databases/lab/starter
+python solution.py
+```
+
+## Acceptance Criteria
+
+- [ ] `create_collection(name)` returns a Chroma collection using `EphemeralClient`
+- [ ] `create_collection(name, persist_dir="./db")` returns a collection using `PersistentClient`
+- [ ] `add_documents(collection, documents)` calls the OpenAI Embeddings API once for all texts (not once per document)
+- [ ] `add_documents(collection, documents)` returns the count of documents added
+- [ ] `search(collection, query, top_k=3)` returns a list of dicts with keys `id`, `text`, `distance`, `metadata`
+- [ ] `search(collection, query, filter={"source": {"$eq": "policy.pdf"}})` only returns documents matching the filter
+- [ ] `delete_document(collection, doc_id)` removes the document so it no longer appears in search results
+- [ ] All tests pass: `pytest tests/ -v`
+
+## Running Tests
+
+```bash
+cd curriculum/tier-2-builder/15-vector-databases/lab
+pytest tests/ -v
+```

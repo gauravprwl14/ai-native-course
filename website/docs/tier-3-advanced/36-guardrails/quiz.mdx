@@ -1,0 +1,81 @@
+---
+title: "Quiz: Guardrails"
+sidebar_position: 5
+description: "Test your understanding of input filtering, output filtering, topic restriction, and false positive trade-offs."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz 36 — Guardrails
+
+<Quiz
+  chapterId="tier3-ch36"
+  passMark={70}
+  questions={[
+    {
+      id: "q1",
+      text: "Why are input guardrails placed before the LLM call, not after?",
+      points: 1,
+      options: [
+        "A) Because the LLM API does not accept certain inputs",
+        "B) To avoid wasting API tokens on requests that would be blocked anyway, and to prevent the model from being manipulated by harmful inputs",
+        "C) Because output guardrails are only needed for text generation, not for classification tasks",
+        "D) Because input guardrails run on the client side while output guardrails run on the server side"
+      ],
+      correct: 1,
+      explanation: "Input guardrails have two purposes: efficiency (no API call made for blocked inputs) and security (the model never sees the harmful input and cannot be manipulated by it). Output guardrails catch cases where the model was manipulated despite the input passing."
+    },
+    {
+      id: "q2",
+      text: "A keyword filter blocks any input containing the word 'ignore'. What is the main problem with this approach?",
+      points: 2,
+      options: [
+        "A) Keyword filters are too slow for production use",
+        "B) High false positive rate — legitimate inputs like 'You can ignore this field' are blocked",
+        "C) Regex cannot handle case-insensitive matching",
+        "D) Keyword filters only work on English text"
+      ],
+      correct: 1,
+      explanation: "Bare keyword matching produces excessive false positives. The word 'ignore' appears legitimately in many contexts. The correct approach is to use contextual regex patterns (e.g., 'ignore all previous instructions') that are specific to actual attack patterns, combined with case-insensitive matching."
+    },
+    {
+      id: "q3",
+      text: "You deploy an LLM topic classifier as a guardrail. It runs on every user message before the main LLM call. Your main model is claude-3-5-sonnet. What is the most cost-effective model choice for the classifier?",
+      points: 1,
+      options: [
+        "A) Use the same claude-3-5-sonnet model for consistency",
+        "B) Use a small, fast model like claude-3-haiku with max_tokens=10 — you only need 'yes' or 'no'",
+        "C) Use a local open-source model to avoid any API costs",
+        "D) Use GPT-4 because it has better classification accuracy"
+      ],
+      correct: 1,
+      explanation: "Topic classification is a simple yes/no task. Using a fast, cheap model (haiku) with max_tokens=10 costs a fraction of the main call. The classifier runs on every request, so cost multiplies — using the expensive model for classification adds significant cost with little accuracy benefit."
+    },
+    {
+      id: "q4",
+      text: "What is a 'false positive' in the context of guardrails, and why does it matter?",
+      points: 2,
+      options: [
+        "A) A response that looks correct but contains a factual error — guardrails should catch these",
+        "B) A legitimate user request that is incorrectly blocked by the guardrail — it degrades user experience",
+        "C) An attack that successfully bypasses the guardrail — the attack 'falsely' appeared safe",
+        "D) A guardrail that runs but finds no issues — a 'false alarm' that wastes compute"
+      ],
+      correct: 1,
+      explanation: "A false positive is a legitimate request incorrectly blocked. If your guardrail blocks 15% of real user requests, your product is broken for those users. You must measure your false positive rate on a labelled dataset of safe inputs and tune your thresholds to keep it acceptably low."
+    },
+    {
+      id: "q5",
+      text: "Which combination provides the strongest guardrail architecture for a customer-facing AI assistant?",
+      points: 2,
+      options: [
+        "A) System prompt only — modern LLMs reliably follow system-prompt restrictions",
+        "B) Output filter only — check what the model produces before showing it to users",
+        "C) Input keyword filter + LLM topic classifier (input) + output length/content filter",
+        "D) Rate limiting only — blocking users who make too many requests is sufficient"
+      ],
+      correct: 2,
+      explanation: "Defense in depth: a fast keyword filter catches obvious attacks with zero cost, an LLM topic classifier catches semantic misuse that keywords would miss, and an output filter catches cases where the model was manipulated despite input checks passing. System prompts are not a hard boundary and rate limiting alone does not address content quality."
+    }
+  ]}
+/>

@@ -1,0 +1,45 @@
+---
+title: "Chapter 35: Tracing & Observability"
+sidebar_position: 1
+description: "Instrument your AI pipeline for production observability. Track latency, tokens, costs, and errors with structured traces."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 35 — Tracing & Observability
+
+## What You'll Learn
+
+- Why production AI pipelines need distributed tracing
+- The span/trace model for LLM calls: latency, tokens, cost, errors
+- How to build a lightweight tracer using decorators and context managers
+- How to calculate per-trace cost from token counts
+- How tools like LangSmith, LangFuse, and Weights & Biases implement tracing
+
+## Prerequisites
+
+- Chapter 24 (Multi-Agent) — you should be comfortable with multi-step pipelines
+- Chapter 21 (Full Agent) — understanding of agent execution loops
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 20 min |
+| Patterns | 15 min |
+| Lab | 30 min |
+| Quiz | 10 min |
+| **Total** | **~75 min** |
+
+## Why This Matters
+
+"It worked in testing but fails in production" is one of the most common problems in AI engineering. Without tracing, you cannot answer the critical questions: Which step in the pipeline failed? How long did each LLM call take? How much did this request cost? What was the exact prompt that caused the bad output?
+
+Tracing transforms a black-box AI pipeline into an observable system. It is the difference between debugging by guesswork and debugging with evidence. Every serious production AI system is instrumented.
+
+<ConceptMap
+  current="tracing"
+  related={["agents", "evals", "rag", "streaming"]}
+/>
+
+Next: [Concepts — Tracing & Observability](./concepts.mdx)

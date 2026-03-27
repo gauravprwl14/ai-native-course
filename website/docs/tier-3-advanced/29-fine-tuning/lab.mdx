@@ -1,0 +1,71 @@
+---
+title: "Lab: Prepare a Fine-tuning Dataset"
+sidebar_position: 4
+description: "Generate, validate, and split a JSONL fine-tuning dataset without running a training job."
+---
+
+# Lab: Prepare a Fine-tuning Dataset
+
+## Goal
+
+Build the dataset preparation pipeline for fine-tuning — the part that matters most and is most commonly done wrong. No actual training job needed; this lab covers data generation, validation, and splitting.
+
+## What You'll Build
+
+| Function | Description |
+|----------|-------------|
+| `generate_training_example(topic)` | Use an LLM to produce one JSONL example for a given topic |
+| `validate_jsonl_example(example)` | Check a single example for correctness; return `(bool, str)` |
+| `create_training_dataset(topics, n_per_topic)` | Generate and validate multiple examples across topics |
+| `split_dataset(examples, val_ratio=0.1)` | Shuffle and split into train/val sets |
+
+## Starter File
+
+Location: `curriculum/tier-3-advanced/29-fine-tuning/lab/starter/solution.py`
+
+```python
+def generate_training_example(topic: str) -> dict:
+    # TODO: call LLM, return {"messages": [{"role": "user", ...}, {"role": "assistant", ...}]}
+    raise NotImplementedError()
+
+def validate_jsonl_example(example: dict) -> tuple[bool, str]:
+    # TODO: check structure, roles, content — return (True, "") or (False, "error message")
+    raise NotImplementedError()
+
+def create_training_dataset(topics: list[str], n_per_topic: int = 3) -> list[dict]:
+    # TODO: for each topic, generate n_per_topic examples; only include valid ones
+    raise NotImplementedError()
+
+def split_dataset(examples: list[dict], val_ratio: float = 0.1) -> tuple[list[dict], list[dict]]:
+    # TODO: shuffle (seed=42) and split; return (train, val)
+    raise NotImplementedError()
+```
+
+## Acceptance Criteria
+
+- `validate_jsonl_example({"messages": [...]})` returns `(True, "")` for a valid example
+- `validate_jsonl_example({})` returns `(False, ...)` with a non-empty error string
+- `validate_jsonl_example` rejects examples that don't end with an `assistant` message
+- `split_dataset([...10 items...], val_ratio=0.1)` returns `(9, 1)` split
+- `split_dataset` uses a fixed seed so results are deterministic
+- `create_training_dataset` only includes examples that pass validation
+- `generate_training_example` calls the LLM and returns a dict with a `"messages"` key
+- All 8 tests pass: `pytest tests/ -v`
+
+## How to Run
+
+```bash
+cd curriculum/tier-3-advanced/29-fine-tuning/lab
+pytest tests/ -v
+```
+
+## Hints
+
+1. `validate_jsonl_example` should check: `"messages"` key exists, list has >= 2 items, each message has `"role"` and `"content"`, roles are valid, last message is `"assistant"`
+2. Use `random.Random(42).shuffle(...)` for a seeded shuffle that doesn't affect the global random state
+3. `create_training_dataset` calls `generate_training_example` in a loop and filters with `validate_jsonl_example`
+4. `generate_training_example` should ask the LLM for a JSON object with `"user"` and `"assistant"` keys, then wrap it in the messages format
+
+---
+
+Next: [Quiz — Fine-tuning Basics](./quiz.mdx)

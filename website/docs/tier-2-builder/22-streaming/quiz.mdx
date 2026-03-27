@@ -1,0 +1,76 @@
+---
+title: "Quiz: Streaming"
+sidebar_position: 5
+description: "Test your understanding of SSE, streaming architecture, TTFT, and FastAPI streaming endpoints."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz: Streaming
+
+<Quiz
+  questions={[
+    {
+      id: "q1",
+      text: "SSE stands for:",
+      options: [
+        "A) Synchronous Server Events",
+        "B) Server-Sent Events",
+        "C) Streaming State Engine",
+        "D) Sequential Send Events"
+      ],
+      correct: 1,
+      explanation: "SSE = Server-Sent Events. It's a standard web protocol for one-way server-to-client streaming over HTTP. Unlike WebSockets (bidirectional), SSE is unidirectional — the server pushes data to the client. This makes it simpler and perfect for streaming LLM responses, where the server is producing data and the client is consuming it."
+    },
+    {
+      id: "q2",
+      text: "A user reports that your chatbot shows a blank screen for 5 seconds before showing the full response. The fix is:",
+      options: [
+        "A) Upgrade to a larger model",
+        "B) Implement streaming to show tokens as they're generated",
+        "C) Increase the context window",
+        "D) Use response caching"
+      ],
+      correct: 1,
+      explanation: "A blank screen followed by the full response is the signature symptom of non-streaming. The total generation time is the same either way — but with streaming, users see the first token in ~200ms and watch the text appear progressively. This dramatically improves perceived responsiveness. Model upgrades, context window, and caching don't fix the UX problem of waiting for a complete response."
+    },
+    {
+      id: "q3",
+      text: "TTFT (Time to First Token) is the key streaming metric because:",
+      options: [
+        "A) It measures total API cost",
+        "B) It's what users notice — the moment they see the first character determines perceived responsiveness",
+        "C) It measures response accuracy",
+        "D) It's the only metric available in the Anthropic SDK"
+      ],
+      correct: 1,
+      explanation: "TTFT is a UX metric, not a cost metric. Users' perception of responsiveness is dominated by how quickly they see the first character — even if the total time to complete the response is the same. A 200ms TTFT with 8 seconds total feels fast. An 8-second wait with instant completion feels slow. This is why streaming's primary value is UX, not performance."
+    },
+    {
+      id: "q4",
+      text: "You're building a FastAPI endpoint that streams LLM responses. You should use:",
+      options: [
+        "A) JSONResponse with a list of tokens",
+        "B) StreamingResponse with media_type='text/event-stream'",
+        "C) FileResponse",
+        "D) HTMLResponse"
+      ],
+      correct: 1,
+      explanation: "FastAPI's StreamingResponse with media_type='text/event-stream' is the correct approach. It keeps the HTTP connection open, forwards chunks as they arrive, and signals SSE format to the browser. You pass it a generator that yields SSE-formatted strings ('data: ...\\n\\n'). JSONResponse buffers the full response — not suitable for streaming."
+    },
+    {
+      id: "q5",
+      text: "What happens if you don't close a streaming connection after an error?",
+      options: [
+        "A) Nothing — the connection times out automatically within 1 second",
+        "B) Server-side connection leak — the HTTP connection stays open consuming resources",
+        "C) The response doubles",
+        "D) The client crashes immediately"
+      ],
+      correct: 1,
+      explanation: "If the stream context manager isn't properly closed (via the 'with' block or explicit close), the underlying HTTP connection stays open. Each leaked connection consumes a file descriptor and memory on the server. Under load, this can exhaust server resources and cause failures for new requests. Always use 'with client.messages.stream(...) as stream:' so the connection is closed even if an exception occurs."
+    }
+  ]}
+  chapterId="tier2-ch22"
+  passMark={70}
+/>

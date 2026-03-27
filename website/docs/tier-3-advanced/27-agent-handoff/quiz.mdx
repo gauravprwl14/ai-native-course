@@ -1,0 +1,81 @@
+---
+title: "Quiz: Agent Handoff"
+sidebar_position: 5
+description: "Test your understanding of routing, fallback chains, context passing, confidence thresholds, and when handoff beats a single general agent."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz 27 — Agent Handoff
+
+<Quiz
+  chapterId="tier3-ch27"
+  passMark={70}
+  questions={[
+    {
+      id: "q1",
+      text: "What is the primary job of a router agent?",
+      points: 1,
+      options: [
+        "A) Execute the user's task using all available specialist agents simultaneously",
+        "B) Classify the incoming request and delegate it to the appropriate specialist",
+        "C) Summarise the conversation history before passing it to any agent",
+        "D) Retry failed specialist calls with exponential backoff"
+      ],
+      correct: 1,
+      explanation: "The router's job is intent classification and delegation. It reads the user's message, determines which specialist is best suited to handle it, and hands off the request — with context — to that specialist. The router does not execute the task itself; it orchestrates who should."
+    },
+    {
+      id: "q2",
+      text: "A user asks three questions in a conversation: about HR policy, then about expense reporting, then asks 'Is that process the same for contractors?' Your router delegates the third message to the HR specialist. What must the router pass along?",
+      points: 2,
+      options: [
+        "A) Only the third message — specialists should not see prior context",
+        "B) The third message plus the full conversation history",
+        "C) A keyword summary of the third message only",
+        "D) The first two messages but not the third"
+      ],
+      correct: 1,
+      explanation: "The third message ('Is that process the same for contractors?') is ambiguous without context — 'that process' refers to something from earlier in the conversation. The specialist needs the full history to understand what is being asked. Always pass conversation history on handoff for multi-turn conversations."
+    },
+    {
+      id: "q3",
+      text: "Your routing system has specialists for code, database, and legal. A user asks about cooking recipes. What should happen?",
+      points: 2,
+      options: [
+        "A) Return an error: 'No specialist found for this request'",
+        "B) Pick the closest specialist (legal, because recipes involve IP)",
+        "C) Route to a general fallback agent that handles out-of-scope requests",
+        "D) Ask the user to rephrase their question to match a known category"
+      ],
+      correct: 2,
+      explanation: "A well-designed routing system always has a general fallback. When no specialist matches, the fallback agent — a capable generalist — handles the request. Returning an error or forcing the user to rephrase is a poor user experience. Picking a mismatched specialist (legal for recipes) would produce irrelevant answers."
+    },
+    {
+      id: "q4",
+      text: "When should a routing system escalate to a human instead of routing to an agent?",
+      points: 2,
+      options: [
+        "A) When the user's message is longer than 200 tokens",
+        "B) When the LLM returns a routing confidence of low and the request is high-stakes",
+        "C) Whenever more than two specialists are plausible matches",
+        "D) Only when the user explicitly asks to speak to a human"
+      ],
+      correct: 1,
+      explanation: "Low routing confidence combined with high-stakes request (medical diagnosis, legal advice, financial decisions) is the right trigger for human escalation. The LLM is uncertain which specialist should handle the request — in high-stakes contexts, uncertain routing is risky enough to involve a human. For low-stakes queries, routing to the best-guess specialist or the fallback is fine."
+    },
+    {
+      id: "q5",
+      text: "Why is handoff better than a single powerful general agent for a system handling both medical questions and code debugging?",
+      points: 3,
+      options: [
+        "A) A general agent cannot understand both domains simultaneously",
+        "B) Specialist agents have domain-specific system prompts that produce higher quality, more reliable answers for their target domain",
+        "C) Specialist agents are always faster than general agents",
+        "D) Routing reduces the number of API calls made to the LLM"
+      ],
+      correct: 1,
+      explanation: "Specialist agents have system prompts, few-shot examples, and safety rules optimised for their specific domain. A medical specialist can be instructed to cite sources, recommend professional consultation, and avoid diagnosis language. A code specialist can be instructed to output runnable code with tests. A general agent has to balance all domains in one prompt, diluting each. Handoff lets you tune each specialist independently."
+    }
+  ]}
+/>

@@ -1,0 +1,274 @@
+---
+title: "Patterns: Agent Communication Patterns"
+sidebar_position: 3
+description: "Four patterns for agent discovery and delegation: registry, capability routing, task decomposition, and result aggregation."
+---
+
+# Patterns: Agent Communication Patterns
+
+---
+
+## Pattern 1: Agent Registry — Central Discovery Service
+
+A registry acts as the phone book for your agent network. Agents register themselves; orchestrators query for agents by capability.
+
+```python
+from dataclasses import dataclass, field
+
+@dataclass
+class AgentCard:
+    name: str
+    description: str
+    capabilities: list[str]
+    endpoint: str = "local"
+
+@dataclass
+class TaskResult:
+    agent_name: str
+    task: str
+    result: str
+    success: bool
+
+class AgentRegistry:
+    def __init__(self):
+        self._agents: dict[str, AgentCard] = {}
+        self._handlers: dict[str, callable] = {}
+
+    def register(self, card: AgentCard, handler) -> None:
+        self._agents[card.name] = card
+        self._handlers[card.name] = handler
+
+    def discover(self, capability: str) -> list[AgentCard]:
+        return [
+            card for card in self._agents.values()
+            if capability in card.capabilities
+        ]
+
+    def get_handler(self, agent_name: str):
+        return self._handlers[agent_name]
+
+    def list_all(self) -> list[AgentCard]:
+        return list(self._agents.values())
+
+
+# Register two specialist agents
+registry = AgentRegistry()
+
+registry.register(
+    AgentCard(
+        name="ResearchAgent",
+        description="Searches for and summarises factual information",
+        capabilities=["research", "fact-finding", "web-search"],
+    ),
+    handler=lambda task: f"Research results for: {task}"
+)
+
+registry.register(
+    AgentCard(
+        name="SummaryAgent",
+        description="Creates concise summaries of longer content",
+        capabilities=["summarise", "writing", "condensing"],
+    ),
+    handler=lambda task: f"Summary of: {task[:50]}..."
+)
+
+# Discover agents by capability
+research_agents = registry.discover("research")
+print(f"Found {len(research_agents)} research agents: {[a.name for a in research_agents]}")
+```
+
+**When to use:** Any multi-agent system with more than two agents, or any system where agents may be added/removed at runtime.
+
+---
+
+## Pattern 2: Capability-Based Routing
+
+Route tasks to the best-matching agent without the orchestrator knowing which specific agent exists. The orchestrator describes *what* it needs; the registry decides *who* provides it.
+
+```python
+def delegate_task(task: str, required_capability: str, registry: AgentRegistry) -> TaskResult:
+    """Find the best agent for the task and delegate to it."""
+    candidates = registry.discover(required_capability)
+
+    if not candidates:
+        return TaskResult(
+            agent_name="none",
+            task=task,
+            result=f"No agent found with capability: {required_capability}",
+            success=False,
+        )
+
+    # Simple strategy: pick the first available agent
+    # Production: score candidates by workload, latency, accuracy history
+    chosen = candidates[0]
+
+    try:
+        handler = registry.get_handler(chosen.name)
+        result = handler(task)
+        return TaskResult(
+            agent_name=chosen.name,
+            task=task,
+            result=result,
+            success=True,
+        )
+    except Exception as e:
+        return TaskResult(
+            agent_name=chosen.name,
+            task=task,
+            result=str(e),
+            success=False,
+        )
+
+
+# Usage — orchestrator doesn't know which agent will handle it
+result = delegate_task(
+    task="What are the key facts about renewable energy adoption in 2024?",
+    required_capability="research",
+    registry=registry,
+)
+print(f"[{result.agent_name}] success={result.success}")
+print(result.result)
+```
+
+**When to use:** When the orchestrator should be decoupled from specific agent implementations. New specialists can be registered without touching the orchestrator.
+
+---
+
+## Pattern 3: Task Decomposition + Parallel Delegation
+
+Break a complex goal into sub-tasks, identify the required capability for each, and delegate them — potentially in parallel. The orchestrator assembles the results.
+
+```python
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+def compose_multi_agent(
+    tasks: list[tuple[str, str]],
+    registry: AgentRegistry,
+) -> list[TaskResult]:
+    """
+    Delegate multiple tasks to appropriate agents.
+
+    Args:
+        tasks: list of (task_description, required_capability) tuples
+        registry: the agent registry
+
+    Returns:
+        list of TaskResult, one per task
+    """
+    results = []
+    for task, capability in tasks:
+        result = delegate_task(task, capability, registry)
+        results.append(result)
+    return results
+
+
+def compose_multi_agent_parallel(
+    tasks: list[tuple[str, str]],
+    registry: AgentRegistry,
+    max_workers: int = 4,
+) -> list[TaskResult]:
+    """Parallel variant — independent tasks run concurrently."""
+    results: list[TaskResult | None] = [None] * len(tasks)
+
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        future_to_idx = {
+            pool.submit(delegate_task, task, capability, registry): idx
+            for idx, (task, capability) in enumerate(tasks)
+        }
+        for future in as_completed(future_to_idx):
+            idx = future_to_idx[future]
+            try:
+                results[idx] = future.result()
+            except Exception as e:
+                task, capability = tasks[idx]
+                results[idx] = TaskResult(
+                    agent_name="error",
+                    task=task,
+                    result=str(e),
+                    success=False,
+                )
+
+    return results
+
+
+# Usage: two independent tasks run in parallel
+tasks = [
+    ("Research key facts about solar energy", "research"),
+    ("Summarise the history of wind power in 3 sentences", "summarise"),
+]
+
+results = compose_multi_agent_parallel(tasks, registry)
+for r in results:
+    print(f"[{r.agent_name}] {r.result[:80]}")
+```
+
+**When to use:** Pipelines with 3+ tasks where some are independent. Parallel execution reduces end-to-end latency significantly for I/O-bound agents.
+
+---
+
+## Pattern 4: Result Aggregation
+
+After parallel delegation, the orchestrator needs to combine partial results into a final answer. This pattern shows a clean aggregation step.
+
+```python
+def aggregate_results(
+    goal: str,
+    results: list[TaskResult],
+) -> dict:
+    """
+    Aggregate multiple TaskResults into a structured summary.
+
+    In production, you'd pass the aggregated results to an LLM
+    for synthesis. Here we show the structure.
+    """
+    successful = [r for r in results if r.success]
+    failed = [r for r in results if not r.success]
+
+    aggregated_context = "\n\n".join([
+        f"[{r.agent_name} — {r.task[:40]}]:\n{r.result}"
+        for r in successful
+    ])
+
+    return {
+        "goal": goal,
+        "total_tasks": len(results),
+        "successful": len(successful),
+        "failed": len(failed),
+        "aggregated_context": aggregated_context,
+        "failed_tasks": [r.task for r in failed],
+    }
+
+
+# Usage after parallel delegation
+goal = "Research and summarise renewable energy options"
+tasks = [
+    ("Research solar energy stats 2024", "research"),
+    ("Research wind energy stats 2024", "research"),
+    ("Summarise both renewable sources for a non-expert", "summarise"),
+]
+
+results = compose_multi_agent_parallel(tasks, registry)
+summary = aggregate_results(goal, results)
+
+print(f"Completed {summary['successful']}/{summary['total_tasks']} tasks")
+print("\nAggregated context for final synthesis:")
+print(summary["aggregated_context"][:300])
+```
+
+**When to use:** Any time you delegate to multiple agents and need to synthesise their outputs into a single final response. The aggregated context is typically passed to a final LLM call for synthesis.
+
+---
+
+## Anti-Patterns
+
+| Anti-pattern | What Goes Wrong | Fix |
+|--------------|----------------|-----|
+| **Hardcoding agent endpoints** | `call_agent("http://192.168.1.42:8080/translate")` breaks when the agent moves or restarts | Use capability-based discovery via a registry. The orchestrator should never hardcode specific agent addresses. |
+| **No timeout on delegated tasks** | A slow or unresponsive agent blocks the orchestrator thread forever | Wrap delegation calls with `concurrent.futures.Future.result(timeout=30)`. Return a failure TaskResult if the timeout is exceeded. |
+| **Infinite delegation loops** | Agent A discovers Agent B for capability X; Agent B discovers Agent A for the same capability and delegates back | Track a `delegation_depth` counter. Raise an error if depth exceeds a maximum (e.g., 5). Never allow an agent to delegate to itself. |
+| **Agents with overlapping, ambiguous capabilities** | Registry returns 10 candidates for "writing" — the orchestrator picks randomly, producing inconsistent results | Use specific, non-overlapping capability names. Consider scoring candidates by latency, accuracy history, or explicit priority. |
+| **No graceful handling of empty discovery** | `candidates[0]` raises `IndexError` when no agents are registered for a capability | Always check `if not candidates` and return a clear error TaskResult or raise a descriptive exception. |
+
+---
+
+Next: [Lab — Agent Delegation System](./lab.mdx)

@@ -1,0 +1,44 @@
+---
+title: "Chapter 15: Vector Databases"
+sidebar_position: 1
+description: "Scale from in-memory arrays to real vector databases. Learn Chroma, pgvector, and Pinecone — when to use each."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 15 — Vector Databases
+
+## What You'll Learn
+
+- Why in-memory cosine similarity breaks at scale and what vector databases solve
+- How Approximate Nearest Neighbor (ANN) search works and why it's fast
+- How HNSW indexing enables millisecond similarity search
+- Chroma basics — creating collections, adding documents, querying
+- Metadata filtering — narrow the search space before vector comparison
+- Persistence — keeping your data alive across restarts
+
+## Prerequisites
+
+- Chapter 14 (RAG Core) — you should understand embeddings, chunking, and retrieval-augmented generation before working with vector databases
+- Python 3.10+, `chromadb` and `openai` packages installed
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 25 min |
+| Patterns | 20 min |
+| Lab | 35 min |
+| Quiz | 10 min |
+| **Total** | **~90 min** |
+
+## How This Connects
+
+Chapter 14 showed you RAG — but used simple in-memory search. That works for dozens or hundreds of documents. Vector databases are what you reach for when your document corpus grows to thousands or millions of chunks. Every production RAG system — customer support bots, internal knowledge bases, document search — runs on a vector database underneath. Hybrid search (Chapter 16) layers keyword search on top of the vector retrieval you learn here.
+
+<ConceptMap
+  current="vector-databases"
+  related={["embeddings", "rag", "chunking", "hybrid-search"]}
+/>
+
+➡️ Next: [Concepts — Vector Databases](./concepts.mdx)

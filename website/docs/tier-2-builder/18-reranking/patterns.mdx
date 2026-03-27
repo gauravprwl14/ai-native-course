@@ -1,0 +1,231 @@
+---
+title: "Patterns: Re-ranking Pipelines"
+sidebar_position: 3
+description: "Practical patterns for LLM-as-reranker, Cohere Rerank API, and full two-stage retrieval pipelines."
+---
+
+# Patterns: Re-ranking Pipelines
+
+## Pattern 1: LLM-as-Reranker
+
+Score each candidate chunk 1–10 for relevance using an LLM. Sort by score, take the top-k. Useful when you have no cross-encoder model but want better precision than raw vector similarity.
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+RELEVANCE_PROMPT = """Rate the relevance of this document to the query on a scale of 1-10.
+Respond with ONLY a single integer between 1 and 10.
+
+Query: {query}
+Document: {document}
+
+Relevance score (1-10):"""
+
+
+def score_chunk_relevance(query: str, chunk: str) -> int:
+    """Ask the LLM to rate relevance of chunk to query (1-10)."""
+    response = client.messages.create(
+        model="claude-3-haiku-20240307",
+        max_tokens=10,
+        temperature=0,
+        messages=[{
+            "role": "user",
+            "content": RELEVANCE_PROMPT.format(query=query, document=chunk)
+        }]
+    )
+    text = response.content[0].text.strip()
+    try:
+        score = int(text)
+        return max(1, min(10, score))  # clamp to [1, 10]
+    except ValueError:
+        return 1  # default if parsing fails
+
+
+def llm_rerank(query: str, chunks: list[str], top_k: int = 5) -> list[tuple[str, int]]:
+    """Re-rank chunks by LLM relevance score. Returns top_k (chunk, score) pairs."""
+    scored = [(chunk, score_chunk_relevance(query, chunk)) for chunk in chunks]
+    scored.sort(key=lambda x: x[1], reverse=True)
+    return scored[:top_k]
+
+
+# Usage
+chunks = [
+    "The company was founded in 2010.",
+    "Employees receive 20 days of vacation per year.",
+    "Vacation time accrues at 1.67 days per month starting from day one.",
+    "Office hours are 9am to 6pm Monday through Friday.",
+    "Unused vacation days can be carried over up to 5 days.",
+]
+
+query = "How does vacation accrual work?"
+results = llm_rerank(query, chunks, top_k=2)
+
+for chunk, score in results:
+    print(f"[Score {score}/10] {chunk}")
+# [Score 9/10] Vacation time accrues at 1.67 days per month starting from day one.
+# [Score 7/10] Employees receive 20 days of vacation per year.
+```
+
+**When to use:** Prototyping, low-volume workloads, or when no cross-encoder model is available. Note: one API call per chunk — expensive at scale.
+
+---
+
+## Pattern 2: Cohere Rerank API
+
+The Cohere Rerank API is a managed cross-encoder. One call scores all candidates — significantly more efficient than LLM-as-reranker for larger candidate sets.
+
+```python
+# Production pattern — mock shown here to illustrate the structure
+# pip install cohere
+
+def cohere_rerank(query: str, documents: list[str], top_n: int = 5) -> list[dict]:
+    """
+    Re-rank documents using Cohere Rerank API.
+    Returns list of {"text": str, "score": float, "index": int} dicts sorted by score.
+    """
+    import cohere
+    co = cohere.Client("YOUR_COHERE_API_KEY")
+
+    response = co.rerank(
+        model="rerank-english-v3.0",
+        query=query,
+        documents=documents,
+        top_n=top_n,
+    )
+
+    return [
+        {
+            "text": documents[r.index],
+            "score": r.relevance_score,
+            "index": r.index,
+        }
+        for r in response.results
+    ]
+
+
+# Mock version for local testing without an API key
+def mock_cohere_rerank(query: str, documents: list[str], top_n: int = 5) -> list[dict]:
+    """
+    Simulates Cohere rerank response structure.
+    In production, replace with the real cohere.Client() call above.
+    """
+    # Simulate scoring by text length as a proxy (not real scoring)
+    scored = [
+        {"text": doc, "score": len(doc) / 1000, "index": i}
+        for i, doc in enumerate(documents)
+    ]
+    scored.sort(key=lambda x: x["score"], reverse=True)
+    return scored[:top_n]
+
+
+# Usage
+documents = [
+    "Vacation accrues at 1.67 days per month.",
+    "The office is located in downtown San Francisco.",
+    "Unused vacation can be carried over, up to 5 days.",
+    "Health benefits begin on the first day of employment.",
+]
+
+results = mock_cohere_rerank("What is the vacation carryover policy?", documents, top_n=2)
+for r in results:
+    print(f"[{r['score']:.4f}] {r['text']}")
+```
+
+**When to use:** Production RAG systems with large candidate sets. A single Cohere call handles all candidates — no per-chunk API calls.
+
+---
+
+## Pattern 3: Full Two-Stage Pipeline
+
+Combine vector retrieval with re-ranking. Retrieve a large candidate set cheaply, then re-rank to a small final set.
+
+```python
+import math
+from typing import Callable
+
+def cosine_similarity(a: list[float], b: list[float]) -> float:
+    """Compute cosine similarity between two vectors."""
+    dot = sum(x * y for x, y in zip(a, b))
+    norm_a = math.sqrt(sum(x ** 2 for x in a))
+    norm_b = math.sqrt(sum(x ** 2 for x in b))
+    if norm_a == 0 or norm_b == 0:
+        return 0.0
+    return dot / (norm_a * norm_b)
+
+
+def two_stage_retrieve(
+    query: str,
+    chunks: list[str],
+    chunk_embeddings: list[list[float]],
+    query_embedding: list[float],
+    rerank_fn: Callable,
+    initial_k: int = 20,
+    final_k: int = 5,
+) -> list[str]:
+    """
+    Stage 1: retrieve top initial_k by cosine similarity.
+    Stage 2: re-rank with rerank_fn, return top final_k chunks.
+    """
+    # Stage 1 — vector retrieval
+    similarities = [
+        (chunk, cosine_similarity(query_embedding, emb))
+        for chunk, emb in zip(chunks, chunk_embeddings)
+    ]
+    similarities.sort(key=lambda x: x[1], reverse=True)
+    candidates = [chunk for chunk, _ in similarities[:initial_k]]
+
+    # Stage 2 — re-rank
+    reranked = rerank_fn(query=query, chunks=candidates, top_k=final_k)
+    return [chunk for chunk, _ in reranked]
+
+
+# Example with LLM re-ranker
+# results = two_stage_retrieve(
+#     query="What is the parental leave policy?",
+#     chunks=all_chunks,
+#     chunk_embeddings=all_embeddings,
+#     query_embedding=query_emb,
+#     rerank_fn=llm_rerank,
+#     initial_k=20,
+#     final_k=3,
+# )
+# # Pass results to LLM for generation
+```
+
+**When to use:** Any production RAG pipeline. This is the standard architecture. Adjust `initial_k` and `final_k` based on corpus size and latency budget.
+
+---
+
+## Anti-Patterns
+
+<div className="antipattern">
+
+**Re-ranking too small a candidate set**
+
+```python
+# Bad — if the best chunk is ranked 6th by vector similarity, you'll never see it
+candidates = vector_search(query, top_k=5)
+reranked = llm_rerank(query, candidates, top_k=3)
+
+# Good — cast a wide net first
+candidates = vector_search(query, top_k=50)  # retrieve generously
+reranked = llm_rerank(query, candidates, top_k=3)  # then filter precisely
+```
+
+**No minimum relevance threshold**
+
+```python
+# Bad — always passes final_k chunks regardless of quality
+top_chunks = reranked[:final_k]
+
+# Good — drop chunks that score below a minimum threshold
+MIN_SCORE = 4  # on a 1-10 scale
+top_chunks = [chunk for chunk, score in reranked if score >= MIN_SCORE][:final_k]
+# If nothing passes the threshold, handle the empty case gracefully
+if not top_chunks:
+    return "I don't have enough relevant information to answer that question."
+```
+
+</div>

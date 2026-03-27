@@ -1,0 +1,157 @@
+---
+title: "Concepts: Evals / LLM Evaluation"
+sidebar_position: 2
+description: "Understand reference-based, reference-free, and model-based evals. Learn ROUGE, exact match, and how to build a regression-testing eval pipeline."
+---
+
+# Concepts: Evals / LLM Evaluation
+
+## The Problem
+
+You built a RAG pipeline. It "seems to work" in your demos. Then you:
+
+- Change the chunk size from 512 to 256 tokens
+- Swap the embedding model
+- Update the system prompt
+- Upgrade to a newer LLM
+
+Each change might help or hurt quality. Without a systematic way to measure quality, you are flying blind. You might ship a regression (a change that makes things worse) without knowing it until users complain.
+
+**Evals are the answer.** They give you a number — or a set of numbers — that you can compare before and after a change.
+
+---
+
+## The Intuition: AI Systems Need Tests Too
+
+Software engineers run unit tests and integration tests to catch regressions. AI systems need the same discipline.
+
+| Software | AI System |
+|----------|-----------|
+| `assert result == expected` | `exact_match_score(prediction, reference)` |
+| Passing test suite | Eval score at or above baseline |
+| CI fails on regression | Eval pipeline fails when score drops |
+| Test coverage | Eval dataset coverage across input types |
+
+The analogy is imperfect — AI outputs are probabilistic and rarely exactly equal to the expected output — but the engineering discipline is the same: measure systematically, track over time, block changes that degrade quality.
+
+---
+
+## How It Works
+
+### 1. Reference-Based Evaluation
+
+You have a dataset of `(input, expected_output)` pairs. You run each input through the model and compare the actual output to the expected output using a metric.
+
+**Exact Match:** `prediction.strip().lower() == reference.strip().lower()`
+
+Useful for classification tasks, structured outputs, or QA where one correct answer exists.
+
+**ROUGE-L (Recall-Oriented Understudy for Gisting Evaluation — Longest Common Subsequence):**
+
+Measures the overlap between the prediction and reference by finding their longest common subsequence (LCS). Useful for summarization and open-ended QA where the phrasing can vary.
+
+```
+ROUGE-L = F1 of LCS-based precision and recall
+precision = len(LCS) / len(prediction_tokens)
+recall    = len(LCS) / len(reference_tokens)
+F1        = 2 * precision * recall / (precision + recall)
+```
+
+**F1 Token Overlap:** token-level F1 between prediction and reference. Common for extractive QA tasks.
+
+### 2. Reference-Free Evaluation
+
+No ground truth required. Evaluate properties of the output directly:
+
+- **Fluency**: does the text read naturally?
+- **Coherence**: is the response logically consistent?
+- **Factuality**: are factual claims plausible (without ground truth verification)?
+
+Reference-free metrics are useful when collecting ground truth is expensive, but they are harder to operationalize reliably.
+
+### 3. Model-Based Evaluation (LLM-as-Judge)
+
+Use a second LLM to score the output according to a rubric. The judge model reads the prompt and response and assigns scores on dimensions like helpfulness, accuracy, and clarity.
+
+Advantages: flexible, can handle open-ended outputs, correlates well with human judgment.
+Disadvantages: expensive, introduces its own biases (see Chapter 33).
+
+### 4. Eval Dataset Construction
+
+An eval dataset is a collection of `{"input": ..., "expected_output": ...}` pairs. Best practices:
+
+- **Sample from real production data** — synthetic inputs miss the long tail of user behavior
+- **Cover failure modes** — include examples of known difficult cases
+- **Human-label expected outputs** — especially for open-ended tasks
+- **Keep it versioned** — treat the eval dataset as code; track changes in git
+
+A good eval dataset has 50–500 examples for most applications. Smaller is fine if examples are diverse and representative.
+
+### 5. The Eval Pipeline
+
+```
+Eval dataset
+    → run each input through the model
+    → score each (prediction, reference) pair
+    → aggregate scores (mean, pass rate, P90)
+    → compare to baseline
+    → report regression / improvement
+```
+
+The baseline is the score from the last known-good version (e.g., the current production model). If the new score is below the baseline by more than a threshold (e.g., 2 percentage points), the eval fails.
+
+---
+
+## Diagram
+
+```mermaid
+flowchart LR
+    A([Eval Dataset\ninput + expected]) --> B[Run model_fn\non each input]
+    B --> C([Predictions])
+    C --> D[Score each pair\nexact_match or ROUGE-L]
+    D --> E([Per-example scores])
+    E --> F[Aggregate\nmean score]
+    F --> G{Above baseline?}
+    G -->|Yes| H([Pass])
+    G -->|No| I([Fail — regression])
+```
+
+---
+
+## Key Terms
+
+| Term | Definition |
+|------|-----------|
+| **Eval** | A systematic measurement of model output quality on a defined dataset |
+| **Benchmark** | A public eval dataset with a leaderboard; used to compare models at scale |
+| **ROUGE** | A family of metrics measuring text overlap; ROUGE-L uses the longest common subsequence |
+| **Exact match** | Score of 1 if prediction matches reference exactly (normalized), 0 otherwise |
+| **Faithfulness** | Whether a RAG response is grounded in the retrieved context (no hallucination) |
+| **Groundedness** | Synonym for faithfulness in RAG evaluation |
+| **Regression** | A change that causes eval scores to decrease |
+| **Baseline** | The reference score to compare against; usually the current production model's score |
+
+---
+
+## Interview Angle
+
+**"How do you know if a prompt change improved your RAG system?"**
+
+The answer is: you run an eval. Before the change, you run your eval pipeline and record the baseline score (e.g., ROUGE-L = 0.61). After the change, you run it again. If the new score is 0.65, the change is an improvement. If it is 0.58, it is a regression. Without this, you are guessing.
+
+The important follow-up: you need an eval dataset that covers the kinds of questions you care about. An eval on 10 easy examples tells you nothing about hard cases.
+
+---
+
+## Common Mistakes
+
+| Mistake | What Goes Wrong | Fix |
+|---------|----------------|-----|
+| Manual spot-checking only | You bias toward examples that look good; miss systematic failures | Build an eval dataset and run it every time you ship |
+| Evaluating on training data | Scores look great but reflect memorization, not generalization | Always hold out eval data; never use it for training |
+| Single metric | ROUGE can be high even for unhelpful responses; exact match misses paraphrases | Use at least two metrics; add an LLM judge for quality |
+| Not tracking baselines | You don't know if you regressed | Store eval results in a file or database; compare each run to the last |
+
+---
+
+Next: [Patterns — Evals / LLM Evaluation](./patterns.mdx)

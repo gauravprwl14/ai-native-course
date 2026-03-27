@@ -1,0 +1,43 @@
+---
+title: "Chapter 13: Role + Meta Prompting"
+sidebar_position: 1
+description: "Assign expert personas to unlock specialized responses. Use meta-prompting to have the model write its own prompts."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 13 — Role + Meta Prompting
+
+## What You'll Learn
+
+- How role prompting activates expert-level knowledge and vocabulary from the model
+- How to craft specific, effective personas (not just "You are an expert")
+- What meta-prompting is: using an LLM to write prompts for you
+- How prompt chaining connects multiple LLM calls into a pipeline
+- Automatic prompt generation: producing N prompt variants and testing which works best
+
+## Prerequisites
+
+- Chapter 11 (System Prompts) — you should understand how to steer model behaviour with system-level instructions
+- Python 3.10+, `anthropic` package installed
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 20 min |
+| Patterns | 20 min |
+| Lab | 25 min |
+| Quiz | 10 min |
+| **Total** | **~75 min** |
+
+## How This Connects
+
+Role prompting and meta-prompting are force multipliers for everything else you've learned. A well-crafted role turns a generic system prompt (Chapter 11) into an expert collaborator. Meta-prompting lets you treat prompt design itself as an LLM task — you describe what you need, and the model generates the prompt. Chain-of-Thought (Chapter 10) becomes more powerful when the reasoning persona matches the domain. In agentic systems (covered in later chapters), different agents often carry different roles to split responsibilities cleanly.
+
+<ConceptMap
+  current="role-meta-prompting"
+  related={["system-prompts", "chain-of-thought", "agents", "structured-output"]}
+/>
+
+➡️ Next: [Concepts — Role + Meta Prompting](./concepts.mdx)

@@ -1,0 +1,78 @@
+---
+title: "Lab: Eval a RAG Pipeline"
+sidebar_position: 4
+description: "Implement exact match, ROUGE-L from scratch, a full eval pipeline, and baseline comparison."
+---
+
+# Lab 32 — Eval a RAG Pipeline
+
+In this lab you will build the core evaluation infrastructure from scratch. No eval libraries — you will implement ROUGE-L using the LCS dynamic programming algorithm.
+
+## What You'll Build
+
+| Function | Description |
+|----------|-------------|
+| `exact_match_score(prediction, reference)` | Returns 1.0 if strings match (normalized), else 0.0 |
+| `rouge_l_score(prediction, reference)` | Computes ROUGE-L F1 using an LCS implementation |
+| `run_eval(model_fn, dataset)` | Runs the model on every dataset item, scores each, returns aggregated results |
+| `compare_to_baseline(current_results, baseline_results)` | Returns delta and regression flag |
+
+## Starter File
+
+Open `curriculum/tier-3-advanced/32-evals/lab/starter/solution.py`.
+
+## Your Tasks
+
+### Task A: `exact_match_score`
+
+- Normalize: strip whitespace and lowercase both strings
+- Return `1.0` if they match, `0.0` otherwise
+
+### Task B: `rouge_l_score`
+
+This is the main algorithmic challenge. Implement ROUGE-L F1:
+
+1. Tokenize both strings by splitting on whitespace (lowercase)
+2. If either token list is empty, return `0.0`
+3. Compute the LCS length using a 2D DP table:
+   - `dp[i][j] = dp[i-1][j-1] + 1` when tokens match
+   - `dp[i][j] = max(dp[i-1][j], dp[i][j-1])` otherwise
+4. Compute precision = `lcs / len(pred_tokens)`
+5. Compute recall = `lcs / len(ref_tokens)`
+6. Return `2 * p * r / (p + r)` (F1), or `0.0` if both are zero
+
+### Task C: `run_eval`
+
+- For each item in `dataset` (each has `"input"` and `"expected_output"` keys):
+  1. Call `model_fn(item["input"])` to get the prediction
+  2. Score with `rouge_l_score(prediction, item["expected_output"])`
+  3. Append `{"input", "prediction", "expected", "score"}` to results
+- Compute `mean_score = sum(scores) / len(scores)`
+- Return `{"scores": list[float], "mean_score": float, "results": list[dict]}`
+
+### Task D: `compare_to_baseline`
+
+- Extract `mean_score` from both result dicts
+- Compute `delta = current - baseline`
+- Return `{"current_mean", "baseline_mean", "delta", "regression": delta < -0.02, "improvement": delta > 0.02}`
+
+## Running the Tests
+
+```bash
+cd curriculum/tier-3-advanced/32-evals/lab
+pytest tests/ -v
+```
+
+## Notes
+
+- `exact_match_score` and `rouge_l_score` are pure functions — no API calls needed
+- `run_eval` calls `model_fn` which is injected; tests will mock it
+- The LCS algorithm runs in O(m*n) time — fine for evaluation purposes
+
+## Stretch Goals
+
+1. Add `exact_match_score` as an alternative scorer in `run_eval` (accept a `scorer` parameter)
+2. Add a `top_k_failures(results, k)` function that returns the `k` lowest-scoring examples
+3. Implement token-level F1 score (different from ROUGE-L: uses set intersection, not LCS)
+
+Next: [Quiz — Evals / LLM Evaluation](./quiz.mdx)

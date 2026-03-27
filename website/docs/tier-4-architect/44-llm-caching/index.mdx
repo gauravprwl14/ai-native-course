@@ -1,0 +1,47 @@
+---
+title: "Chapter 44: LLM Caching"
+sidebar_position: 1
+description: "Reduce LLM costs and latency with exact caching, semantic caching, and Anthropic prompt caching. Understand TTL, cache invalidation, and when not to cache."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 44 — LLM Caching
+
+## What You'll Learn
+
+LLM calls are expensive and slow. When the same (or very similar) prompts are called thousands of times, caching can eliminate most of that cost. In this chapter you'll learn three layers of caching: exact match, semantic similarity, and server-side prompt caching — and how to combine them.
+
+## Prerequisites
+
+- Chapter 43 (LLM Hosting) or familiarity with LLM APIs
+- Basic understanding of hashing and vector similarity
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 25 min |
+| Patterns | 20 min |
+| Lab | 20 min |
+| Quiz | 10 min |
+| **Total** | **~75 min** |
+
+## What You'll Learn
+
+- **Exact cache** — hash prompt + params → store/retrieve response with O(1) lookup
+- **Semantic cache** — embed prompt → find cached responses with cosine similarity > threshold
+- **Anthropic prompt caching** — cache prefix tokens server-side for up to 90% cost reduction
+- **TTL and cache invalidation** — prevent stale responses from persisting forever
+- **When not to cache** — temperature > 0, PII, time-sensitive queries
+
+## How This Connects
+
+Caching sits between your application and the LLM. It pairs with LLM Hosting (Chapter 43) and Latency Optimization (Chapter 45) to form the cost and performance layer of a production AI system.
+
+<ConceptMap
+  current="llm-caching"
+  related={["llm-hosting", "latency-optimization", "rag", "ai-gateway"]}
+/>
+
+➡️ Next: [Concepts — Caching Strategies for LLMs](./concepts.mdx)

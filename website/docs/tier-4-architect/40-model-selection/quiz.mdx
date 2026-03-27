@@ -1,0 +1,100 @@
+---
+title: "Quiz: Model Selection Trade-offs"
+sidebar_position: 5
+description: "Test your knowledge of benchmark types, model selection criteria, cost/capability trade-offs, cascading, and task routing."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz: Model Selection Trade-offs
+
+<Quiz
+  questions={[
+    {
+      id: "q1",
+      text: "You're building a customer support chatbot that handles 50,000 requests per day. Most are simple FAQ lookups, but ~10% require nuanced complaint resolution. What architecture gives the best cost/quality trade-off?",
+      options: [
+        "A) Always use GPT-4o — never compromise on quality",
+        "B) Always use the cheapest model — cost is the only constraint",
+        "C) A model cascade: route simple queries to Haiku, escalate complex queries to Sonnet",
+        "D) Use a different model for each day of the week based on load"
+      ],
+      correct: 2,
+      explanation: "A cascade matches model capability to task difficulty. The 90% simple queries go to Haiku (~$0.25/M tokens), keeping average cost low. The 10% complex complaints escalate to Sonnet ($3/M), maintaining quality where it matters. At 50,000 requests/day, this could be 10–20x cheaper than always using Sonnet, with equivalent quality on the cases that matter."
+    },
+    {
+      id: "q2",
+      text: "HumanEval benchmark measures:",
+      options: [
+        "A) Human preference ratings from crowdsourced comparisons",
+        "B) Python code generation — whether generated code passes unit tests",
+        "C) Multi-turn conversation quality rated by human judges",
+        "D) Graduate-level science question answering"
+      ],
+      correct: 1,
+      explanation: "HumanEval (OpenAI) presents Python programming problems and checks whether the model's code solution passes the provided unit tests. It's the standard benchmark for code generation capability. Arena ELO measures human preference, MT-Bench measures conversation quality, and GPQA measures graduate-level science reasoning."
+    },
+    {
+      id: "q3",
+      text: "You benchmark Model A and Model B on MMLU. Model A scores 89%, Model B scores 82%. You're building a legal document summarization tool. Which model should you choose?",
+      options: [
+        "A) Model A — higher MMLU score means it's better at everything",
+        "B) Model B — lower benchmark scores mean lower cost",
+        "C) Either could be correct — you need to benchmark both on actual legal document summarization",
+        "D) The MMLU score directly predicts summarization quality"
+      ],
+      correct: 2,
+      explanation: "MMLU measures general world knowledge across 57 subjects — it doesn't directly predict legal document summarization quality. A model that scores lower on MMLU might produce better legal summaries due to its training data, fine-tuning, or output formatting. Always benchmark on your actual task with representative data before committing to a model."
+    },
+    {
+      id: "q4",
+      text: "What is Arena ELO?",
+      options: [
+        "A) A benchmark for evaluating LLM API latency",
+        "B) A score derived from human preference comparisons in head-to-head model battles (LMSYS Chatbot Arena)",
+        "C) A measure of how well a model follows safety guidelines",
+        "D) The cost-efficiency ratio of a model (quality per dollar)"
+      ],
+      correct: 1,
+      explanation: "LMSYS Chatbot Arena asks humans to chat with two anonymous models and pick which response they prefer. Models are ranked using the ELO rating system (same as chess rankings). Arena ELO captures real-world human preference rather than narrow benchmark tasks — models ranked highly here are genuinely more useful to humans in open-ended conversations."
+    },
+    {
+      id: "q5",
+      text: "You want to route customer queries to the right model. Intent classification adds ~50ms latency and costs 200 tokens per request. Is this worth it?",
+      options: [
+        "A) Never — latency overhead is never acceptable",
+        "B) Always — classification always saves money",
+        "C) Yes, if the savings from routing simpler queries to cheaper models exceed the classification cost",
+        "D) Only if you have more than 10 different task types"
+      ],
+      correct: 2,
+      explanation: "Task routing is a cost-benefit decision. If routing 70% of queries from Sonnet ($3/M) to Haiku ($0.25/M) saves $2.75/M tokens on those queries, the 200-token classification cost (~$0.00015) is negligible. The math depends on your query distribution and model price difference. Generally, routing pays off when there's a 5x+ price difference between models and you have a high volume of queries."
+    },
+    {
+      id: "q6",
+      text: "What is a 'model cascade' and why does it work?",
+      options: [
+        "A) Running multiple models in parallel and taking the first response",
+        "B) Starting with a cheap model and escalating to a capable model only when the cheap model's confidence is below a threshold",
+        "C) Downloading model weights in order from smallest to largest",
+        "D) A fine-tuning technique that stacks multiple adapters"
+      ],
+      correct: 1,
+      explanation: "A cascade exploits the fact that most real-world queries are simple. Cheap models handle the majority correctly. Only a minority of queries are hard enough to need a powerful model. By routing based on confidence (self-reported or measured), you pay the high-model price only for queries that actually need it. This typically reduces cost by 50–80% while maintaining quality on the cases that matter most."
+    },
+    {
+      id: "q7",
+      text: "Which dimension of model selection is most often ignored but causes the most production surprises?",
+      options: [
+        "A) Capability — most developers ignore benchmark scores",
+        "B) Cost — developers assume API pricing is similar across models",
+        "C) Latency — P95 latency under load is much higher than average latency in dev",
+        "D) Context window — most models have identical context windows"
+      ],
+      correct: 2,
+      explanation: "Latency is the most commonly ignored dimension during development. In dev, you test with one request at a time, and average latency looks fine. In production under load, P95 (95th percentile) latency can be 3–5x higher. A model that averages 2s per response might hit 8s at P95 under load. This causes timeouts, retries (amplifying load), and user abandonment. Always benchmark P95 latency under realistic concurrent load."
+    }
+  ]}
+  chapterId="tier4-ch40"
+  passMark={70}
+/>

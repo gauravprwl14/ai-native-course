@@ -1,0 +1,255 @@
+---
+title: "Patterns: Computer Use Agent Patterns"
+sidebar_position: 3
+description: "Five practical patterns for computer use agents: screenshot-action loop, hierarchical planning, Playwright-first fallback, safety guardrails, and avoiding anti-patterns."
+---
+
+# Patterns: Computer Use Agent Patterns
+
+---
+
+## Pattern 1: Minimal Screenshot-Action Loop
+
+The core building block: take a screenshot, ask the LLM what to do, execute the action, repeat.
+
+```python
+import anthropic
+import base64
+import time
+from playwright.sync_api import sync_playwright
+
+client = anthropic.Anthropic()
+
+def take_screenshot(page) -> str:
+    """Capture screenshot and return as base64 PNG."""
+    png_bytes = page.screenshot()
+    return base64.standard_b64encode(png_bytes).decode("utf-8")
+
+def get_next_action(screenshot_b64: str, goal: str, history: list) -> dict | None:
+    """Ask the LLM what action to take next."""
+    content = [
+        {
+            "type": "image",
+            "source": {"type": "base64", "media_type": "image/png", "data": screenshot_b64}
+        },
+        {"type": "text", "text": f"Goal: {goal}\n\nWhat is the next action?"}
+    ]
+
+    response = client.messages.create(
+        model="claude-3-5-sonnet-20241022",
+        max_tokens=1024,
+        tools=[{
+            "type": "computer_20241022",
+            "name": "computer",
+            "display_width_px": 1280,
+            "display_height_px": 800,
+        }],
+        messages=history + [{"role": "user", "content": content}]
+    )
+
+    for block in response.content:
+        if block.type == "tool_use" and block.name == "computer":
+            return block.input
+    return None
+
+def execute_action(page, action: dict) -> None:
+    """Execute a computer use action using Playwright."""
+    action_type = action.get("action")
+    coord = action.get("coordinate", [0, 0])
+
+    if action_type == "left_click":
+        page.mouse.click(coord[0], coord[1])
+    elif action_type == "double_click":
+        page.mouse.dblclick(coord[0], coord[1])
+    elif action_type == "type":
+        page.keyboard.type(action.get("text", ""))
+    elif action_type == "key":
+        page.keyboard.press(action.get("text", ""))
+    elif action_type == "scroll":
+        direction = action.get("direction", "down")
+        amount = action.get("amount", 3)
+        delta_y = -100 * amount if direction == "up" else 100 * amount
+        page.mouse.wheel(0, delta_y)
+
+def run_computer_use_agent(goal: str, start_url: str, max_steps: int = 20):
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page(viewport={"width": 1280, "height": 800})
+        page.goto(start_url)
+
+        history = []
+        for step in range(max_steps):
+            screenshot = take_screenshot(page)
+            action = get_next_action(screenshot, goal, history)
+
+            if action is None:
+                print(f"Goal achieved at step {step}")
+                break
+
+            print(f"Step {step}: {action}")
+            execute_action(page, action)
+            time.sleep(0.5)  # wait for UI to update
+
+        browser.close()
+```
+
+**When to use:** Any computer use task. This is the baseline pattern; all others build on it.
+
+---
+
+## Pattern 2: Hierarchical Planning — Plan First, Then Act
+
+Instead of reacting step by step, generate a high-level plan first, then execute each plan step with computer use. This reduces hallucination and improves reliability on multi-step tasks.
+
+```python
+def generate_plan(goal: str, initial_screenshot_b64: str) -> list[str]:
+    """Use LLM to generate a high-level step-by-step plan."""
+    response = client.messages.create(
+        model="claude-3-5-sonnet-20241022",
+        max_tokens=512,
+        messages=[{
+            "role": "user",
+            "content": [
+                {
+                    "type": "image",
+                    "source": {"type": "base64", "media_type": "image/png", "data": initial_screenshot_b64}
+                },
+                {
+                    "type": "text",
+                    "text": (
+                        f"Goal: {goal}\n\n"
+                        "Generate a numbered list of high-level steps to achieve this goal. "
+                        "Be specific but concise. Each step should be one action."
+                    )
+                }
+            ]
+        }]
+    )
+    text = response.content[0].text
+    # Parse numbered list: "1. Click Login\n2. Type username..."
+    lines = [l.strip() for l in text.split("\n") if l.strip()]
+    steps = [l.split(". ", 1)[1] for l in lines if l[0].isdigit()]
+    return steps
+
+def execute_plan(page, steps: list[str], max_actions_per_step: int = 5):
+    """Execute each plan step with the computer use loop."""
+    for plan_step in steps:
+        print(f"\n--- Executing: {plan_step} ---")
+        for _ in range(max_actions_per_step):
+            screenshot = take_screenshot(page)
+            action = get_next_action(screenshot, goal=plan_step, history=[])
+            if action is None:
+                break
+            execute_action(page, action)
+            time.sleep(0.5)
+```
+
+**When to use:** Complex multi-step tasks (e.g., "fill out and submit a 5-step form") where reactive step-by-step control makes it easy for the model to lose track of the overall goal.
+
+---
+
+## Pattern 3: Playwright-First with Computer Use Fallback
+
+Try structured DOM automation first. Fall back to computer use only when Playwright cannot find the element.
+
+```python
+from playwright.sync_api import Page, TimeoutError as PlaywrightTimeout
+
+def click_element_with_fallback(
+    page: Page,
+    selector: str,
+    fallback_description: str,
+    screenshot_fn,
+    max_retries: int = 2
+) -> bool:
+    """Try Playwright selector first; fall back to computer use if not found."""
+
+    # Attempt 1: Playwright structured approach
+    try:
+        page.locator(selector).click(timeout=3000)
+        print(f"[PLAYWRIGHT] clicked '{selector}'")
+        return True
+    except PlaywrightTimeout:
+        print(f"[PLAYWRIGHT] selector '{selector}' not found, trying computer use")
+
+    # Attempt 2: Computer use fallback
+    for attempt in range(max_retries):
+        screenshot = screenshot_fn(page)
+        action = get_next_action(
+            screenshot,
+            goal=f"Click the {fallback_description}",
+            history=[]
+        )
+        if action and action.get("action") == "left_click":
+            execute_action(page, action)
+            print(f"[COMPUTER USE] clicked at {action.get('coordinate')}")
+            return True
+
+    print(f"[FAIL] could not click '{fallback_description}' with either method")
+    return False
+```
+
+**When to use:** Production automation where structured automation is preferred for reliability and speed, but the UI occasionally changes in ways that break selectors.
+
+---
+
+## Pattern 4: Safety Guardrails — Human Approval for Destructive Actions
+
+Require explicit human approval before the agent executes any action that cannot be undone: form submission, file deletion, sending messages, making purchases.
+
+```python
+DESTRUCTIVE_ACTIONS = {
+    "submit_form", "delete_file", "send_message", "confirm_purchase", "logout"
+}
+
+def is_destructive(action: dict, page_text: str) -> bool:
+    """Heuristic check: is this action likely destructive?"""
+    action_type = action.get("action", "")
+    if action_type == "key" and action.get("text", "") == "Return":
+        # Enter key on a form is potentially destructive
+        return True
+    if action_type == "left_click":
+        # Check if the click target looks like a destructive button
+        destructive_keywords = ["submit", "delete", "send", "pay", "confirm", "checkout"]
+        return any(kw in page_text.lower() for kw in destructive_keywords)
+    return False
+
+def run_agent_with_approval(goal: str, page, max_steps: int = 20):
+    for step in range(max_steps):
+        screenshot = take_screenshot(page)
+        page_text = page.inner_text("body")
+        action = get_next_action(screenshot, goal, history=[])
+
+        if action is None:
+            print("Goal achieved")
+            break
+
+        if is_destructive(action, page_text):
+            print(f"\n[APPROVAL REQUIRED] Step {step}: {action}")
+            response = input("Execute this action? [y/N]: ").strip().lower()
+            if response != "y":
+                print("Action skipped by user")
+                continue
+
+        execute_action(page, action)
+        time.sleep(0.5)
+```
+
+**When to use:** Any computer use agent operating in a real environment (not a sandbox) or performing actions on behalf of a user (purchasing, sending communications).
+
+---
+
+## Anti-Patterns
+
+| Anti-pattern | What Goes Wrong | Fix |
+|--------------|----------------|-----|
+| **No sandbox** | Agent running on developer's real desktop can read SSH keys, modify files, send emails | Always run in Docker with `--network none` or `xvfb` + container isolation |
+| **No step limit** | Stuck on a loading spinner or a modal — agent loops forever burning API credits | Set `max_steps = 20`; add a "did the state change?" check after each action |
+| **Blind trust of LLM coordinates** | Model hallucinates a coordinate off-screen, or clicks the wrong button | Log every action; verify UI state changed after each action |
+| **No screenshot after action** | Agent assumes its click worked and plans the next action based on stale state | Always take a fresh screenshot before the next LLM call |
+| **Using computer use for structured sites** | 10× slower and less reliable than Playwright for sites with stable DOM | Playwright first; computer use only for legacy or unstructured UIs |
+| **Too large screenshots** | Passing a 1920×1080 PNG in every LLM call inflates token costs by 3-5× | Cap resolution at 1280×800 or scale down; crop to relevant regions |
+
+---
+
+Next: [Lab — Build a Browser Agent](./lab.mdx)

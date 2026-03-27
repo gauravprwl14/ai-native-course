@@ -1,0 +1,201 @@
+---
+title: "Ollama Patterns"
+sidebar_position: 3
+description: "Production patterns for Ollama: OpenAI-compatible drop-in, model pinning, hybrid routing, GPU offload, and health checks."
+---
+
+# Ollama Patterns
+
+## Pattern 1: Ollama as OpenAI-Compatible Drop-In
+
+Ollama exposes an OpenAI-compatible API at `http://localhost:11434/v1`. Point your existing OpenAI SDK client at it and your code works unchanged.
+
+```python
+from openai import OpenAI
+
+# Drop-in: change base_url, change model name — nothing else
+client = OpenAI(
+    base_url="http://localhost:11434/v1",
+    api_key="ollama",  # required by SDK but ignored by Ollama
+)
+
+response = client.chat.completions.create(
+    model="llama3.1:8b-instruct-q4_K_M",
+    messages=[{"role": "user", "content": "Explain gradient descent in one paragraph."}],
+)
+print(response.choices[0].message.content)
+```
+
+**When to use**: replacing cloud API calls for dev/test, reducing costs on simple tasks, privacy-sensitive workloads.
+
+## Pattern 2: Model Pull + Version Pin
+
+Always pull a specific quantization tag, not `latest`. This ensures reproducible behavior across environments.
+
+```bash
+# Good: specific version + quantization level
+ollama pull llama3.1:8b-instruct-q4_K_M
+
+# Good: a specific snapshot hash
+ollama pull mistral:7b-instruct-v0.3-q4_K_M
+
+# Bad: latest can change silently
+ollama pull llama3
+```
+
+In code, validate the model is available before starting:
+
+```python
+import subprocess
+import json
+
+def ensure_model(model_name: str) -> bool:
+    """Pull model if not already available locally."""
+    result = subprocess.run(
+        ["ollama", "list", "--json"],
+        capture_output=True, text=True
+    )
+    models = json.loads(result.stdout or "[]")
+    available = [m["name"] for m in models]
+
+    if model_name not in available:
+        print(f"Pulling {model_name}...")
+        subprocess.run(["ollama", "pull", model_name], check=True)
+        return False  # was not available, just pulled
+    return True  # was already available
+```
+
+## Pattern 3: Hybrid Routing — Local for Simple, API for Complex
+
+Route tasks based on complexity. Simple tasks (classification, extraction, short summaries) run locally on a fast small model. Complex tasks (multi-step reasoning, code generation) go to a cloud API.
+
+```python
+from openai import OpenAI
+
+LOCAL_MODEL = "llama3.1:8b-instruct-q4_K_M"
+CLOUD_MODEL = "claude-3-5-sonnet-20241022"
+
+local_client = OpenAI(base_url="http://localhost:11434/v1", api_key="ollama")
+# cloud_client = Anthropic()  # or OpenAI() pointing to cloud
+
+def route_request(prompt: str, task_complexity: str = "simple") -> str:
+    """
+    Route request based on complexity.
+    simple  → local Ollama (fast, free, private)
+    complex → cloud API (more capable)
+    """
+    if task_complexity == "simple":
+        response = local_client.chat.completions.create(
+            model=LOCAL_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=256,
+        )
+        return response.choices[0].message.content
+    else:
+        # Fall back to cloud
+        raise NotImplementedError("Cloud routing not shown here")
+
+# Examples
+sentiment = route_request("Is this review positive or negative? 'Great product!'", "simple")
+code = route_request("Implement a red-black tree in Python with tests", "complex")
+```
+
+**Routing heuristics:**
+- Token count of expected output: &lt;200 tokens → local, >500 → cloud
+- Task type: classification/extraction → local, reasoning/code → cloud
+- Latency budget: &lt;500ms → local, flexible → cloud
+
+## Pattern 4: GPU Offload Configuration
+
+Control how many layers Ollama offloads to GPU vs CPU using the `num_gpu` parameter in the model's Modelfile, or via the API options.
+
+```python
+import urllib.request
+import json
+
+def generate_with_gpu_config(
+    prompt: str,
+    model: str = "llama3.1:8b-instruct-q4_K_M",
+    num_gpu: int = 35,   # layers to put on GPU (0 = CPU only)
+    num_ctx: int = 4096, # context window
+) -> str:
+    """Generate with explicit GPU layer allocation."""
+    payload = {
+        "model": model,
+        "prompt": prompt,
+        "stream": False,
+        "options": {
+            "num_gpu": num_gpu,
+            "num_ctx": num_ctx,
+        },
+    }
+    data = json.dumps(payload).encode()
+    req = urllib.request.Request(
+        "http://localhost:11434/api/generate",
+        data=data,
+        headers={"Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(req) as resp:
+        result = json.loads(resp.read())
+    return result["response"]
+```
+
+**GPU layer guidance for llama3.1:8b on 8GB VRAM:**
+
+| `num_gpu` | VRAM Used | Speed |
+|-----------|-----------|-------|
+| 0 | 0 GB | ~3 tok/s (CPU) |
+| 20 | ~2 GB | ~12 tok/s |
+| 35 | ~4 GB | ~25 tok/s |
+| 43 (all) | ~6 GB | ~40 tok/s |
+
+## Health Check Before First Request
+
+```python
+import urllib.request
+import urllib.error
+
+def wait_for_ollama(base_url: str = "http://localhost:11434", timeout: int = 30) -> bool:
+    """Poll Ollama until it's ready or timeout expires."""
+    import time
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            urllib.request.urlopen(base_url + "/api/tags", timeout=2)
+            return True
+        except (urllib.error.URLError, OSError):
+            time.sleep(1)
+    return False
+```
+
+## Anti-Patterns
+
+**Always pulling `latest`**
+```python
+# Bad: non-deterministic, model may change without warning
+ollama pull llama3
+
+# Good: pin exact version
+ollama pull llama3.1:8b-instruct-q4_K_M
+```
+
+**Running 70B on CPU**
+```python
+# Bad: 70B Q4 needs ~40GB RAM minimum; on CPU it runs at <1 tok/s
+model = "llama3.1:70b"  # Don't do this on a laptop
+
+# Good: use an appropriately sized model for your hardware
+model = "llama3.1:8b-instruct-q4_K_M"  # Runs well on 8GB RAM
+```
+
+**No health check / no fallback**
+```python
+# Bad: crashes if Ollama isn't running
+response = requests.post("http://localhost:11434/api/generate", json=payload)
+
+# Good: check availability, fall back gracefully
+if not client.is_available():
+    return fallback_response("Ollama unavailable")
+```
+
+➡️ Next: [Lab — Build an Ollama Client](./lab.mdx)

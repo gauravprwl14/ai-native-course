@@ -1,0 +1,44 @@
+---
+title: "Chapter 28: Human-in-the-Loop (HITL)"
+sidebar_position: 1
+description: "Know when agents should pause and ask for approval. Design safe agents that check in on high-stakes decisions."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 28 — Human-in-the-Loop (HITL)
+
+## What You'll Learn
+
+- Why fully autonomous agents need human checkpoints
+- How to define escalation criteria: action type, confidence, and ambiguity
+- How to build approval workflows that pause and wait for human input
+- Confidence-based escalation: automatically ask when confidence drops below a threshold
+- Async HITL patterns for durable, long-running workflows
+
+## Prerequisites
+
+- Chapter 21 (Full Agent) — you should be comfortable with agents that execute multi-step tasks using tools
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 20 min |
+| Patterns | 15 min |
+| Lab | 30 min |
+| Quiz | 10 min |
+| **Total** | **~75 min** |
+
+## Why This Matters
+
+Fully autonomous agents are powerful — and risky. An agent that can send emails, delete files, or make purchases is only useful if it can be trusted. HITL (Human-in-the-Loop) is the design pattern that draws the line between what the agent does autonomously and what requires a human decision.
+
+Every production-grade agent system needs some form of HITL. The question isn't *whether* to add human oversight — it's *where* and *when*. Too many checkpoints and you've defeated the point of automation. Too few and you're one confused LLM away from deleting production data.
+
+<ConceptMap
+  current="hitl"
+  related={["agents", "guardrails", "agent-handoff", "planning"]}
+/>
+
+Next: [Concepts — Human-in-the-Loop](./concepts.mdx)

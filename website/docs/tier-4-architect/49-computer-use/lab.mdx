@@ -1,0 +1,96 @@
+---
+title: "Lab: Build a Browser Agent"
+sidebar_position: 4
+description: "Implement a mock browser agent: parse LLM actions, format prompts, and run the screenshot-action loop until the goal is achieved."
+---
+
+# Lab 49 — Build a Browser Agent
+
+In this lab you will implement a simplified browser agent that runs the screenshot-action loop. Because a real computer use agent requires the Anthropic API, a live browser, and a sandbox, this lab uses **text descriptions** as the "screenshot" and mock callables for the LLM and action executor. The agent logic — prompt formatting, action parsing, and loop control — is real and fully testable.
+
+## What You'll Build
+
+| Function / Class | Description |
+|-----------------|-------------|
+| `BrowserState` | Dataclass: url, title, visible_text |
+| `AgentAction` | Dataclass: action_type, target, text, reasoning |
+| `AgentStep` | Dataclass: state, action, step_number |
+| `parse_action_from_llm_response` | Parse ACTION/TARGET/TEXT/REASONING from LLM output |
+| `format_prompt` | Build the agent prompt with goal, state, and recent history |
+| `run_agent` | The main agent loop: observe → prompt → parse → execute → repeat |
+
+## Starter File
+
+Open `curriculum/tier-4-architect/49-computer-use/lab/starter/solution.py`.
+
+## Your Tasks
+
+### Task A: `parse_action_from_llm_response`
+
+The LLM will respond in a structured format:
+
+```
+ACTION: click
+TARGET: the Login button
+TEXT: (empty for clicks)
+REASONING: The login button is visible in the top-right corner
+```
+
+- Parse each line by splitting on `": "` (first occurrence only)
+- Extract `ACTION`, `TARGET`, `TEXT`, and `REASONING` values
+- Return an `AgentAction` with the parsed values
+- If parsing fails or `ACTION` is missing, return `AgentAction(action_type="error", reasoning="parse failed")`
+
+### Task B: `format_prompt`
+
+Build a prompt that includes:
+
+1. A "Goal:" line with the goal string
+2. The current URL and page title
+3. The first 500 characters of `state.visible_text`
+4. The last 3 action types from history (or "none" if history is empty)
+5. Instructions to respond in `ACTION/TARGET/TEXT/REASONING` format, with valid action types: `click`, `type`, `navigate`, `done`, `error`
+
+### Task C: `run_agent`
+
+Implement the agent loop:
+
+1. Initialize `history = []` and `current_state = initial_state`
+2. Loop up to `max_steps`:
+   a. Call `format_prompt(goal, current_state, history)`
+   b. Call `llm_caller(prompt)` to get the LLM response
+   c. Call `parse_action_from_llm_response(response)` to get the action
+   d. Append `AgentStep(state=current_state, action=action, step_number=step)` to history
+   e. If `action.action_type` is `"done"` or `"error"`, break
+   f. Execute: `current_state = action_executor(current_state, action)`
+3. Return history
+
+## Running the Tests
+
+```bash
+cd curriculum/tier-4-architect/49-computer-use/lab
+pytest tests/ -v
+```
+
+## How the Tests Work
+
+The tests provide mock `llm_caller` and `action_executor` functions so no real API calls are made. For example:
+
+```python
+def mock_llm(prompt):
+    return "ACTION: done\nTARGET: \nTEXT: \nREASONING: goal reached"
+
+def mock_executor(state, action):
+    return BrowserState(url="http://example.com/done", title="Done", visible_text="success")
+
+steps = run_agent("reach the done page", initial_state, mock_llm, mock_executor)
+assert steps[-1].action.action_type == "done"
+```
+
+## Stretch Goals
+
+1. Add a "stuck detection" mechanism: if the last 3 actions all have the same `action_type` and `target`, return an error action
+2. Add a `summarise_history` function that compresses older history into a one-line summary to keep prompts short
+3. Implement a real `action_executor` using Playwright (requires `pip install playwright`)
+
+Next: [Quiz — Computer Use Agents](./quiz.mdx)

@@ -1,0 +1,81 @@
+---
+title: "Quiz: Chunking Strategies"
+sidebar_position: 5
+description: "Test your understanding of chunking strategies, chunk size tradeoffs, overlap, and when to use each approach."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz 16 — Chunking Strategies
+
+<Quiz
+  chapterId="tier2-ch16"
+  passMark={70}
+  questions={[
+    {
+      id: "q1",
+      text: "What does chunk overlap mean?",
+      points: 1,
+      options: [
+        "A) Chunks are identical copies of each other",
+        "B) Adjacent chunks share some content — the end of chunk N appears at the start of chunk N+1",
+        "C) Chunks are sorted by similarity score",
+        "D) Documents are duplicated in the vector database"
+      ],
+      correct: 1,
+      explanation: "Overlap means adjacent chunks share a portion of content. The last `overlap` characters of chunk N are repeated at the start of chunk N+1. This prevents context from being lost when a sentence or idea straddles a chunk boundary."
+    },
+    {
+      id: "q2",
+      text: "You are building a Q&A system that retrieves precise contract clauses. Which chunk size is most appropriate?",
+      points: 2,
+      options: [
+        "A) 4096 tokens — larger chunks contain more context",
+        "B) 256–512 tokens — smaller chunks enable precise clause retrieval",
+        "C) 50 tokens — smallest possible for maximum precision",
+        "D) The entire document as a single chunk"
+      ],
+      correct: 1,
+      explanation: "256–512 tokens is the right range for precise Q&A on legal or technical text. The goal is chunks that map closely to individual clauses or paragraphs. Too large and retrieval returns sections containing many irrelevant clauses. Too small (50 tokens) and individual clauses may be incomplete. The full document as a single chunk defeats the purpose of retrieval entirely."
+    },
+    {
+      id: "q3",
+      text: "What is the main drawback of fixed-size character chunking?",
+      points: 2,
+      options: [
+        "A) It is too slow for large documents",
+        "B) It can break sentences mid-way, losing semantic coherence at chunk boundaries",
+        "C) It requires a special library to run",
+        "D) It does not support overlap"
+      ],
+      correct: 1,
+      explanation: "Fixed-size chunking splits at every N characters regardless of sentence or word boundaries. A chunk may end mid-sentence — e.g., 'The quarterly rev' — and the next chunk starts 'enue was $1.2M'. Neither chunk contains a coherent sentence. Sentence-based or recursive splitting avoids this by only splitting at natural boundaries."
+    },
+    {
+      id: "q4",
+      text: "Semantic chunking is the slowest strategy. Why?",
+      points: 2,
+      options: [
+        "A) It uses more CPU than other strategies",
+        "B) It embeds every sentence in the document to detect topic shifts before deciding where to split",
+        "C) It requires a dedicated GPU cluster",
+        "D) It splits the document more times than other strategies"
+      ],
+      correct: 1,
+      explanation: "Semantic chunking embeds every sentence (or short passage) in the document, then computes similarity between adjacent sentences to find topic shift boundaries. This requires N embedding API calls for a document with N sentences — expensive and slow. The benefit is high-quality chunks that align with actual topic boundaries, which improves retrieval precision significantly for complex documents."
+    },
+    {
+      id: "q5",
+      text: "You chunked a document without overlap. A user asks about 'quarterly revenue'. The query returns no useful results. What is the most likely cause?",
+      points: 2,
+      options: [
+        "A) The chunk is too small",
+        "B) The sentence about quarterly revenue spans a chunk boundary — half the sentence is in chunk N and half in chunk N+1, so neither chunk embeds the complete phrase",
+        "C) Metadata is missing from the chunks",
+        "D) The vector database is full"
+      ],
+      correct: 1,
+      explanation: "Without overlap, content at chunk boundaries is split between two chunks. If 'The quarterly revenue' ends chunk N and 'was $1.2M in Q3' starts chunk N+1, neither chunk contains the complete sentence. A query for 'quarterly revenue' may not match either incomplete chunk well. Adding overlap of 50–100 characters ensures boundary content appears completely in at least one chunk."
+    }
+  ]}
+/>

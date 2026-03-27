@@ -1,0 +1,112 @@
+---
+title: "Quiz: Latency Optimization"
+sidebar_position: 5
+description: "Test your knowledge of TTFT, streaming, speculative decoding, percentile profiling, parallel tool execution, and KV cache."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz: Latency Optimization
+
+<Quiz
+  questions={[
+    {
+      id: "q1",
+      text: "What does TTFT stand for, and what does it measure?",
+      options: [
+        "A) Total Token Fetch Time — total time to receive all tokens",
+        "B) Time To First Token — latency from sending request to receiving the first output token",
+        "C) Token Transfer Frequency Time — rate of token delivery",
+        "D) Time To Final Token — latency to complete the full response"
+      ],
+      correct: 1,
+      explanation: "TTFT (Time To First Token) measures the time from when you send your request until the first output token arrives. It's driven by network latency plus the prefill computation (processing your input prompt). It's the most important metric for perceived responsiveness."
+    },
+    {
+      id: "q2",
+      text: "A chatbot takes 8 seconds to generate a full response. Streaming is enabled and the first token appears in 0.4s. How does this affect user experience compared to non-streaming?",
+      options: [
+        "A) No difference — total latency is still 8s",
+        "B) Worse — users see incomplete text",
+        "C) Better — users start reading immediately at 0.4s, making 8s feel much faster",
+        "D) Better — streaming reduces total latency to 4s"
+      ],
+      correct: 2,
+      explanation: "Streaming dramatically improves perceived latency. A user who sees text appearing at 0.4s and continues reading for 8s has a much better experience than staring at a blank screen for 8s. Actual total latency is unchanged, but perceived responsiveness is transformed."
+    },
+    {
+      id: "q3",
+      text: "What is speculative decoding, and what is its primary benefit?",
+      options: [
+        "A) Running the model in FP16 instead of FP32 to speculate on precision",
+        "B) A small draft model generates candidate tokens that a larger model verifies in parallel, achieving 2-3× speedup",
+        "C) Pre-fetching model weights into VRAM before a request arrives",
+        "D) Generating multiple candidate responses and selecting the best one"
+      ],
+      correct: 1,
+      explanation: "Speculative decoding uses a small fast draft model to generate K candidate tokens, then the large target model verifies all K in a single parallel forward pass. Accepted tokens are kept; divergences are corrected. Net result: 2-3× speedup with identical output quality."
+    },
+    {
+      id: "q4",
+      text: "You profile a chatbot and find: median latency = 400ms, p95 = 8,000ms. What does this tell you?",
+      options: [
+        "A) The system is performing well — median is fast",
+        "B) 5% of requests experience very high latency — this is a tail latency problem requiring investigation",
+        "C) The system has a memory leak causing gradual slowdown",
+        "D) p95 of 8s is normal for LLM applications"
+      ],
+      correct: 1,
+      explanation: "p95 = 8s means 5 out of every 100 requests are taking 8 seconds — 20× slower than the median. This is a serious tail latency problem. Common causes: rate limit retries, occasional long outputs, cold starts, or GC pauses. The median looks fine but 1 in 20 users has a terrible experience."
+    },
+    {
+      id: "q5",
+      text: "A pipeline makes three independent API calls (weather, news, calendar — each 400ms). What is the latency with asyncio.gather vs sequential execution?",
+      options: [
+        "A) asyncio.gather: 1200ms, sequential: 400ms",
+        "B) asyncio.gather: ~400ms, sequential: ~1200ms",
+        "C) Both take 1200ms — asyncio only helps with CPU-bound work",
+        "D) asyncio.gather: 200ms, sequential: 600ms"
+      ],
+      correct: 1,
+      explanation: "asyncio.gather runs all three coroutines concurrently. Since they're all waiting on I/O (network calls), they wait simultaneously rather than sequentially. Total time is ~400ms (the slowest single call) instead of 400+400+400 = 1200ms."
+    },
+    {
+      id: "q6",
+      text: "What primarily drives TTFT (prefill time) and how do you reduce it?",
+      options: [
+        "A) Output length — reduce max_tokens parameter",
+        "B) Model size — use a smaller model",
+        "C) Input prompt length — prefill is O(n²) in tokens; reduce with shorter prompts or prompt caching",
+        "D) Network latency — use a CDN"
+      ],
+      correct: 2,
+      explanation: "Prefill (which determines TTFT) processes your entire input prompt through the transformer. Attention is O(n²) in sequence length — doubling your prompt length more than doubles prefill time. Reduce by trimming prompts or using Anthropic's prompt caching so the server skips cached prefixes."
+    },
+    {
+      id: "q7",
+      text: "What is the KV cache, and how does it speed up generation?",
+      options: [
+        "A) A Redis cache that stores LLM responses between requests",
+        "B) A server-side cache of key-value attention states from previous tokens, allowing the model to skip recomputing earlier positions on each new token",
+        "C) A client-side cache of embeddings for common tokens",
+        "D) A database of cached prompt-response pairs for exact matching"
+      ],
+      correct: 1,
+      explanation: "The KV (key-value) cache stores the attention key and value tensors for all previously generated tokens. When generating the next token, the model only needs to process that new token — not re-process all previous tokens. Without KV cache, generation would be O(n²) in total output length. With it, it's O(n)."
+    },
+    {
+      id: "q8",
+      text: "You measure latency across 100 requests and get: mean=500ms, p50=450ms, p95=1800ms, p99=4200ms. Where should you focus optimization effort first?",
+      options: [
+        "A) Reducing the mean — bring average down to 300ms",
+        "B) Investigating the p99 — 4200ms is an outlier that signals a specific bug or resource constraint",
+        "C) The system is fine — p50 of 450ms is within SLA",
+        "D) Reducing p50 further — typical users should see <200ms"
+      ],
+      correct: 1,
+      explanation: "A p99 of 4200ms (vs p50 of 450ms) is a 9× gap — this indicates a specific failure mode affecting ~1% of requests, not just general slowness. Common causes: rate limit retries with exponential backoff, timeout + retry cycles, occasional context window overflows. Investigate and fix the root cause of the outliers first."
+    }
+  ]}
+  chapterId="tier4-ch45"
+  passMark={75}
+/>

@@ -1,0 +1,70 @@
+---
+title: "Lab: Two-Agent Pipeline"
+sidebar_position: 4
+description: "Build a ResearchAgent + WriterAgent orchestrated by a coordinator that passes research output to the writer."
+---
+
+# Lab 24 — Two-Agent Pipeline
+
+In this lab you will implement a minimal multi-agent system:
+
+1. A `BaseAgent` that wraps the Anthropic API with a system prompt
+2. A `ResearchAgent` (specialist: gather bullet-point facts)
+3. A `WriterAgent` (specialist: turn notes into polished prose)
+4. An `Orchestrator` that runs `ResearchAgent` → `WriterAgent` and assembles the result
+
+## What You'll Build
+
+| Class | Description |
+|-------|-------------|
+| `BaseAgent` | Base class: `name`, `system_prompt`, `run(task) -> str` |
+| `ResearchAgent` | Subclass of BaseAgent; system prompt focused on facts |
+| `WriterAgent` | Subclass of BaseAgent; system prompt focused on writing |
+| `Orchestrator` | Holds both agents; `run(topic) -> dict` pipeline |
+
+## Starter File
+
+Open `curriculum/tier-3-advanced/24-multi-agent/lab/starter/solution.py`.
+
+The file contains:
+- `BaseAgent` with a `run` stub (`# TODO`)
+- `ResearchAgent` and `WriterAgent` with system prompts already filled in
+- `Orchestrator.run` stub with step-by-step comments
+
+## Your Tasks
+
+### Task A: `BaseAgent.run`
+
+- Call `self.client.messages.create` with:
+  - `model=MODEL`
+  - `max_tokens=512`
+  - `system=self.system_prompt`
+  - `messages=[{"role": "user", "content": task}]`
+- Return `response.content[0].text`
+
+### Task B: `Orchestrator.run`
+
+- Call `self.researcher.run(f"Research: {topic}")`
+- Call `self.writer.run(f"Write a paragraph based on these notes:\n{research}")`
+- Return `{"topic": topic, "research": research, "article": article}`
+
+## Running the Tests
+
+```bash
+cd curriculum/tier-3-advanced/24-multi-agent/lab
+pytest tests/ -v
+```
+
+## Stretch Goals
+
+1. Add a `ReviewerAgent` that critiques the article and suggests one improvement
+2. Add the reviewer to the `Orchestrator` pipeline: research → write → review
+3. Add `run_agents_parallel` to the orchestrator that fetches research from two independent "sources" simultaneously using `ThreadPoolExecutor`
+
+## Expected Output
+
+When you run the orchestrator with `topic="The history of the internet"`, you should see:
+- A bullet-point research summary from the ResearchAgent
+- A polished one-paragraph article from the WriterAgent
+
+Next: [Quiz — Multi-Agent Systems](./quiz.mdx)

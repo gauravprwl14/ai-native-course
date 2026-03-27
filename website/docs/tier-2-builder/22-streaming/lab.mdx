@@ -1,0 +1,54 @@
+---
+title: "Lab: Stream Responses to Terminal"
+sidebar_position: 4
+description: "Implement three streaming functions: stream_response generator, stream_and_collect accumulator, and measure_ttft timer."
+---
+
+# Lab: Stream Responses to Terminal
+
+## Goal
+
+Implement three streaming utility functions that wrap the Anthropic streaming API.
+
+## What You'll Build
+
+| Function | Returns | Description |
+|----------|---------|-------------|
+| `stream_response(prompt, system_prompt=None)` | `Generator[str, None, None]` | Yield each text chunk as it arrives |
+| `stream_and_collect(prompt)` | `dict` | Stream and return `{"full_text": str, "chunk_count": int}` |
+| `measure_ttft(prompt)` | `float` | Time to first token in milliseconds |
+
+## Starter File
+
+Location: `curriculum/tier-2-builder/22-streaming/lab/starter/solution.py`
+
+## Acceptance Criteria
+
+- `stream_response(prompt)` returns a generator (not a string or list)
+- Iterating the generator yields non-empty strings
+- `stream_and_collect(prompt)` returns a dict with keys `full_text` and `chunk_count`
+- `full_text` is a non-empty string
+- `chunk_count` equals the number of chunks yielded by the generator
+- `measure_ttft(prompt)` returns a positive float (milliseconds)
+- All 6 tests pass: `pytest tests/ -v`
+
+## How to Run
+
+```bash
+cd curriculum/tier-2-builder/22-streaming/lab
+pytest tests/ -v
+
+# Run manually (uses real API)
+cd starter
+python solution.py
+```
+
+## Hints
+
+1. `stream_response` is a generator function — use `yield` inside a `with client.messages.stream(...) as stream:` block.
+2. `stream_and_collect` should call `stream_response` (not duplicate the streaming logic). Collect chunks with a list and join at the end.
+3. `measure_ttft` records `time.time()` before the loop, records the time again on the **first** `yield`, and returns the difference in milliseconds. Use `return` inside the loop on the first chunk.
+
+---
+
+➡️ Next: [Quiz — Streaming](./quiz.mdx)

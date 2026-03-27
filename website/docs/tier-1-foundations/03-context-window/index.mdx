@@ -1,0 +1,42 @@
+---
+title: "Chapter 03: Context Window"
+sidebar_position: 12
+description: "Master the context window — LLMs' working memory. Learn how to manage conversation history, avoid truncation, and build context-aware Q&A systems."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 03 — Context Window
+
+## What You'll Learn
+
+- What a context window is and why it matters
+- How tokens fill the context window on every API call
+- How to manage conversation history across turns
+- Strategies for handling context truncation gracefully
+
+## Prerequisites
+
+- Chapter 01 complete — you understand what an LLM is
+- Chapter 02 complete — you understand tokens and can count them
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 25 min |
+| Patterns | 15 min |
+| Lab | 30 min |
+| Quiz | 10 min |
+| **Total** | **~80 min** |
+
+## How This Connects
+
+The context window is the foundation of multi-turn conversations, RAG systems, and agent loops. Every chapter from here forward assumes you understand how to manage what the model can see.
+
+<ConceptMap
+  current="context-window"
+  related={["tokens", "embeddings", "rag", "streaming", "system-prompts"]}
+/>
+
+➡️ Next: [Concepts — Context Window](./concepts)

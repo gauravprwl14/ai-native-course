@@ -1,0 +1,52 @@
+---
+title: "Chapter 46: AI Gateway — Unified LLM Proxy"
+sidebar_position: 1
+description: "Build a central control plane for all LLM traffic: routing, load balancing, cost tracking, rate limiting, and audit logging."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 46 — AI Gateway: Unified LLM Proxy
+
+## What You'll Learn
+
+As organizations adopt multiple LLMs, directly calling each provider API from every service becomes unmanageable. An AI gateway is the central control plane that sits between your application and the LLM providers, giving you routing, policy enforcement, cost visibility, and operational resilience in one place.
+
+## Prerequisites
+
+- Chapter 39 (LLM APIs Deep-dive)
+- Chapter 40 (Model Selection)
+- Chapter 44 (LLM Caching)
+- Chapter 45 (Latency Optimization)
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 25 min |
+| Patterns | 20 min |
+| Lab | 35 min |
+| Quiz | 10 min |
+| **Total** | **~90 min** |
+
+## What You'll Learn
+
+- **Why gateways exist** — the operational chaos of multi-provider LLM usage at scale
+- **Routing** — how the gateway maps model names to the right provider and backend
+- **Load balancing** — spreading requests across multiple endpoints for reliability
+- **Cost tracking** — per-team, per-project, per-user attribution of LLM spend
+- **Rate limiting** — enforcing per-key and per-team quotas at the gateway level
+- **Audit logging** — capturing every request and response for compliance and debugging
+- **Provider fallback** — automatic failover when a provider returns errors
+- **Circuit breakers** — stopping traffic to unhealthy backends to prevent cascade failures
+
+## How This Connects
+
+<ConceptMap
+  current="ai-gateway"
+  related={["llm-caching", "latency-optimization", "model-selection", "llm-apis"]}
+/>
+
+---
+
+➡️ Next: [Concepts — Building an AI Gateway](./concepts.mdx)

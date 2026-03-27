@@ -1,0 +1,81 @@
+---
+title: "Quiz: Role + Meta Prompting"
+sidebar_position: 5
+description: "Test your understanding of role prompting, expert personas, meta-prompting, and prompt chaining."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz 13 — Role + Meta Prompting
+
+<Quiz
+  chapterId="tier2-ch13"
+  passMark={70}
+  questions={[
+    {
+      id: "q1",
+      text: "What does meta-prompting mean?",
+      points: 1,
+      options: [
+        "A) Prompting an LLM about metadata",
+        "B) Using an LLM to generate or improve prompts",
+        "C) Writing system prompts in the API",
+        "D) Using chain-of-thought reasoning"
+      ],
+      correct: 1,
+      explanation: "Meta-prompting means using an LLM to generate or refine prompts for you. Instead of hand-crafting a prompt, you describe the task and ask the model to write the prompt. This is a two-stage process: first generate the prompt (stage 1), then use it for the actual task (stage 2)."
+    },
+    {
+      id: "q2",
+      text: "\"You are an expert\" is a weak role prompt because:",
+      points: 2,
+      options: [
+        "A) It is too long and wastes tokens",
+        "B) Expertise is undefined — the model doesn't know which domain or depth to activate",
+        "C) Expert mode costs more API credits",
+        "D) The Anthropic API doesn't support expert roles"
+      ],
+      correct: 1,
+      explanation: "\"You are an expert\" gives the model no information about which domain, seniority level, task context, or target audience to use. The model defaults to a generic, mid-level answer. A strong role prompt specifies all four: domain (e.g. FastAPI security), depth (senior engineer, 10 years), task (reviewing for vulnerabilities), and audience (team lead needing actionable feedback)."
+    },
+    {
+      id: "q3",
+      text: "You need 10 diverse prompts for testing a customer service chatbot. What is the best approach?",
+      points: 2,
+      options: [
+        "A) Write them manually one by one",
+        "B) Use meta-prompting to generate them — describe the task and ask the LLM to produce N variants",
+        "C) Copy prompts from StackOverflow and adapt them",
+        "D) Use the same prompt 10 times with different temperatures"
+      ],
+      correct: 1,
+      explanation: "Meta-prompting is ideal here. You describe the customer service task, set a high temperature (0.8+) for diversity, and ask the model to generate N variants with different roles, framings, and tones. This is faster than manual writing, produces more variety than paraphrasing, and avoids the bias of copying prompts designed for different contexts."
+    },
+    {
+      id: "q4",
+      text: "Why does assigning a specific role like \"You are a senior Python engineer specialising in FastAPI security\" improve responses?",
+      points: 2,
+      options: [
+        "A) It adds more tokens, which always improves quality",
+        "B) It activates the model's knowledge distribution from training data associated with that role, steering vocabulary, structure, and reasoning patterns",
+        "C) It bypasses safety filters for technical content",
+        "D) It switches to a different underlying model"
+      ],
+      correct: 1,
+      explanation: "During pre-training, the model saw vast text written by and about specific roles. Naming a role steers the output distribution toward the vocabulary, reasoning patterns, and structural conventions typical of that role. No different model is used — the same weights activate different parts of their knowledge based on context."
+    },
+    {
+      id: "q5",
+      text: "Your generated meta-prompt produces poor results when tested on real inputs. What is the best next step?",
+      points: 2,
+      options: [
+        "A) Deploy it anyway — generated prompts are usually good enough",
+        "B) Test and iterate — refine the meta-prompt, regenerate, and re-evaluate until the score meets your threshold",
+        "C) Give up on role prompting entirely",
+        "D) Raise the temperature on the final task call to compensate"
+      ],
+      correct: 1,
+      explanation: "Generated prompts are not guaranteed to be high quality. The right approach is to evaluate the generated prompt on representative test cases, diagnose why it fails (too vague? wrong role? missing constraints?), refine the meta-prompt, and regenerate. This iterative loop is exactly how you build a reliable prompt library — treat prompt quality as something you measure and improve, not assume."
+    }
+  ]}
+/>

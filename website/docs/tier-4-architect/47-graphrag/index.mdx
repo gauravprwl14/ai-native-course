@@ -1,0 +1,52 @@
+---
+title: "Chapter 47: GraphRAG — Knowledge Graph-Enhanced Retrieval"
+sidebar_position: 1
+description: "Go beyond flat vector search with knowledge graphs: entity extraction, graph traversal, community summaries, and multi-hop reasoning."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 47 — GraphRAG: Knowledge Graph-Enhanced Retrieval
+
+## What You'll Learn
+
+Standard RAG retrieves the top-K most similar text chunks and feeds them to the LLM. This works well for factual lookups but fails for questions that require understanding *relationships* — "who works with whom", "which product depends on which service", "how does decision A affect outcome B".
+
+GraphRAG adds a knowledge graph layer. Instead of only searching by semantic similarity, you can also traverse entity relationships, answer multi-hop queries, and generate global summaries that no single chunk contains.
+
+## Prerequisites
+
+- Chapter 14 (RAG Core)
+- Chapter 15 (Vector Databases)
+- Basic Python data structures (dicts, sets, deque)
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 25 min |
+| Patterns | 20 min |
+| Lab | 35 min |
+| Quiz | 10 min |
+| **Total** | **~90 min** |
+
+## What You'll Learn
+
+- **Knowledge graphs** — nodes (entities) and edges (relationships), the data model behind GraphRAG
+- **Entity extraction** — identifying named entities and their relationships from text
+- **Relationship triples** — the `(subject, predicate, object)` representation of knowledge
+- **Graph traversal** — BFS/DFS to find connected entities within N hops of a query entity
+- **GraphRAG vs flat RAG** — when the graph overhead is worth it and when it is not
+- **Community detection** — how Microsoft's GraphRAG clusters entities to generate global summaries
+- **Leiden algorithm** — the community detection algorithm used by Microsoft GraphRAG
+
+## How This Connects
+
+<ConceptMap
+  current="graphrag"
+  related={["rag-core", "vector-databases", "embeddings", "llm-apis"]}
+/>
+
+---
+
+➡️ Next: [Concepts — Beyond Flat RAG: Knowledge Graphs](./concepts.mdx)

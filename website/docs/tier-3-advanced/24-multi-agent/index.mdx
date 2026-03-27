@@ -1,0 +1,45 @@
+---
+title: "Chapter 24: Multi-Agent Systems"
+sidebar_position: 1
+description: "Orchestrate multiple specialized agents. Build a two-agent pipeline where an orchestrator delegates to a specialist."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 24 — Multi-Agent Systems
+
+## What You'll Learn
+
+- The orchestrator-worker pattern and why it beats a single monolithic agent
+- How agents communicate: shared state vs message passing
+- Agent specialization: why a researcher + writer pipeline outperforms a generalist
+- When to run agents in parallel and how to coordinate their outputs
+- The risks of multi-agent systems: conflicts, coordination overhead, shared mutable state
+
+## Prerequisites
+
+- Chapter 21 (Full Agent) — you should understand the agentic loop with tool calls
+- Chapter 23 (Planning) — you should understand task decomposition and dependency tracking
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 25 min |
+| Patterns | 20 min |
+| Lab | 40 min |
+| Quiz | 10 min |
+| **Total** | **~95 min** |
+
+## How This Connects
+
+Chapter 23 showed you how to decompose a goal into tasks. Multi-agent systems take this one step further: instead of one agent executing all tasks, you route each task to a *specialized agent* built exactly for that job. A researcher agent knows how to gather and organize information. A writer agent knows how to produce polished prose. An orchestrator coordinates between them.
+
+The result is a system that scales: you can add new specialist agents without changing the orchestrator's core logic, and independent specialists can run in parallel, reducing end-to-end latency.
+
+<ConceptMap
+  current="multi-agent"
+  related={["agents", "planning", "agent-handoff", "memory", "streaming"]}
+/>
+
+Next: [Concepts — Multi-Agent Systems](./concepts.mdx)

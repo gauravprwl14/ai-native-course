@@ -1,0 +1,44 @@
+---
+title: "Chapter 17: Hybrid Search"
+sidebar_position: 1
+description: "Combine semantic vector search with BM25 keyword search for better retrieval. Learn RRF fusion and when hybrid beats pure semantic."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 17 — Hybrid Search
+
+## What You'll Learn
+
+- Why pure semantic search fails for exact keyword queries
+- How BM25 (keyword-based ranking) works and when it excels
+- Reciprocal Rank Fusion (RRF) — the standard method to combine two ranked lists
+- When hybrid search outperforms pure vector search
+- How to implement a full hybrid search pipeline from scratch
+
+## Prerequisites
+
+- **Chapter 15 — Vector Databases**: you should understand embeddings, cosine similarity, and vector search
+- **Chapter 16 — Chunking**: you should know how documents are preprocessed before retrieval
+- Python 3.10+, `rank_bm25` installed
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 25 min |
+| Patterns | 20 min |
+| Lab | 35 min |
+| Quiz | 10 min |
+| **Total** | **~90 min** |
+
+## How This Connects
+
+Hybrid search sits at the heart of production RAG systems. Pure vector search fails for queries with specific technical terms, product codes, and proper nouns — things that semantic similarity doesn't capture well. BM25 fills that gap. Together, via Reciprocal Rank Fusion, they produce retrieval quality that consistently beats either approach alone. Most enterprise RAG systems (Elasticsearch, Weaviate, Pinecone) offer hybrid search as a first-class feature for exactly this reason. After this chapter, you can add re-ranking on top of hybrid results for even higher precision.
+
+<ConceptMap
+  current="hybrid-search"
+  related={["rag", "vector-databases", "embeddings", "re-ranking"]}
+/>
+
+➡️ Next: [Concepts — Hybrid Search](./concepts.mdx)

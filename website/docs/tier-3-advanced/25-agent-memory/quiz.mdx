@@ -1,0 +1,81 @@
+---
+title: "Quiz: Agent Memory"
+sidebar_position: 5
+description: "Test your understanding of memory types, context window limits, semantic vs keyword retrieval, and consolidation strategies."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz 25 — Agent Memory
+
+<Quiz
+  chapterId="tier3-ch25"
+  passMark={70}
+  questions={[
+    {
+      id: "q1",
+      text: "Which memory type stores facts as embeddings and retrieves them by semantic similarity?",
+      points: 1,
+      options: [
+        "A) Episodic memory",
+        "B) In-context memory",
+        "C) Semantic memory",
+        "D) Procedural memory"
+      ],
+      correct: 2,
+      explanation: "Semantic memory stores facts and knowledge as embedding vectors. At query time, the agent embeds the current question and retrieves the most semantically similar memories using cosine similarity. Episodic memory stores event logs retrieved by recency; in-context memory is the messages array; procedural memory maps to tools and skills."
+    },
+    {
+      id: "q2",
+      text: "Why does in-context memory have a hard upper limit on how much history it can hold?",
+      points: 2,
+      options: [
+        "A) LLM APIs charge per message, making long histories too expensive",
+        "B) The context window has a maximum token count; exceeding it causes truncation or an error",
+        "C) More messages slow down the embedding step",
+        "D) Conversation history must be re-embedded on each call"
+      ],
+      correct: 1,
+      explanation: "Every LLM has a context window — a maximum number of tokens it can process in a single call. Once the conversation history exceeds this limit, you either get an API error or the model silently truncates the oldest messages. This is the fundamental reason external memory and consolidation patterns exist."
+    },
+    {
+      id: "q3",
+      text: "An agent has 5,000 stored memories. You want to inject only the 3 most relevant ones for a given user query. Which approach should you use?",
+      points: 2,
+      options: [
+        "A) Keyword search: grep the memory store for words in the query",
+        "B) Load all 5,000 memories into the system prompt",
+        "C) Embed the query and retrieve the top-3 by cosine similarity",
+        "D) Return the 3 most recently saved memories"
+      ],
+      correct: 2,
+      explanation: "Semantic search via embedding similarity is the right approach. Embed the query, compare it against all memory embeddings using cosine similarity, and retrieve the top-k highest scoring memories. Keyword search misses synonyms and paraphrases. Loading all 5,000 memories overwhelms the context window and adds irrelevant noise. Recency has no relationship to relevance."
+    },
+    {
+      id: "q4",
+      text: "What is the purpose of memory consolidation in a long-running agent?",
+      points: 2,
+      options: [
+        "A) To encrypt memories before storing them",
+        "B) To compress old conversation history into a summary, keeping the context window manageable",
+        "C) To merge duplicate memories from different sessions",
+        "D) To convert short-term memories into embeddings"
+      ],
+      correct: 1,
+      explanation: "Memory consolidation compresses long conversation histories — typically by summarising the oldest N messages into a brief bullet-point summary. This keeps the total token count within the context window limit while preserving the essential context. Without consolidation, any open-ended agent will eventually overflow its context window."
+    },
+    {
+      id: "q5",
+      text: "Which of the following is an anti-pattern when designing agent memory?",
+      points: 3,
+      options: [
+        "A) Using cosine similarity to retrieve memories",
+        "B) Summarising old messages before the context limit is reached",
+        "C) Storing user passwords and credit card numbers in the memory store",
+        "D) Using a JSON file for long-term memory persistence"
+      ],
+      correct: 2,
+      explanation: "Storing sensitive PII — passwords, payment details, SSNs — in an agent memory store is a serious security anti-pattern. Memory stores are often logged, backed up, or accessible to developers. Sensitive credentials belong in a proper secrets manager, never in a general-purpose memory system. All other options (cosine retrieval, proactive summarisation, JSON persistence) are correct patterns."
+    }
+  ]}
+/>

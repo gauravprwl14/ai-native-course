@@ -1,0 +1,264 @@
+---
+title: "Lab: Build the Research Assistant"
+sidebar_position: 4
+description: "Six-milestone lab to build a complete Research Assistant agent from scratch: LLM client, RAG pipeline, tool system, planner, agent loop, and observability."
+---
+
+# Lab: Build the Research Assistant
+
+## Overview
+
+This is the capstone lab. You will build a complete `ResearchAssistant` class across six milestones. Each milestone builds on the previous one.
+
+**Files:**
+- `curriculum/tier-4-architect/50-capstone/lab/starter/solution.py` — your workspace (all TODOs)
+- `curriculum/tier-4-architect/50-capstone/lab/solution/solution.py` — reference implementation
+- `curriculum/tier-4-architect/50-capstone/lab/tests/test_solution.py` — automated tests
+
+**Run the finished system:**
+```bash
+cd curriculum/tier-4-architect/50-capstone/lab
+python starter/solution.py "What is RAG?"
+```
+
+**Run tests:**
+```bash
+cd curriculum/tier-4-architect/50-capstone/lab
+pytest tests/ -v
+```
+
+---
+
+## Milestone 1: Core LLM Client
+
+**Goal:** Build a thin `LLMClient` wrapper around the Anthropic API with retry logic and streaming support.
+
+**What to implement:**
+
+1. `LLMClient.complete()` — single-shot completion with retry on `RateLimitError`
+2. `LLMClient.stream()` — streaming completion that yields `StreamChunk` objects
+
+**Key points:**
+- Retry up to `max_retries` times on `anthropic.RateLimitError`
+- Each retry waits `2 ** attempt` seconds (1s, 2s, 4s...)
+- `complete()` converts `list[Message]` to Anthropic format `[{"role": m.role, "content": m.content}]`
+- `stream()` uses `client.messages.stream()` context manager
+
+**Acceptance criteria:**
+- [ ] `LLMClient.complete("Hello")` returns a non-empty string
+- [ ] `LLMClient.stream("Hello")` yields at least one `StreamChunk` with `done=True` at end
+- [ ] A simulated `RateLimitError` triggers a retry, not a crash
+
+---
+
+## Milestone 2: RAG Pipeline
+
+**Goal:** Build an in-memory vector store using TF-IDF cosine similarity, and a RAG pipeline that retrieves relevant documents and uses them to answer questions.
+
+**What to implement:**
+
+1. `SimpleVectorStore._tfidf_vector()` — compute term frequencies for a text
+2. `SimpleVectorStore._cosine_similarity()` — cosine similarity between two TF-IDF dicts
+3. `SimpleVectorStore.add()` — index a document
+4. `SimpleVectorStore.search()` — return top-k documents by similarity score
+5. `RAGPipeline.ingest()` — load a list of documents into the store
+6. `RAGPipeline.retrieve_and_answer()` — retrieve context and call LLM
+
+**TF-IDF vector implementation:**
+```python
+# 1. Lowercase, split on whitespace
+# 2. Remove stop words: {"a", "the", "is", "are", "of", "in", "to", "and", "it"}
+# 3. Count term frequencies
+# 4. Normalize by dividing each count by total word count
+```
+
+**Graceful degradation rule:** If all retrieved scores are below `0.05`, skip the context and call LLM directly.
+
+**Acceptance criteria:**
+- [ ] `store.add(doc); store.search("rag")` returns that document as top-1
+- [ ] Searching an empty store returns an empty list
+- [ ] Two documents with scores below threshold triggers LLM-only fallback
+- [ ] `RAGPipeline.retrieve_and_answer()` includes retrieved content in the LLM prompt
+
+---
+
+## Milestone 3: Tool System
+
+**Goal:** Build a `ToolRegistry` that maps tool names to callables and executes them safely.
+
+**What to implement:**
+
+1. `ToolRegistry.register()` — store tool name, description, and callable
+2. `ToolRegistry.execute()` — call tool, return `ToolResult`, never raise
+3. `ToolRegistry.get_tool_descriptions()` — format tool list for LLM prompts
+4. `create_default_tools()` — register `web_search` and `calculator`
+
+**Calculator safety:** Use `eval()` with restricted builtins:
+```python
+safe_builtins = {"__builtins__": {}, "abs": abs, "round": round, "max": max, "min": min}
+result = eval(expression, safe_builtins)
+```
+
+This prevents `eval("__import__('os').system('rm -rf /')")`.
+
+**Web search mock:**
+```python
+def web_search(query: str) -> str:
+    return f"[Mock web results for: {query}] Relevant information found in search results."
+```
+
+**Acceptance criteria:**
+- [ ] `registry.execute(ToolCall("calculator", {"expression": "2 + 2"}))` returns `ToolResult(output="4", success=True)`
+- [ ] `registry.execute(ToolCall("calculator", {"expression": "1/0"}))` returns `ToolResult(success=False)` without raising
+- [ ] `registry.execute(ToolCall("unknown_tool", {}))` returns `ToolResult(success=False)`
+- [ ] `registry.get_tool_descriptions()` returns a string containing tool names
+
+---
+
+## Milestone 4: Planner
+
+**Goal:** Build a planner that asks the LLM to decide whether RAG and tools are needed, then parses the structured response.
+
+**What to implement:**
+
+1. `parse_plan()` — parse LLM response into a `Plan` object
+2. `plan_query()` — prompt the LLM for a plan and parse the result
+
+**Expected LLM response format:**
+```
+NEEDS_RAG: yes
+TOOLS: web_search
+REASONING: The question requires looking up current information.
+```
+
+**Parsing rules:**
+- Look for `NEEDS_RAG: yes` or `NEEDS_RAG: no` (case-insensitive)
+- Look for `TOOLS: tool1, tool2` (empty string = no tools)
+- Everything else (or the `REASONING:` line) becomes `plan.reasoning`
+
+**Planner system prompt template:**
+```
+You are a planning agent. Decide the best strategy to answer a user query.
+Available tools: {tool_list}
+Response format:
+NEEDS_RAG: yes/no
+TOOLS: comma-separated tool names, or empty
+REASONING: brief explanation
+```
+
+**Acceptance criteria:**
+- [ ] `parse_plan("NEEDS_RAG: yes\nTOOLS: web_search\nREASONING: needs web")` → `Plan(needs_rag=True, needs_tools=["web_search"])`
+- [ ] `parse_plan("NEEDS_RAG: no\nTOOLS: \nREASONING: simple")` → `Plan(needs_rag=False, needs_tools=[])`
+- [ ] `plan_query("What is 2+2?", llm, ["calculator"])` returns a `Plan` object
+
+---
+
+## Milestone 5: Agent Loop
+
+**Goal:** Wire all components together in `ResearchAssistant.answer()`.
+
+**What to implement:**
+
+1. `ResearchAssistant._trace()` — append an `AgentTrace` to `self.traces`
+2. `ResearchAssistant._check_guardrails()` — detect injection patterns
+3. `ResearchAssistant._cache_key()` — SHA-256 hash of normalized query
+4. `ResearchAssistant.answer()` — full 7-step agent loop
+
+**The 7-step loop:**
+
+```
+Step 1: Guardrail check
+    → _check_guardrails(query)
+    → if error: return error immediately
+
+Step 2: Cache check
+    → key = _cache_key(query)
+    → if key in cache: print "[Cache hit]", return cached answer
+
+Step 3: Plan
+    → plan = plan_query(query, llm, tool_names)
+    → _trace("plan", ...)
+
+Step 4: Execute tools
+    → for tool_name in plan.needs_tools:
+    →     result = tools.execute(ToolCall(tool_name, {"query": query}))
+    →     _trace("tool:" + tool_name, ...)
+
+Step 5: RAG or direct LLM
+    → if plan.needs_rag:
+    →     answer = rag.retrieve_and_answer(query, history)
+    → else:
+    →     answer = llm.complete([...tool results..., Message("user", query)])
+    → _trace("generate", ...)
+
+Step 6: Update memory and cache
+    → history.append(Message("user", query))
+    → history.append(Message("assistant", answer))
+    → cache[key] = answer
+
+Step 7: Return answer
+```
+
+**Injection patterns to detect:**
+```python
+["ignore previous instructions", "system:", "jailbreak",
+ "forget your instructions", "act as if", "disregard"]
+```
+
+**Acceptance criteria:**
+- [ ] Query containing "ignore previous instructions" returns an error, not an LLM response
+- [ ] Second identical query returns `[Cache hit]` and the cached answer
+- [ ] After one turn, `assistant.history` has 2 entries (user + assistant)
+- [ ] `assistant.traces` has at least 2 entries after `answer()` completes
+
+---
+
+## Milestone 6: Observability
+
+**Goal:** Format the trace list into a readable report.
+
+**What to implement:**
+
+1. `format_trace_report()` — render traces as a formatted table
+
+**Expected output format:**
+```
+=== Trace Report ===
+[1] plan        | 342ms  | input: "What is RAG?" → output: "NEEDS_RAG: yes TOOLS:..."
+[2] rag         | 1204ms | input: "What is RAG?" → output: "RAG stands for Retrieval..."
+[3] generate    | 0ms    | input: "What is RAG?" → output: "RAG stands for Retrieval..."
+---
+Total: 1546ms across 3 steps
+```
+
+**Acceptance criteria:**
+- [ ] `format_trace_report([])` returns a non-empty string (empty report header)
+- [ ] `format_trace_report([AgentTrace(...)])` includes the step name
+- [ ] Total duration is the sum of all step durations
+
+---
+
+## Expected CLI Output
+
+When all milestones are complete:
+
+```
+$ python starter/solution.py "What is retrieval augmented generation?"
+
+Research Assistant ready. Processing query...
+
+RAG, or Retrieval Augmented Generation, is a technique that combines a
+retrieval system (like a vector search) with a generative language model.
+When a user asks a question, the system first retrieves relevant documents
+from a knowledge base, then passes them as context to the LLM to generate
+a grounded answer.
+
+=== Trace Report ===
+[1] plan        |  287ms | input: "What is retrieval augmented..." → output: "NEEDS_RAG: yes..."
+[2] rag         | 1432ms | input: "What is retrieval augmented..." → output: "RAG, or Retrieval..."
+[3] generate    |    0ms | input: "What is retrieval augmented..." → output: "RAG, or Retrieval..."
+---
+Total: 1719ms across 3 steps
+```
+
+➡️ Next: [Quiz — Capstone Synthesis](./quiz)

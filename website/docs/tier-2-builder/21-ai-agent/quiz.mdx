@@ -1,0 +1,76 @@
+---
+title: "Quiz: Full AI Agent"
+sidebar_position: 5
+description: "Test your understanding of full agent architecture, error budgets, conversation memory, and idempotent tools."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz: Full AI Agent
+
+<Quiz
+  questions={[
+    {
+      id: "q1",
+      text: "An error budget in an agent means:",
+      options: [
+        "A) A fixed API cost limit per run",
+        "B) A counter that aborts the agent if too many consecutive tool errors occur",
+        "C) The memory allocation for tool outputs",
+        "D) The maximum output token limit"
+      ],
+      correct: 1,
+      explanation: "An error budget tracks consecutive tool failures. When the counter hits the threshold (e.g., 3 consecutive errors), the agent aborts gracefully. This prevents the agent from burning all its iterations hammering a broken tool, and gives the caller a clear signal that something is wrong in the environment."
+    },
+    {
+      id: "q2",
+      text: "Your agent sometimes forgets context from early in the conversation. This is because:",
+      options: [
+        "A) The model has a memory bug",
+        "B) Old messages were truncated from the context window",
+        "C) Tool use clears conversation memory",
+        "D) The system prompt is too long"
+      ],
+      correct: 1,
+      explanation: "LLMs have a finite context window. In long multi-step agent runs, the messages list can exceed the context limit. When messages are truncated to fit, the model loses access to earlier reasoning and observations. Solutions include: summarizing old messages, using a sliding window, or storing key facts in a dedicated memory tool."
+    },
+    {
+      id: "q3",
+      text: "Why should agent tools be idempotent when possible?",
+      options: [
+        "A) Idempotent tools execute faster",
+        "B) If a tool is called twice by mistake, the side effect doesn't double — e.g., you don't charge a credit card twice",
+        "C) Idempotent tools are easier to test",
+        "D) The Anthropic API requires idempotent tools"
+      ],
+      correct: 1,
+      explanation: "Agent bugs (like loop errors or retry logic) can cause the same tool to be called multiple times. For read operations this is fine. But for write operations (send email, charge payment, create record), a duplicate call doubles the side effect. Making tools idempotent — e.g., by using idempotency keys or checking for existing state before writing — prevents this class of bug."
+    },
+    {
+      id: "q4",
+      text: "Your agent calls a web search tool and gets no results. Best behavior:",
+      options: [
+        "A) Crash the agent with an exception",
+        "B) Return the empty result as a tool_result so the model can try different search terms or answer from knowledge",
+        "C) Return an empty string and hope the model figures it out",
+        "D) Retry the same search 100 times"
+      ],
+      correct: 1,
+      explanation: "An empty result is still a valid observation. Return it as a tool_result (e.g., 'No results found for: ...') and let the model decide what to do next. Claude is good at adapting — it might try a different query, broaden the search, or answer from its training data. The key insight: tool results are observations, not commands. The model decides how to react."
+    },
+    {
+      id: "q5",
+      text: "What's the most important part of an agent system prompt?",
+      options: [
+        "A) The agent's name and persona",
+        "B) A clear description of what the agent CAN and CANNOT do, and what to do when it's uncertain",
+        "C) The desired response format",
+        "D) The model version to use"
+      ],
+      correct: 1,
+      explanation: "Capability boundaries are the most critical part of an agent system prompt. If the model doesn't know what tools exist, it may hallucinate non-existent tools. If it doesn't know what it cannot do, it may attempt dangerous actions. Explicitly listing capabilities AND constraints, plus instructions for uncertainty ('if you cannot find information, say so'), produces dramatically more reliable agents than a vague prompt."
+    }
+  ]}
+  chapterId="tier2-ch21"
+  passMark={70}
+/>

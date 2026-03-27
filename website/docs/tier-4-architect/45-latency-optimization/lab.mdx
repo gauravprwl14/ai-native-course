@@ -1,0 +1,118 @@
+---
+title: "Lab: LLM Latency Profiler"
+sidebar_position: 4
+description: "Build a latency profiler that measures TTFT and total latency, runs N requests, and computes p50/p95/p99 statistics."
+---
+
+# Lab: LLM Latency Profiler
+
+## Goal
+
+Build a benchmarking tool for LLM pipelines that:
+
+1. Measures TTFT (time to first token) and total latency per request
+2. Runs a list of prompts through any LLM caller
+3. Computes p50, p95, p99, mean, min, max statistics
+4. Formats a readable summary report
+
+## Setup
+
+```bash
+cd curriculum/tier-4-architect/45-latency-optimization/lab
+# No dependencies — stdlib only (time, statistics, dataclasses)
+```
+
+## Starter File
+
+Open `starter/solution.py`. You'll implement:
+
+| Function | Description |
+|---|---|
+| `measure_latency(llm_caller, prompt)` | Call `llm_caller(prompt)`, measure TTFT and total time |
+| `run_benchmark(llm_caller, prompts)` | Run all prompts, collect `LatencyMeasurement` objects |
+| `compute_stats(measurements, metric)` | Compute p50/p95/p99/mean/min/max for a given metric |
+| `format_report(measurements)` | Format a text table report |
+
+## The `llm_caller` Contract
+
+Your `llm_caller(prompt)` function must return a tuple:
+
+```python
+(response_text: str, ttft_ms: float)
+```
+
+- `response_text`: the full response string
+- `ttft_ms`: time in milliseconds to first token (simulated or real)
+
+This keeps the profiler decoupled from any specific LLM client.
+
+## Step-by-Step
+
+### Step 1: `measure_latency()`
+
+```python
+def measure_latency(llm_caller, prompt):
+    start = time.perf_counter()
+    response, ttft_ms = llm_caller(prompt)
+    total_ms = (time.perf_counter() - start) * 1000
+    token_count = len(response.split())
+    return LatencyMeasurement(
+        prompt=prompt,
+        ttft_ms=ttft_ms,
+        total_ms=total_ms,
+        token_count=token_count,
+    )
+```
+
+### Step 2: `run_benchmark()`
+
+Call `measure_latency` for each prompt in the list. Return all measurements.
+
+### Step 3: `compute_stats()`
+
+Extract the metric values (e.g., `[m.total_ms for m in measurements]`), sort them, then use `statistics.quantiles` or index math:
+
+```python
+# For a sorted list of N values:
+p50_idx = int(0.50 * (n - 1))
+p95_idx = int(0.95 * (n - 1))
+p99_idx = int(0.99 * (n - 1))
+```
+
+### Step 4: `format_report()`
+
+Call `compute_stats` for both `total_ms` and `ttft_ms`. Build a text report like:
+
+```
+LLM Latency Benchmark Report
+=============================
+Requests: 10
+
+Metric     |   p50 |   p95 |   p99 |  Mean |   Min |   Max
+-----------|-------|-------|-------|-------|-------|------
+total_ms   | 423.1 | 891.2 | 923.4 | 501.3 | 312.4 | 934.1
+ttft_ms    |  98.2 | 201.3 | 234.1 | 112.4 |  78.1 | 241.2
+```
+
+## Running Tests
+
+```bash
+pytest tests/test_solution.py -v
+```
+
+No API calls — tests use a deterministic mock `llm_caller`.
+
+## Expected Output
+
+```
+LLM Latency Benchmark Report
+=============================
+Requests: 5
+
+Metric     |   p50 |   p95 |   p99 |  Mean |   Min |   Max
+-----------|-------|-------|-------|-------|-------|------
+total_ms   | 200.0 | 400.0 | 400.0 | 240.0 | 100.0 | 400.0
+ttft_ms    |  50.0 |  80.0 |  80.0 |  54.0 |  30.0 |  80.0
+```
+
+➡️ Next: [Quiz](./quiz.mdx)

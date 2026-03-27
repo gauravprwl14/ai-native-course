@@ -1,0 +1,66 @@
+---
+title: "Lab: Build a ReAct Agent from Scratch"
+sidebar_position: 4
+description: "Implement the ReActAgent class with the full observe-think-act loop, tool execution, and error handling."
+---
+
+# Lab: Build a ReAct Agent from Scratch
+
+## Goal
+
+Implement the `ReActAgent` class that drives the ReAct loop using the Anthropic SDK's native `tool_use` mechanism.
+
+## What You'll Build
+
+A `ReActAgent` class with:
+
+| Method | Description |
+|--------|-------------|
+| `__init__(tools, tool_functions, max_iterations=10)` | Initialize with tool definitions, callable functions, and a safety limit |
+| `_execute_tool(tool_name, tool_input)` | Safely call a registered tool; return result string or error string |
+| `run(task)` | Drive the full ReAct loop; return the final answer string |
+
+## Starter File
+
+Location: `curriculum/tier-2-builder/20-agentic-loop/lab/starter/solution.py`
+
+The starter file has `NotImplementedError` stubs with `# TODO:` comments guiding each implementation step.
+
+## Acceptance Criteria
+
+- `_execute_tool("calculator", {"expression": "2+2"})` returns `"4"`
+- `_execute_tool("unknown_tool", {})` returns a string starting with `"Unknown tool:"`
+- `_execute_tool` with a crashing function returns a string starting with `"Tool error:"`
+- `run("What is 7 * 8?")` returns a non-empty string
+- `run(...)` stops and returns the model's text when `stop_reason == "end_turn"`
+- `run(...)` calls `_execute_tool` and appends the result when `stop_reason == "tool_use"`
+- `run(...)` returns a "max iterations" message when the loop limit is exceeded
+- All 7 tests pass: `pytest tests/ -v`
+
+## How to Run
+
+```bash
+# From the lab root
+cd curriculum/tier-2-builder/20-agentic-loop/lab
+
+# Run tests against your starter implementation
+pytest tests/ -v
+
+# Run manually
+cd starter
+python solution.py
+```
+
+## Hints
+
+1. In `_execute_tool`: check `self.tool_functions` first, then wrap the call in `try/except`.
+2. In `run`: the loop is `for i in range(self.max_iterations)`. Break conditions: `stop_reason == "end_turn"` → return text. `stop_reason == "tool_use"` → call `_execute_tool`, append two messages, continue.
+3. The assistant message must include the full `response.content` list (not just the tool_use block).
+4. The tool result message format is:
+   ```python
+   {"role": "user", "content": [{"type": "tool_result", "tool_use_id": id, "content": result}]}
+   ```
+
+---
+
+➡️ Next: [Quiz — Agentic Loop](./quiz.mdx)

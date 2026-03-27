@@ -1,0 +1,79 @@
+---
+title: "Lab: PII Detection and Redaction"
+sidebar_position: 4
+description: "Implement detect_pii, redact_pii, pseudonymize, and restore_pseudonyms for safe LLM processing."
+---
+
+# Lab: PII Detection and Redaction
+
+## Goal
+
+Build a PII handling module that detects, redacts, and pseudonymizes PII before it reaches an LLM API. All functions are pure string operations — no API calls needed.
+
+## What You'll Build
+
+| Function | Description |
+|----------|-------------|
+| `detect_pii(text)` | Run all `PII_PATTERNS` against text. Returns `{pii_type: [matched_values]}` |
+| `redact_pii(text)` | Replace all PII with `[TYPE_REDACTED]` labels. Returns redacted string |
+| `pseudonymize(text)` | Replace PII with consistent placeholders like `email_1`. Returns `(text, mapping)` |
+| `restore_pseudonyms(text, mapping)` | Reverse pseudonymization using the mapping dict. Returns original text |
+
+## Starter File
+
+Location: `curriculum/tier-3-advanced/38-pii-handling/lab/starter/solution.py`
+
+```python
+PII_PATTERNS = {
+    "email": r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b",
+    "phone": r"\b(\+1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b",
+    "ssn": r"\b\d{3}-\d{2}-\d{4}\b",
+    "credit_card": r"\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b",
+}
+
+def detect_pii(text: str) -> dict[str, list[str]]:
+    # TODO: for each pattern, re.findall. Add to results if non-empty.
+    raise NotImplementedError()
+
+def redact_pii(text: str) -> str:
+    # TODO: re.sub each pattern with f"[{pii_type.upper()}_REDACTED]"
+    raise NotImplementedError()
+
+def pseudonymize(text: str) -> tuple[str, dict]:
+    # TODO: for each PII found, assign consistent placeholder (email_1, email_2...).
+    # Return (pseudonymized_text, {placeholder: original}).
+    raise NotImplementedError()
+
+def restore_pseudonyms(text: str, mapping: dict) -> str:
+    # TODO: for each (placeholder, original) in mapping, str.replace
+    raise NotImplementedError()
+```
+
+## Acceptance Criteria
+
+- `detect_pii("Email me at john@example.com")` returns `{"email": ["john@example.com"]}`
+- `detect_pii("SSN: 123-45-6789")` returns `{"ssn": ["123-45-6789"]}`
+- `redact_pii("john@example.com")` returns a string containing `"[EMAIL_REDACTED]"`
+- `redact_pii` does not contain the original email after redaction
+- `pseudonymize("john@example.com and jane@example.com")` maps each email to a unique placeholder
+- `restore_pseudonyms(pseudonymized, mapping)` restores original values
+- `detect_pii("Hello, nice to meet you.")` returns `{}` (no PII)
+- All 8 tests pass: `pytest tests/ -v`
+
+## How to Run
+
+```bash
+cd curriculum/tier-3-advanced/38-pii-handling/lab
+pytest tests/ -v
+```
+
+## Hints
+
+1. `detect_pii`: `re.findall` can return tuples if the pattern has capture groups. Clean this: `m if isinstance(m, str) else m[0]`.
+2. `redact_pii`: iterate `PII_PATTERNS.items()` and apply `re.sub` sequentially.
+3. `pseudonymize`: maintain two dicts: `original → placeholder` (for deduplication) and `placeholder → original` (the mapping to return).
+4. `restore_pseudonyms`: a simple loop: `result = result.replace(placeholder, original)` for each entry.
+
+---
+
+Next: [Quiz — PII Handling](./quiz.mdx)

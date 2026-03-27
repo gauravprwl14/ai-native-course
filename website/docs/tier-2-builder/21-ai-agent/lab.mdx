@@ -1,0 +1,69 @@
+---
+title: "Lab: Build a Multi-tool Agent"
+sidebar_position: 4
+description: "Extend the ReActAgent to a full FullAgent with four tools, an error budget, and structured output."
+---
+
+# Lab: Build a Multi-tool Agent
+
+## Goal
+
+Build `FullAgent` — a complete AI agent with four tools, a system prompt, an error budget, and a structured `AgentResult` return type.
+
+## What You'll Build
+
+### Four Tools
+
+| Tool | What it does |
+|------|-------------|
+| `web_search(query)` | Returns mock search results |
+| `calculator(expression)` | Evaluates a Python math expression |
+| `read_file(path)` | Returns mock file content |
+| `take_note(note)` | Appends a note to an internal list; returns confirmation |
+
+### `FullAgent` Class
+
+| Component | Description |
+|-----------|-------------|
+| `__init__(max_iterations=10, max_consecutive_errors=3)` | Initialize with safety limits; build tool registry internally |
+| `_execute_tool(tool_name, tool_input)` | Execute from registry; catch all exceptions |
+| `run(task)` | Full ReAct loop with error budget; return `AgentResult` |
+| `get_notes()` | Return the list of notes taken during the run |
+
+### `AgentResult` Dataclass
+
+Fields: `success: bool`, `answer: str`, `steps_taken: int`, `tool_calls: list[dict]`, `error: str | None`
+
+## Acceptance Criteria
+
+- `_execute_tool("calculator", {"expression": "2**8"})` returns `"256"`
+- `_execute_tool("take_note", {"note": "hello"})` returns a confirmation string and stores the note
+- `_execute_tool("unknown", {})` returns an error string
+- `run(...)` returns an `AgentResult` instance
+- `AgentResult.success` is `True` when agent completes normally
+- `AgentResult.success` is `False` when max_iterations is exceeded
+- Agent aborts with `success=False` after `max_consecutive_errors` consecutive tool errors
+- `get_notes()` returns the list of notes added via `take_note`
+- All 8 tests pass: `pytest tests/ -v`
+
+## How to Run
+
+```bash
+cd curriculum/tier-2-builder/21-ai-agent/lab
+pytest tests/ -v
+
+# Run manually
+cd starter
+python solution.py
+```
+
+## Hints
+
+1. `take_note` needs to write to `self.notes` — but the tool function is defined inside `__init__`. Use a closure or a method reference to capture `self`.
+2. The error budget resets on any successful tool call. Only consecutive errors trigger the abort.
+3. `AgentResult.success = False` for both max_iterations and error budget aborts.
+4. Store each tool call in a `tool_calls` list: `{"tool": name, "input": input_dict, "result": result_str}`.
+
+---
+
+➡️ Next: [Quiz — Full AI Agent](./quiz.mdx)

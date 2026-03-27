@@ -1,0 +1,81 @@
+---
+title: "Quiz: RLHF & DPO"
+sidebar_position: 5
+description: "Test your understanding of the RLHF pipeline, reward models, DPO, and preference dataset construction."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz 31 — RLHF & DPO
+
+<Quiz
+  chapterId="tier3-ch31"
+  passMark={70}
+  questions={[
+    {
+      id: "q1",
+      text: "What are the three stages of the RLHF pipeline, in order?",
+      points: 2,
+      options: [
+        "A) Pretraining → Fine-tuning → Deployment",
+        "B) SFT → Reward Model Training → PPO",
+        "C) Tokenization → Embedding → Generation",
+        "D) Data collection → RLHF → DPO"
+      ],
+      correct: 1,
+      explanation: "RLHF has three stages: (1) Supervised Fine-Tuning (SFT) on instruction data, (2) Reward Model training on human preference pairs, and (3) PPO — a reinforcement learning loop that updates the policy to maximize the reward model's scores."
+    },
+    {
+      id: "q2",
+      text: "What does a reward model output, and what training signal does it use?",
+      points: 2,
+      options: [
+        "A) A text response; trained on instruction-following data",
+        "B) A token probability distribution; trained on next-token prediction",
+        "C) A scalar score; trained on (prompt, chosen, rejected) preference pairs to rank chosen above rejected",
+        "D) A vector embedding; trained on contrastive pairs"
+      ],
+      correct: 2,
+      explanation: "A reward model outputs a single scalar score representing response quality. It is trained on preference pairs where the loss encourages score(chosen) > score(rejected). During PPO, this score becomes the reward signal that steers the policy model."
+    },
+    {
+      id: "q3",
+      text: "How does DPO simplify the RLHF alignment process?",
+      points: 2,
+      options: [
+        "A) DPO uses a smaller model, reducing compute costs",
+        "B) DPO skips the SFT stage and trains directly from scratch",
+        "C) DPO eliminates the need for a reward model and PPO by fine-tuning directly on preference pairs with a special loss",
+        "D) DPO replaces human feedback with automated metrics like ROUGE"
+      ],
+      correct: 2,
+      explanation: "DPO (Direct Preference Optimization) reformulates the RL alignment objective as a supervised learning problem. It uses the same (prompt, chosen, rejected) data but directly updates the model to increase the probability of chosen and decrease the probability of rejected, relative to the reference SFT model. No reward model or PPO loop is needed."
+    },
+    {
+      id: "q4",
+      text: "Which of the following is a valid DPO preference pair?",
+      points: 1,
+      options: [
+        "A) {\"input\": \"What is Python?\", \"output\": \"A programming language.\"}",
+        "B) {\"prompt\": \"What is Python?\", \"chosen\": \"Python is a high-level, interpreted programming language known for readability.\", \"rejected\": \"Python is a thing.\"}",
+        "C) {\"prompt\": \"What is Python?\", \"chosen\": \"A programming language.\", \"rejected\": \"A programming language.\"}",
+        "D) {\"question\": \"What is Python?\", \"good\": \"A language.\", \"bad\": \"\"}"
+      ],
+      correct: 1,
+      explanation: "A valid DPO pair must have exactly three keys: 'prompt', 'chosen', and 'rejected'. The chosen and rejected responses must be different and non-empty. Option A uses the wrong keys, option C has chosen == rejected (no learning signal), and option D uses wrong keys with an empty rejected field."
+    },
+    {
+      id: "q5",
+      text: "When is DPO preferred over full RLHF in practice?",
+      points: 2,
+      options: [
+        "A) Only when you have fewer than 1000 preference pairs",
+        "B) When you need the absolute highest possible alignment quality regardless of complexity",
+        "C) When you want a simpler, more stable alignment training process and competitive quality is sufficient",
+        "D) DPO is never preferred — RLHF always produces better results"
+      ],
+      correct: 2,
+      explanation: "DPO is preferred when you want alignment without the complexity of training and maintaining a separate reward model and PPO loop. DPO is more stable, easier to reproduce, and produces competitive alignment quality for most use cases. RLHF with PPO may have a slightly higher quality ceiling but at significantly higher implementation cost."
+    }
+  ]}
+/>

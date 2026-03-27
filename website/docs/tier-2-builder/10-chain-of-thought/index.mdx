@@ -1,0 +1,44 @@
+---
+title: "Chapter 10: Chain-of-Thought Prompting"
+sidebar_position: 1
+description: "Unlock complex reasoning in LLMs with chain-of-thought. Teach the model to show its work step by step."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 10 — Chain-of-Thought Prompting
+
+## What You'll Learn
+
+- What chain-of-thought (CoT) prompting is and why it works
+- Zero-shot CoT: the single phrase that unlocks better reasoning
+- Few-shot CoT: providing worked examples to guide the model
+- When CoT helps — and when it is a waste of tokens
+- Self-consistency: generating multiple reasoning chains and voting
+- Limitations of CoT and how to work around them
+
+## Prerequisites
+
+- Chapter 09 (Zero/Few-shot Prompting) — you should understand how examples influence model behaviour
+- Python 3.10+, `anthropic` package installed
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 25 min |
+| Patterns | 15 min |
+| Lab | 30 min |
+| Quiz | 10 min |
+| **Total** | **~80 min** |
+
+## How This Connects
+
+Chain-of-thought is the bridge between simple prompting and advanced reasoning systems. Once you understand CoT, you can see how agents (Chapter 20–21) use the same principle — generating intermediate steps — but in a loop. Structured output (Chapter 12) is often needed to cleanly extract the final answer from a CoT response.
+
+<ConceptMap
+  current="chain-of-thought"
+  related={["zero-few-shot", "structured-output", "agents", "reflection", "planning"]}
+/>
+
+➡️ Next: [Concepts — Chain-of-Thought Prompting](./concepts.mdx)

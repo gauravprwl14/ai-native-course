@@ -1,0 +1,44 @@
+---
+title: "Chapter 33: LLM-as-Judge"
+sidebar_position: 1
+description: "Use LLMs to evaluate LLM outputs at scale. Build rubric-based judges, pairwise comparison judges, and calibrate for bias."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 33 — LLM-as-Judge
+
+## What You'll Learn
+
+- How to build a rubric-based single-answer judge that scores on multiple dimensions
+- How to build a pairwise judge for A/B comparison of model outputs
+- The major biases in LLM judging (position bias, verbosity bias, self-enhancement bias)
+- How to mitigate position bias by swapping response order and averaging
+- How to calibrate a judge against human labels
+
+## Prerequisites
+
+- Chapter 32 (Evals) — you should understand the eval pipeline and why automatic evaluation matters
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 25 min |
+| Patterns | 20 min |
+| Lab | 30 min |
+| Quiz | 10 min |
+| **Total** | **~85 min** |
+
+## How This Connects
+
+Chapter 32 gave you exact match and ROUGE-L — metrics for tasks where the correct answer is a specific string. But many LLM tasks don't have a single correct answer. "Is this customer support response helpful?" can't be answered with ROUGE. "Which of these two responses is better?" requires judgment.
+
+LLM-as-Judge is the industry's answer: use a capable LLM with a carefully designed rubric to evaluate these subjective dimensions at scale. Used by OpenAI (in MT-Bench), Anthropic, and virtually every team that evaluates chat-model outputs in production.
+
+<ConceptMap
+  current="llm-as-judge"
+  related={["evals", "rag", "re-ranking", "hallucination-detection"]}
+/>
+
+Next: [Concepts — LLM-as-Judge](./concepts.mdx)

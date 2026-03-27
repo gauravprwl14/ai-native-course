@@ -1,0 +1,76 @@
+---
+title: "Quiz: Agentic Loop"
+sidebar_position: 5
+description: "Test your understanding of the ReAct pattern, agentic loops, stopping conditions, and error recovery."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz: Agentic Loop
+
+<Quiz
+  questions={[
+    {
+      id: "q1",
+      text: "In ReAct, what does 'Re' stand for?",
+      options: [
+        "A) Repetition",
+        "B) Reasoning",
+        "C) Retrieval",
+        "D) Response"
+      ],
+      correct: 1,
+      explanation: "ReAct = Reasoning + Acting. The 'Re' stands for Reasoning — the model thinks out loud (Thought) before deciding on an Action. This interleaving of reasoning and acting is what makes ReAct effective for multi-step tasks."
+    },
+    {
+      id: "q2",
+      text: "Your ReAct agent is calling the same tool in an infinite loop. You need to:",
+      options: [
+        "A) Add more tools",
+        "B) Add a max_iterations counter and break when exceeded",
+        "C) Use higher temperature",
+        "D) Remove tool use"
+      ],
+      correct: 1,
+      explanation: "A max_iterations counter is the standard safety mechanism. Without it, a confused agent (or a model caught in a reasoning rut) will loop forever, burning API budget. Set a hard limit (e.g., 10) and return a graceful failure message when it's hit."
+    },
+    {
+      id: "q3",
+      text: "Why must the Observation (tool result) be added back to the conversation before the next Think step?",
+      options: [
+        "A) It's an API requirement",
+        "B) The model needs the result in context to reason about what to do next",
+        "C) Tools are stateless so results are lost otherwise",
+        "D) Observations are optional — the model can infer the result"
+      ],
+      correct: 1,
+      explanation: "LLMs are stateless. Every call to the API starts fresh from the messages you provide. If you don't append the tool result to the conversation, the model has no idea what the tool returned — it'll either repeat the same action or hallucinate an answer. The messages list IS the agent's memory."
+    },
+    {
+      id: "q4",
+      text: "Your agent errors out when a tool fails. Fix:",
+      options: [
+        "A) Ignore errors",
+        "B) Catch tool errors and return an error observation so the model can recover",
+        "C) Remove the failing tool",
+        "D) Increase max_tokens"
+      ],
+      correct: 1,
+      explanation: "Wrap every tool call in try/except and return an error string as the observation (e.g., 'Error: connection timeout'). The model receives the error in context and can adapt — retry with different args, try a different tool, or tell the user it couldn't complete the task. This is the error recovery pattern."
+    },
+    {
+      id: "q5",
+      text: "ReAct is better than a single tool call for:",
+      options: [
+        "A) Simple lookups where one tool call is sufficient",
+        "B) Multi-step tasks where each step depends on the result of the previous",
+        "C) Factual questions that don't need tools",
+        "D) Text classification tasks"
+      ],
+      correct: 1,
+      explanation: "ReAct's value is in multi-step, dynamic tasks. If you know upfront that you need exactly one tool call, a simple tool call (Chapter 19) is simpler and cheaper. ReAct shines when the number of steps is unknown and each step's input depends on the previous step's output — like research tasks, debugging, or data gathering pipelines."
+    }
+  ]}
+  chapterId="tier2-ch20"
+  passMark={70}
+/>

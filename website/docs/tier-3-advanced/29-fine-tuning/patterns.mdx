@@ -1,0 +1,196 @@
+---
+title: "Patterns: Fine-tuning Basics"
+sidebar_position: 3
+description: "JSONL dataset generation, dataset validation, train/val split, and common fine-tuning anti-patterns."
+---
+
+# Patterns: Fine-tuning Basics
+
+## Pattern 1: Generating Synthetic Training Data
+
+When you don't have enough real examples, generate synthetic ones — then review them. Use a strong model (GPT-4o, Claude 3.5 Sonnet) to produce examples in the style you want.
+
+```python
+import json
+from anthropic import Anthropic
+
+client = Anthropic()
+
+def generate_training_example(topic: str) -> dict:
+    """Generate one JSONL training example for a customer service bot."""
+    response = client.messages.create(
+        model="claude-3-5-sonnet-20241022",
+        max_tokens=512,
+        system=(
+            "You generate customer service training examples. "
+            "Respond with a JSON object in this exact format: "
+            '{"user": "customer question", "assistant": "formal Portuguese response"}'
+        ),
+        messages=[{
+            "role": "user",
+            "content": f"Generate a customer service example about: {topic}"
+        }]
+    )
+    data = json.loads(response.content[0].text)
+    return {
+        "messages": [
+            {"role": "user", "content": data["user"]},
+            {"role": "assistant", "content": data["assistant"]}
+        ]
+    }
+
+example = generate_training_example("return policy")
+print(json.dumps(example, ensure_ascii=False, indent=2))
+```
+
+**When to use**: Bootstrapping a dataset when you have < 50 real examples. Always review synthetic data before training.
+
+---
+
+## Pattern 2: Validating a JSONL Dataset
+
+Before uploading, validate every example. A single malformed line causes the whole upload to fail.
+
+```python
+def validate_jsonl_example(example: dict) -> tuple[bool, str]:
+    """
+    Validate a single fine-tuning example.
+    Returns (is_valid, error_message).
+    """
+    if not isinstance(example, dict):
+        return False, "Example must be a dict"
+
+    if "messages" not in example:
+        return False, "Missing 'messages' key"
+
+    messages = example["messages"]
+    if not isinstance(messages, list) or len(messages) < 2:
+        return False, "'messages' must be a list with at least 2 items"
+
+    for i, msg in enumerate(messages):
+        if not isinstance(msg, dict):
+            return False, f"Message {i} must be a dict"
+        if "role" not in msg or "content" not in msg:
+            return False, f"Message {i} missing 'role' or 'content'"
+        if msg["role"] not in {"user", "assistant", "system"}:
+            return False, f"Message {i} has invalid role: {msg['role']}"
+        if not isinstance(msg["content"], str) or not msg["content"].strip():
+            return False, f"Message {i} has empty or non-string content"
+
+    # Must end with an assistant message (what the model learns to produce)
+    if messages[-1]["role"] != "assistant":
+        return False, "Last message must be from 'assistant'"
+
+    return True, ""
+
+
+# Validate a batch
+examples = [...]  # your dataset
+valid, invalid = [], []
+for ex in examples:
+    ok, error = validate_jsonl_example(ex)
+    (valid if ok else invalid).append((ex, error))
+
+print(f"Valid: {len(valid)} | Invalid: {len(invalid)}")
+for ex, err in invalid:
+    print(f"  ERROR: {err}")
+```
+
+---
+
+## Pattern 3: Train/Validation Split
+
+Shuffle, then split. Never sort before splitting — it can introduce systematic bias.
+
+```python
+import random
+import json
+from pathlib import Path
+
+def split_dataset(
+    examples: list[dict],
+    val_ratio: float = 0.1,
+    seed: int = 42
+) -> tuple[list[dict], list[dict]]:
+    """
+    Shuffle and split examples into train and validation sets.
+    Returns (train_examples, val_examples).
+    """
+    rng = random.Random(seed)
+    shuffled = examples.copy()
+    rng.shuffle(shuffled)
+    split_idx = max(1, int(len(shuffled) * (1 - val_ratio)))
+    return shuffled[:split_idx], shuffled[split_idx:]
+
+
+def save_jsonl(examples: list[dict], path: Path) -> None:
+    """Save a list of dicts to a JSONL file."""
+    with open(path, "w", encoding="utf-8") as f:
+        for example in examples:
+            f.write(json.dumps(example, ensure_ascii=False) + "\n")
+
+
+# Usage
+all_examples = [...]  # your validated dataset
+train, val = split_dataset(all_examples, val_ratio=0.1)
+save_jsonl(train, Path("train.jsonl"))
+save_jsonl(val, Path("val.jsonl"))
+print(f"Train: {len(train)} | Val: {len(val)}")
+```
+
+---
+
+## Pattern 4: Dataset Balance Check
+
+Check that your dataset isn't dominated by a single topic or response type.
+
+```python
+from collections import Counter
+
+def check_dataset_balance(examples: list[dict]) -> dict:
+    """
+    Rough balance check: count assistant response length distribution.
+    A well-balanced dataset has varied response lengths.
+    """
+    lengths = []
+    for ex in examples:
+        assistant_msgs = [m for m in ex["messages"] if m["role"] == "assistant"]
+        for msg in assistant_msgs:
+            lengths.append(len(msg["content"].split()))
+
+    if not lengths:
+        return {"error": "No assistant messages found"}
+
+    avg = sum(lengths) / len(lengths)
+    min_len = min(lengths)
+    max_len = max(lengths)
+
+    # Bucket into short/medium/long
+    buckets = Counter(
+        "short" if l < 20 else "medium" if l < 100 else "long"
+        for l in lengths
+    )
+    return {
+        "count": len(lengths),
+        "avg_words": round(avg, 1),
+        "min_words": min_len,
+        "max_words": max_len,
+        "length_distribution": dict(buckets),
+    }
+```
+
+---
+
+## Anti-Patterns
+
+| Anti-Pattern | Why It's a Problem | Better Approach |
+|---|---|---|
+| **No validation before upload** | Malformed lines cause the whole upload to fail silently | Validate every example locally before uploading |
+| **Biased training data** | Model over-represents common patterns, performs poorly on edge cases | Audit topic distribution; deliberately add edge-case examples |
+| **Training on LLM output without review** | Model learns to reproduce the generator's mistakes and hallucinations | Always have a human review a sample before training |
+| **Single topic dataset** | Model overfits to that topic, degrades on others | Diversify examples across all the use cases you care about |
+| **Not monitoring validation loss** | Model overfits without detection | Always upload a val split; stop training when val loss plateaus |
+
+---
+
+Next: [Lab — Prepare a Fine-tuning Dataset](./lab.mdx)

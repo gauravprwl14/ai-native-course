@@ -1,0 +1,150 @@
+---
+title: "Concepts: PII Handling"
+sidebar_position: 2
+description: "Understand PII types, regex detection, redaction, pseudonymization, re-identification, and compliance requirements."
+---
+
+# Concepts: PII Handling
+
+## The Problem
+
+A user submits this message to your AI support assistant:
+
+> "Hi, my name is John Smith, my SSN is 123-45-6789, and I need help with my account. My email is john.smith@example.com and my credit card 4111-1111-1111-1111 was charged incorrectly."
+
+You call the LLM API with this message verbatim. You just sent a real person's name, SSN, email, and credit card number to a third-party API. Even if you trust that API, you may have violated GDPR, HIPAA, or your own data processing agreement.
+
+---
+
+## The Intuition: Anonymise Before Sending
+
+The fix is to process the text *before* it reaches the LLM:
+
+1. **Detect** what types of PII are present
+2. **Redact** (replace with `[EMAIL_REDACTED]`) or **pseudonymize** (replace with a consistent fake)
+3. **Send the cleaned text** to the LLM
+4. **Re-identify** if needed: swap pseudonyms back for the user's response
+
+The user sees a complete response. The LLM never saw real PII.
+
+---
+
+## How It Works
+
+### 1. PII Types
+
+| Type | Example | Detection Method |
+|------|---------|-----------------|
+| **Email** | john@example.com | Regex |
+| **Phone** | +1 (555) 123-4567 | Regex |
+| **SSN** | 123-45-6789 | Regex |
+| **Credit Card** | 4111-1111-1111-1111 | Regex (Luhn check optional) |
+| **Name** | John Smith | NER model (not covered here) |
+| **IP Address** | 192.168.1.1 | Regex |
+
+For structured PII (emails, phone numbers, SSNs, credit cards), regex is fast and accurate. For unstructured PII (names, organisations, addresses), you need a Named Entity Recognition (NER) model.
+
+### 2. Detection
+
+```python
+PII_PATTERNS = {
+    "email": r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b",
+    "ssn":   r"\b\d{3}-\d{2}-\d{4}\b",
+}
+```
+
+Run each pattern against the input text. Return a dict of `{pii_type: [matched_values]}`.
+
+### 3. Redaction
+
+Replace each PII match with a type label: `[EMAIL_REDACTED]`, `[SSN_REDACTED]`, `[PHONE_REDACTED]`.
+
+```
+Input:  "My email is john@example.com and my SSN is 123-45-6789."
+Output: "My email is [EMAIL_REDACTED] and my SSN is [SSN_REDACTED]."
+```
+
+Redaction is one-way: you cannot get the original values back from the redacted text. Use this when the LLM doesn't need the actual values.
+
+### 4. Pseudonymization
+
+Replace each unique PII value with a consistent placeholder (e.g., `email_1`, `phone_1`). The same value always maps to the same placeholder within a processing context. This allows the LLM to reason about relationships ("email_1 sent a message to email_2") without seeing real values.
+
+```python
+mapping = {}
+counter = {}
+
+def pseudonymize_value(value: str, pii_type: str) -> str:
+    if value not in mapping:
+        count = counter.get(pii_type, 0) + 1
+        counter[pii_type] = count
+        mapping[value] = f"{pii_type}_{count}"
+    return mapping[value]
+```
+
+The `mapping` dictionary lets you re-identify after the LLM call.
+
+### 5. Re-identification
+
+After the LLM produces a response (using pseudonyms), swap the pseudonyms back for the original values:
+
+```
+LLM Response: "The account for email_1 has been updated."
+After re-id:  "The account for john@example.com has been updated."
+```
+
+---
+
+## Diagram: PII Handling Pipeline
+
+```mermaid
+flowchart LR
+    U([User Input with PII]) --> D[PII Detector]
+    D --> R[Redact / Pseudonymize]
+    R --> L[LLM API]
+    L --> RE[Re-identify]
+    RE --> U2([Response to User])
+    D --> M[(Mapping Store)]
+    M --> RE
+```
+
+---
+
+## Key Terms
+
+| Term | Definition |
+|------|-----------|
+| **PII** | Personally Identifiable Information — any data that can identify a specific individual |
+| **Redaction** | Replacing PII with a label; one-way (irreversible) |
+| **Pseudonymization** | Replacing PII with consistent fake values; reversible using a mapping |
+| **GDPR** | EU General Data Protection Regulation — requires PII to be handled with consent and purpose limitation |
+| **NER** | Named Entity Recognition — ML model that extracts entities (names, orgs, locations) from text |
+| **Re-identification** | Restoring original PII values from pseudonymized text using a stored mapping |
+
+---
+
+## Interview Angle
+
+**"How would you prevent PII from being sent to an LLM API?"**
+
+Three-step pipeline:
+1. **Detect** structured PII using regex patterns (email, phone, SSN, credit card). For unstructured PII (names), use a NER model.
+2. **Pseudonymize** before sending — replace with consistent placeholders like `email_1`. Store the mapping locally; never send it to the API.
+3. **Re-identify** after the response — swap placeholders back before returning to the user.
+
+Redaction is simpler but the LLM loses context. Pseudonymization preserves the structure and relationships in the text while keeping real values out of the API call.
+
+---
+
+## Common Mistakes
+
+| Mistake | What Goes Wrong | Fix |
+|---------|----------------|-----|
+| Logging prompts with PII | Logs become a PII store; violates data retention rules | Redact PII before logging; store only hashed values or type labels |
+| Fine-tuning on user data without PII removal | Training data includes real emails, SSNs | Always run PII detection before creating fine-tuning datasets |
+| Only detecting one PII type | An email slips through while SSNs are blocked | Run all patterns; treat detection as a multi-label classifier |
+| Assuming regex catches all PII | Names, addresses, and custom identifiers are not regex-detectable | Combine regex with NER for complete coverage |
+
+---
+
+Next: [Patterns — PII Handling](./patterns.mdx)

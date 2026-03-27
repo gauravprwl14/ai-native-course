@@ -1,0 +1,120 @@
+---
+title: "Quiz: Model Context Protocol"
+sidebar_position: 5
+description: "Test your understanding of MCP architecture, primitives, transport options, and how MCP relates to function calling."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz 41 — Model Context Protocol
+
+<Quiz
+  chapterId="tier4-ch41"
+  passMark={70}
+  questions={[
+    {
+      id: "q1",
+      text: "What is the primary problem that MCP (Model Context Protocol) solves?",
+      points: 1,
+      options: [
+        "A) It makes LLMs faster by caching tool results",
+        "B) It provides a standard protocol so AI hosts and data/tool providers don't have to build custom one-off integrations",
+        "C) It replaces the OpenAI function calling API with a better format",
+        "D) It encrypts all data sent to and from LLMs"
+      ],
+      correct: 1,
+      explanation: "Before MCP, every AI application had to build its own custom integration layer for each tool or data source. MCP is a standard protocol — like USB-C for AI integrations — so a tool server written once can be used by any MCP-compatible host without modification."
+    },
+    {
+      id: "q2",
+      text: "Which of the following correctly describes the three MCP primitives?",
+      points: 2,
+      options: [
+        "A) Queries (model asks questions), Mutations (model changes data), Subscriptions (model listens for events)",
+        "B) Tools (model calls functions), Resources (model reads data), Prompts (reusable prompt templates)",
+        "C) Functions (model calls code), Context (model reads documents), Instructions (model follows rules)",
+        "D) Actions (model does things), Memory (model stores things), Knowledge (model knows things)"
+      ],
+      correct: 1,
+      explanation: "MCP defines exactly three primitives: Tools (callable functions with side effects), Resources (read-only data sources identified by URI), and Prompts (server-defined, parameterisable prompt templates). These three categories cover the vast majority of AI integration needs."
+    },
+    {
+      id: "q3",
+      text: "In the MCP architecture, what is the role of the 'MCP client'?",
+      points: 1,
+      options: [
+        "A) The external database or API that provides data",
+        "B) The end user who types messages to the AI",
+        "C) A protocol client embedded in the host application that maintains a connection to one MCP server",
+        "D) The LLM model itself, which sends tool call requests"
+      ],
+      correct: 2,
+      explanation: "The MCP client is a component inside the host application (e.g., Claude Desktop). It manages the protocol connection to one MCP server — handling the initialize handshake, listing tools/resources, and routing tool calls. The host creates one client per configured server."
+    },
+    {
+      id: "q4",
+      text: "Your team wants to deploy an MCP server that multiple developers across the office network can share. Which transport should you use?",
+      points: 2,
+      options: [
+        "A) stdio — it's faster and more reliable",
+        "B) HTTP + SSE — it works over a network and supports remote server connections",
+        "C) WebSockets — the only transport MCP supports for remote connections",
+        "D) gRPC — used for all production MCP deployments"
+      ],
+      correct: 1,
+      explanation: "stdio transport requires the server to be a local subprocess on the same machine as the host — it communicates via stdin/stdout. HTTP + SSE transport works over a network, making it the right choice for shared, remote, or production MCP servers. SSE (Server-Sent Events) handles server-to-client notifications."
+    },
+    {
+      id: "q5",
+      text: "How does MCP relate to function calling (as covered in Chapter 19)?",
+      points: 2,
+      options: [
+        "A) MCP replaces function calling — you should use MCP instead",
+        "B) They are unrelated — MCP is for databases, function calling is for APIs",
+        "C) MCP is a transport and discovery standard; function calling is the LLM capability. The host translates MCP tool definitions into the LLM's native function calling format.",
+        "D) Function calling is a subset of MCP — MCP tools are just function calls with extra JSON"
+      ],
+      correct: 2,
+      explanation: "MCP and function calling operate at different levels. Function calling is an LLM API feature — the model can request tool invocations within a single API call. MCP is a network protocol for tool discovery and execution across application boundaries. An MCP host takes tool definitions from MCP servers and converts them into the format required by the LLM's function calling API."
+    },
+    {
+      id: "q6",
+      text: "What is the correct way to handle an error in an MCP tool handler?",
+      points: 1,
+      options: [
+        "A) Raise the exception — the MCP framework will handle it automatically",
+        "B) Return {\"content\": str(e), \"isError\": true} so the host can relay the error to the model",
+        "C) Return None — the model will know to retry",
+        "D) Log the error and return an empty list"
+      ],
+      correct: 1,
+      explanation: "MCP tool handlers should catch exceptions and return a structured error response with isError: true. This keeps the server process alive, gives the model structured error information it can act on (e.g., try a different argument), and prevents the host from losing the connection due to an unhandled crash."
+    },
+    {
+      id: "q7",
+      text: "Which MCP primitive would you use to expose a company's internal API documentation for the model to reference?",
+      points: 1,
+      options: [
+        "A) Tool — because it involves an API",
+        "B) Prompt — because it's text content",
+        "C) Resource — because it's read-only reference data with a URI",
+        "D) None of the above — documentation should be in the system prompt"
+      ],
+      correct: 2,
+      explanation: "Resources are ideal for read-only reference content like documentation, schemas, configuration files, and knowledge bases. Each resource has a URI (e.g., docs:///api/endpoints). The model can request specific resources when it needs reference information, rather than having everything pre-loaded in the context window."
+    },
+    {
+      id: "q8",
+      text: "A user asks your MCP server's read_file tool to read '../../../etc/passwd'. What should the tool do?",
+      points: 2,
+      options: [
+        "A) Read the file — the model must have had a good reason to request it",
+        "B) Return an empty string to avoid errors",
+        "C) Use os.path.realpath to resolve the full path, check it starts with the base_dir realpath, and return {\"content\": \"Access denied\", \"isError\": true} if not",
+        "D) Strip the '../' sequences from the filename before reading"
+      ],
+      correct: 2,
+      explanation: "Path traversal attacks use '../' sequences to escape the intended directory. Stripping '../' is insufficient — there are many encoding variations that bypass naive string replacement. The correct approach is to resolve the full canonical path with os.path.realpath (which resolves symlinks too) and then verify it starts with the canonical base directory path before reading."
+    }
+  ]}
+/>

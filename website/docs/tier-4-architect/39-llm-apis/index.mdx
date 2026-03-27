@@ -1,0 +1,50 @@
+---
+title: "Chapter 39: LLM APIs Deep-dive"
+sidebar_position: 1
+description: "Master the Anthropic and OpenAI APIs in depth: rate limits, batching, cost estimation, token counting, error handling, and retry strategies."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 39 — LLM APIs Deep-dive
+
+## What You'll Learn
+
+In this chapter you'll move beyond basic API calls and learn how production systems manage LLM APIs at scale. You'll understand the mechanics behind rate limits, how to count tokens before you send them, how to estimate and track costs per feature, and how to implement retry logic that keeps your app alive under pressure.
+
+## Prerequisites
+
+- Tier 3 complete (chapters 23–38)
+- Familiarity with the Anthropic Python SDK
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 25 min |
+| Patterns | 20 min |
+| Lab | 35 min |
+| Quiz | 10 min |
+| **Total** | **~90 min** |
+
+## What You'll Learn
+
+- **Rate limits** — what RPM and TPM mean, and how to stay under them
+- **Token counting** — count tokens before sending to avoid surprises
+- **Cost estimation** — calculate cost for any model before and after a call
+- **Backoff strategies** — exponential backoff with jitter for 429 errors
+- **Batch API** — how to use Anthropic's and OpenAI's batch endpoints for 50–60% cost reduction
+- **Prompt caching** — how Anthropic's context caching eliminates repeated token costs
+- **Streaming** — when to use streaming for UX vs when to wait for the full response
+- **Error handling** — distinguish 4xx (your fault) from 5xx (their fault) and respond appropriately
+
+## How This Connects
+
+This chapter is the foundation for all the optimization work in Tier 4. You can't optimize what you don't measure — and you can't measure without understanding how the API charges you.
+
+<ConceptMap
+  current="llm-apis"
+  related={["model-selection", "llm-caching", "latency-optimization", "ai-gateway"]}
+/>
+
+➡️ Next: [Concepts — LLM API Architecture](./concepts.mdx)

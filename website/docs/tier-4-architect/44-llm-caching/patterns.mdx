@@ -1,0 +1,247 @@
+---
+title: "Caching Patterns"
+sidebar_position: 3
+description: "Code patterns for exact cache with Redis, semantic cache with cosine similarity, two-level cache composition, and Anthropic prompt caching."
+---
+
+# Caching Patterns
+
+## Pattern 1: Exact Cache with SHA256 Key
+
+Hash the full request (model + prompt + params) with SHA256. Use the hex digest as a Redis key or dict key.
+
+```python
+import hashlib
+import json
+import time
+
+class ExactCache:
+    def __init__(self, ttl_seconds: float = 3600):
+        self.ttl_seconds = ttl_seconds
+        self._store: dict = {}
+
+    def _make_key(self, prompt: str, model: str, **params) -> str:
+        """Deterministic hash of the full request."""
+        payload = {"model": model, "prompt": prompt, **dict(sorted(params.items()))}
+        serialized = json.dumps(payload, sort_keys=True)
+        return hashlib.sha256(serialized.encode()).hexdigest()
+
+    def get(self, prompt: str, model: str, **params) -> str | None:
+        key = self._make_key(prompt, model, **params)
+        entry = self._store.get(key)
+        if entry is None:
+            return None
+        if time.time() - entry["created_at"] > self.ttl_seconds:
+            del self._store[key]
+            return None
+        return entry["value"]
+
+    def set(self, prompt: str, model: str, value: str, **params) -> None:
+        key = self._make_key(prompt, model, **params)
+        self._store[key] = {"value": value, "created_at": time.time()}
+```
+
+**With Redis** (production):
+
+```python
+import redis
+import hashlib
+import json
+
+class RedisExactCache:
+    def __init__(self, ttl_seconds: int = 3600):
+        self.r = redis.Redis(host="localhost", port=6379, decode_responses=True)
+        self.ttl = ttl_seconds
+
+    def _key(self, prompt: str, model: str, **params) -> str:
+        payload = json.dumps({"model": model, "prompt": prompt, **params}, sort_keys=True)
+        return "llm:" + hashlib.sha256(payload.encode()).hexdigest()
+
+    def get(self, prompt: str, model: str, **params) -> str | None:
+        return self.r.get(self._key(prompt, model, **params))
+
+    def set(self, prompt: str, model: str, value: str, **params) -> None:
+        self.r.setex(self._key(prompt, model, **params), self.ttl, value)
+```
+
+## Pattern 2: Semantic Cache with Cosine Similarity
+
+Embed the prompt, compare against cached embeddings, return cached response if similarity exceeds threshold.
+
+```python
+import numpy as np
+from dataclasses import dataclass
+
+@dataclass
+class SemanticCacheEntry:
+    prompt: str
+    embedding: list[float]
+    response: str
+    created_at: float
+
+class SemanticCache:
+    def __init__(self, embedder, threshold: float = 0.95, ttl_seconds: float = 3600):
+        self.embedder = embedder  # callable: str -> list[float]
+        self.threshold = threshold
+        self.ttl_seconds = ttl_seconds
+        self._entries: list[SemanticCacheEntry] = []
+
+    def _cosine_similarity(self, a: list[float], b: list[float]) -> float:
+        a_arr, b_arr = np.array(a), np.array(b)
+        denom = np.linalg.norm(a_arr) * np.linalg.norm(b_arr)
+        if denom == 0:
+            return 0.0
+        return float(np.dot(a_arr, b_arr) / denom)
+
+    def get(self, prompt: str) -> str | None:
+        import time
+        now = time.time()
+        embedding = self.embedder(prompt)
+        best_sim, best_entry = 0.0, None
+        for entry in self._entries:
+            if now - entry.created_at > self.ttl_seconds:
+                continue
+            sim = self._cosine_similarity(embedding, entry.embedding)
+            if sim > best_sim:
+                best_sim, best_entry = sim, entry
+        if best_sim >= self.threshold and best_entry:
+            return best_entry.response
+        return None
+
+    def set(self, prompt: str, response: str) -> None:
+        import time
+        embedding = self.embedder(prompt)
+        self._entries.append(
+            SemanticCacheEntry(
+                prompt=prompt,
+                embedding=embedding,
+                response=response,
+                created_at=time.time(),
+            )
+        )
+```
+
+## Pattern 3: Two-Level Cache — Exact First, Semantic Fallback
+
+Check exact cache first (O(1), zero embedding cost). Only fall through to semantic cache on a miss.
+
+```python
+class TwoLevelCache:
+    def __init__(self, exact: ExactCache, semantic: SemanticCache):
+        self.exact = exact
+        self.semantic = semantic
+
+    def get(self, prompt: str, model: str, **params) -> str | None:
+        # Level 1: exact match
+        result = self.exact.get(prompt, model, **params)
+        if result is not None:
+            return result
+        # Level 2: semantic match (only for simple no-param queries)
+        return self.semantic.get(prompt)
+
+    def set(self, prompt: str, model: str, response: str, **params) -> None:
+        self.exact.set(prompt, model, response, **params)
+        self.semantic.set(prompt, response)
+
+
+class CachedLLMClient:
+    def __init__(self, llm_caller, cache: TwoLevelCache):
+        self.llm_caller = llm_caller
+        self.cache = cache
+        self.hits = 0
+        self.misses = 0
+
+    def generate(self, prompt: str, model: str = "claude-3-haiku-20240307", **params) -> str:
+        cached = self.cache.get(prompt, model, **params)
+        if cached is not None:
+            self.hits += 1
+            return cached
+        self.misses += 1
+        response = self.llm_caller(prompt, model, **params)
+        self.cache.set(prompt, model, response, **params)
+        return response
+
+    @property
+    def hit_rate(self) -> float:
+        total = self.hits + self.misses
+        return self.hits / total if total > 0 else 0.0
+```
+
+## Pattern 4: Anthropic Prompt Caching
+
+Mark large system prompts or retrieved context with `cache_control` to cache them server-side. This is most impactful when a large context is reused across many requests.
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+# Large context you want to cache (e.g., knowledge base, tool definitions)
+CACHED_CONTEXT = """
+[10,000 tokens of knowledge base content here]
+"""
+
+def answer_with_cached_context(user_question: str) -> str:
+    response = client.messages.create(
+        model="claude-3-5-sonnet-20241022",
+        max_tokens=1024,
+        system=[
+            {
+                "type": "text",
+                "text": "You are a helpful assistant.",
+            },
+            {
+                "type": "text",
+                "text": CACHED_CONTEXT,
+                "cache_control": {"type": "ephemeral"},  # <-- cache this block
+            },
+        ],
+        messages=[{"role": "user", "content": user_question}],
+    )
+
+    # Log cache utilization
+    usage = response.usage
+    print(f"Cache write tokens: {usage.cache_creation_input_tokens}")
+    print(f"Cache read tokens:  {usage.cache_read_input_tokens}")
+    print(f"Normal input tokens: {usage.input_tokens}")
+
+    return response.content[0].text
+```
+
+**Cost example**: 10,000-token context, 100 requests:
+- Without caching: 100 × 10,000 = 1,000,000 input tokens
+- With caching: 1 × 10,000 (write at 1.25×) + 99 × 10,000 × 0.10 (reads) = 112,500 effective token cost
+- **Saving: ~88%** on prefix tokens
+
+## Anti-Patterns
+
+**Caching with temperature > 0**
+```python
+# Bad: cached response is one of many possible outputs — not the "right" answer
+cache.set(prompt, model, response, temperature=0.9)
+
+# Good: only cache deterministic responses
+cache.set(prompt, model, response, temperature=0.0)
+```
+
+**No cache eviction**
+```python
+# Bad: cache grows forever
+self._store[key] = value
+
+# Good: TTL + max size
+if len(self._store) > self.max_size:
+    self._evict_oldest()
+self._store[key] = {"value": value, "created_at": time.time()}
+```
+
+**Caching PII without access controls**
+```python
+# Bad: user health data cached in shared Redis instance
+cache.set("What medications does John Smith take?", response)
+
+# Good: either don't cache PII, or use per-user isolated cache namespaces
+# and encrypt at rest
+```
+
+➡️ Next: [Lab — Build a Two-Level LLM Cache](./lab.mdx)

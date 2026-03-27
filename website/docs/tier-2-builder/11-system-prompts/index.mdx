@@ -1,0 +1,47 @@
+---
+title: "Chapter 11: System Prompts"
+sidebar_position: 1
+description: "Set the model's behavior, persona, and constraints before any user message. Master the most powerful prompt engineering lever."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+
+# Chapter 11 — System Prompts
+
+## What You'll Learn
+
+- The anatomy of an effective system prompt (Role, Context, Instructions, Constraints, Output Format)
+- How to shape model persona and voice through the system prompt
+- How to enforce behavioral constraints and topic guardrails
+- The difference between the system role and the user role — and why it matters
+- When to put something in the system prompt vs the user message
+- How to defend against prompt injection attacks
+
+## Prerequisites
+
+- Chapter 09 (Zero/Few-shot Prompting) — you should understand how instructions shape model output
+- Chapter 10 (Chain-of-Thought) — you should understand how prompt structure influences reasoning
+- Python 3.10+, `anthropic` package installed
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 20 min |
+| Patterns | 20 min |
+| Lab | 25 min |
+| Quiz | 10 min |
+| **Total** | **~75 min** |
+
+## How This Connects
+
+System prompts are the foundation of every production AI application. Every chatbot, coding assistant, and agent you build starts with a system prompt. Once you master this, you'll understand how guardrails (Chapter 13) and RAG (Chapter 14) slot in — both rely on the system prompt to anchor model behavior. Agents (Chapter 20–21) use dynamic system prompts to configure tool access at runtime.
+
+<ConceptMap
+  current="system-prompts"
+  related={["zero-few-shot", "chain-of-thought", "guardrails", "rag", "agents"]}
+/>
+
+---
+
+Next: [Concepts →](./concepts.mdx)

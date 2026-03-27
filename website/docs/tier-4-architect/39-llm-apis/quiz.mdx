@@ -1,0 +1,112 @@
+---
+title: "Quiz: LLM APIs Deep-dive"
+sidebar_position: 5
+description: "Test your knowledge of rate limits, backoff strategies, cost calculation, prompt caching, batch API, token counting, streaming, and retry logic."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz: LLM APIs Deep-dive
+
+<Quiz
+  questions={[
+    {
+      id: "q1",
+      text: "Your app gets a 429 error from the Anthropic API. What should you do?",
+      options: [
+        "A) Log the error and return a failure to the user immediately",
+        "B) Retry immediately with the same request",
+        "C) Wait with exponential backoff and jitter, then retry",
+        "D) Switch to a different model and retry immediately"
+      ],
+      correct: 2,
+      explanation: "A 429 means you've hit a rate limit — the server is telling you to slow down. Immediate retry makes the problem worse. Exponential backoff (doubling wait time each retry) with added jitter (random offset) spreads out retries so clients don't all hammer the API at the same moment. This is the standard approach for all transient API errors."
+    },
+    {
+      id: "q2",
+      text: "TPM stands for:",
+      options: [
+        "A) Total Processing Milliseconds",
+        "B) Tokens Per Minute — the maximum total tokens (input + output) you can use per minute",
+        "C) Tasks Per Model — how many parallel tasks your model can handle",
+        "D) Token Price Multiplier — the factor applied to batch pricing"
+      ],
+      correct: 1,
+      explanation: "TPM (Tokens Per Minute) is the rate limit on total token consumption. Input tokens + output tokens both count toward this limit. You can have a high RPM but still get rate-limited if your requests are large. Monitoring both RPM and TPM is essential for production systems."
+    },
+    {
+      id: "q3",
+      text: "You have a 10,000-token system prompt and send 1,000 requests per day. Anthropic prompt caching charges cached tokens at ~10% of normal input cost. Approximately how much do you save per day on Claude Sonnet ($3/M input tokens)?",
+      options: [
+        "A) $0.30/day",
+        "B) $3/day",
+        "C) $27/day",
+        "D) $270/day"
+      ],
+      correct: 2,
+      explanation: "Without caching: 1,000 × 10,000 = 10M tokens × $3/M = $30/day. With caching: first request pays full price (~$0.03), remaining 999 pay 10% = ~$0.003 each. Total ≈ $0.03 + 999 × $0.003 = ~$3/day. Savings ≈ $27/day. At scale, prompt caching is one of the highest-ROI optimizations for RAG and chat systems with large system prompts."
+    },
+    {
+      id: "q4",
+      text: "Which error codes should you NOT retry?",
+      options: [
+        "A) 429 (rate limit) and 500 (server error)",
+        "B) 400 (bad request), 401 (unauthorized), and 413 (payload too large)",
+        "C) All 4xx errors including 429",
+        "D) Only 503 (service unavailable)"
+      ],
+      correct: 1,
+      explanation: "400 (bad request) means your request is malformed — retrying the same request will always fail. 401 means your API key is wrong or missing. 413 means your payload is too large. None of these are transient — retrying wastes rate limit budget. The retryable errors are 429 (rate limit — wait and retry) and 5xx (server errors — short wait and retry)."
+    },
+    {
+      id: "q5",
+      text: "When should you use the Batch API instead of the standard API?",
+      options: [
+        "A) Always — it's always cheaper",
+        "B) For user-facing requests where latency matters",
+        "C) For offline, non-latency-sensitive processing where up to 24-hour turnaround is acceptable",
+        "D) Only for requests larger than 10,000 tokens"
+      ],
+      correct: 2,
+      explanation: "The Batch API offers 50–60% cost reduction but processes requests asynchronously, typically within 24 hours. This makes it ideal for nightly data enrichment, bulk evaluation runs, and offline summarization — tasks where users aren't waiting for a result. For anything user-facing (chat, search, real-time analysis), the latency tradeoff is unacceptable."
+    },
+    {
+      id: "q6",
+      text: "Why should you always set max_tokens in your API calls?",
+      options: [
+        "A) The API will error if max_tokens is not set",
+        "B) To prevent the model from generating a 4,000-token essay when you asked a yes/no question",
+        "C) Setting max_tokens makes responses faster",
+        "D) It is required by the Anthropic terms of service"
+      ],
+      correct: 1,
+      explanation: "Without max_tokens, the model will generate up to the full context window size. A simple yes/no question could trigger a 4,000-token explanation, costing 40x more than expected. Setting max_tokens to a reasonable value for your use case (e.g., 50 for yes/no, 500 for summaries, 2000 for detailed analysis) is a simple guardrail that prevents cost surprises."
+    },
+    {
+      id: "q7",
+      text: "Why add jitter to exponential backoff?",
+      options: [
+        "A) Jitter makes the wait time shorter",
+        "B) To prevent all clients from retrying at exactly the same time after a rate limit window resets",
+        "C) Jitter is required by the Anthropic API contract",
+        "D) To randomize which model gets the retry request"
+      ],
+      correct: 1,
+      explanation: "Without jitter, all clients that got rate-limited at t=0 will retry at t=1, t=2, t=4, etc. — simultaneously. This creates a thundering herd: all clients hit the API at the exact same moment, causing another rate limit immediately. Adding random jitter spreads retries across a time window, smoothing out the load spike and increasing the probability of success."
+    },
+    {
+      id: "q8",
+      text: "What is the main advantage of streaming API responses?",
+      options: [
+        "A) Streaming reduces the number of tokens generated",
+        "B) Streaming is cheaper than waiting for the full response",
+        "C) Users see the first tokens within ~300ms instead of waiting 5–10 seconds for a full response",
+        "D) Streaming allows parallel tool calls"
+      ],
+      correct: 2,
+      explanation: "Streaming doesn't change the total tokens generated or the cost — it changes the time-to-first-token (TTFT) from the full generation time to ~300ms. For long responses, this dramatically improves perceived responsiveness. The user sees the answer forming rather than staring at a loading spinner. Streaming is standard practice for any chat or assistant UI."
+    }
+  ]}
+  chapterId="tier4-ch39"
+  passMark={70}
+/>

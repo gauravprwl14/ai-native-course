@@ -1,0 +1,81 @@
+---
+title: "Quiz: Multi-Agent Systems"
+sidebar_position: 5
+description: "Test your understanding of orchestrator-worker patterns, shared state, parallelism, and multi-agent trade-offs."
+---
+
+import Quiz from '@site/src/components/Quiz';
+
+# Quiz 24 — Multi-Agent Systems
+
+<Quiz
+  chapterId="tier3-ch24"
+  passMark={70}
+  questions={[
+    {
+      id: "q1",
+      text: "In the orchestrator-worker pattern, what is the orchestrator's primary responsibility?",
+      points: 1,
+      options: [
+        "A) Execute all tasks itself to ensure quality control",
+        "B) Coordinate task routing and assemble outputs from workers",
+        "C) Store all intermediate results in a database",
+        "D) Monitor worker agents for errors and restart them"
+      ],
+      correct: 1,
+      explanation: "The orchestrator coordinates — it routes tasks to appropriate workers and assembles their outputs into a final result. It does not execute tasks directly. Keeping execution in workers maintains clear separation of concerns and lets you swap or add specialists without changing the orchestrator's core logic."
+    },
+    {
+      id: "q2",
+      text: "You're building a pipeline that must (1) fetch weather data, (2) fetch news headlines, and (3) write a morning briefing combining both. How should you structure agent execution?",
+      points: 2,
+      options: [
+        "A) All three tasks in sequence: fetch weather → fetch news → write briefing",
+        "B) Fetch weather and news in parallel, then write briefing after both complete",
+        "C) Run all three in parallel and merge outputs",
+        "D) Use a single agent for all three tasks to avoid coordination overhead"
+      ],
+      correct: 1,
+      explanation: "Steps 1 and 2 are independent — they can run in parallel using ThreadPoolExecutor, halving the latency. Step 3 depends on both and must wait for them to finish. Running all three in parallel would make step 3 start before its dependencies are ready. This is a classic fork-join pattern."
+    },
+    {
+      id: "q3",
+      text: "What is the main risk of passing a shared mutable state dict to multiple agents running in parallel?",
+      points: 2,
+      options: [
+        "A) The dict will be serialized to JSON and lose type information",
+        "B) Parallel agents may race to write the same key, causing one to overwrite the other",
+        "C) Python dicts cannot be passed to multiple threads",
+        "D) The orchestrator will not be able to read the final state"
+      ],
+      correct: 1,
+      explanation: "Python dicts are not thread-safe for concurrent writes. If two agents write to the same key at the same time, the result is a race condition — one write overwrites the other. The fix is to give each agent its own key in the shared state (state['research'], state['article']) or use thread-safe structures like queue.Queue."
+    },
+    {
+      id: "q4",
+      text: "When does a multi-agent system clearly outperform a single agent?",
+      points: 2,
+      options: [
+        "A) Always — more agents always produce better results",
+        "B) When the task is simple and can be done in a single LLM call",
+        "C) When different phases require fundamentally different reasoning styles and some phases are independent",
+        "D) When the context window is too small for the task"
+      ],
+      correct: 2,
+      explanation: "Multi-agent wins when specialization has real value (different phases need different 'modes' of thinking) and when parallel execution is possible. For simple tasks or tightly sequential pipelines, the coordination overhead outweighs any benefit. Always start with a single agent and add specialization only when you observe quality degradation at a specific phase."
+    },
+    {
+      id: "q5",
+      text: "Which of the following describes 'message passing' in a multi-agent system?",
+      points: 1,
+      options: [
+        "A) Agents share a global variable they all modify",
+        "B) Structured messages with sender, receiver, type, and payload are passed explicitly between agents",
+        "C) The orchestrator sends email notifications between agents",
+        "D) Agents write outputs to a shared file system"
+      ],
+      correct: 1,
+      explanation: "Message passing uses structured objects (e.g., {'from': 'researcher', 'to': 'writer', 'type': 'research_complete', 'payload': '...'}) passed explicitly between agents. This is more explicit and debuggable than shared state — you can log every message and replay agent communication. It requires more boilerplate but scales better to complex systems with many agents."
+    }
+  ]}
+/>

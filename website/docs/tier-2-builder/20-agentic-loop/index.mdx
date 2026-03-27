@@ -1,0 +1,47 @@
+---
+title: "Chapter 20: Agentic Loop"
+sidebar_position: 1
+description: "Build a ReAct agent from scratch. Implement the Observe → Think → Act loop that powers autonomous AI agents."
+---
+
+import ConceptMap from '@site/src/components/ConceptMap';
+import AgentLoop from '@site/src/components/AgentLoop';
+
+# Chapter 20 — Agentic Loop
+
+## What You'll Learn
+
+- The ReAct (Reasoning + Acting) pattern and why it enables multi-step autonomous tasks
+- The observe-think-act loop and how it differs from a single tool call
+- The Thought / Action / Observation format that structures agent reasoning
+- How stopping conditions prevent infinite loops
+- Safety constraints: max iterations, tool whitelists, and human-in-the-loop checkpoints
+
+## Prerequisites
+
+- Chapter 19 (Tool Use) — you should understand how to define tools, call them, and process tool results
+
+## Time Estimate
+
+| Section | Time |
+|---------|------|
+| Concepts | 30 min |
+| Patterns | 20 min |
+| Lab | 40 min |
+| Quiz | 10 min |
+| **Total** | **~100 min** |
+
+## How This Connects
+
+Chapter 19 showed you how an LLM can call a single tool and return a result. That's powerful, but real-world tasks rarely fit in one step. "Search the web, summarize the top 3 results, then write a report" requires multiple rounds of tool use — each step informed by the result of the last.
+
+The agentic loop is the architectural pattern that makes this possible. The model iterates: it thinks about what to do, takes an action (tool call), observes the result, then thinks again. It repeats until the task is done or a safety limit is hit. This is the foundation of every autonomous AI agent.
+
+<AgentLoop steps={["Observe", "Think", "Act"]} animated={true} />
+
+<ConceptMap
+  current="agentic-loop"
+  related={["tool-use", "agents", "planning", "multi-agent", "memory"]}
+/>
+
+➡️ Next: [Concepts — Agentic Loop](./concepts.mdx)

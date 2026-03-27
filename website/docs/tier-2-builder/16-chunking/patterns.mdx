@@ -1,0 +1,233 @@
+---
+title: "Patterns: Chunking for RAG"
+sidebar_position: 3
+description: "Practical chunking patterns for production RAG systems — fixed character chunking, recursive splitting, sentence-based chunking, and metadata enrichment."
+---
+
+# Patterns: Chunking for RAG
+
+## Pattern 1: Fixed Character Chunking with Overlap
+
+The simplest approach. Split every `chunk_size` characters, stepping forward by `chunk_size - overlap` each time.
+
+```python
+def fixed_size_chunk(text: str, chunk_size: int = 512, overlap: int = 50) -> list[str]:
+    """Split text into fixed-size character chunks with overlap."""
+    chunks = []
+    i = 0
+    while i < len(text):
+        chunk = text[i:i + chunk_size]
+        chunks.append(chunk)
+        i += chunk_size - overlap
+    return chunks
+
+# Usage
+text = "A" * 1000  # 1000-char document
+chunks = fixed_size_chunk(text, chunk_size=200, overlap=20)
+print(len(chunks))   # 6 chunks
+print(len(chunks[0]))  # 200 chars
+# chunk 0: chars 0–200, chunk 1: chars 180–380, ...
+```
+
+**When to use:** Quick prototypes, structured data (CSV rows, log lines), or when downstream processing is forgiving of broken sentences.
+
+**Failure mode:** Breaks mid-sentence. Add overlap to mitigate, but cannot fully prevent it.
+
+---
+
+## Pattern 2: Recursive Text Splitting with LangChain
+
+LangChain's `RecursiveCharacterTextSplitter` tries paragraph → sentence → word separators until chunk size is met.
+
+```python
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+splitter = RecursiveCharacterTextSplitter(
+    chunk_size=512,
+    chunk_overlap=50,
+    separators=["\n\n", "\n", ". ", " ", ""],
+    length_function=len,   # character-based; swap for token-based
+)
+
+text = """
+## Introduction
+
+This is the first paragraph. It contains multiple sentences.
+It should stay together if it fits within the chunk size.
+
+## Section Two
+
+This is a separate section. It starts a new paragraph.
+Long sections get split at sentence boundaries first.
+""".strip()
+
+chunks = splitter.split_text(text)
+for i, chunk in enumerate(chunks):
+    print(f"Chunk {i}: {repr(chunk[:60])}...")
+```
+
+**When to use:** Markdown documents, HTML, well-structured prose. This is the recommended default for most RAG systems.
+
+**Key insight:** The separator priority means the splitter always prefers to split at paragraph boundaries before sentences, and sentences before words. Documents retain their natural structure.
+
+---
+
+## Pattern 3: Sentence-Based Chunking (No External Dependencies)
+
+Split on sentence endings using regex. Accumulate sentences until adding the next would exceed `max_tokens`.
+
+```python
+import re
+
+def count_tokens_approx(text: str) -> int:
+    """Approximate token count: ~4 characters per token for English."""
+    return len(text) // 4
+
+def sentence_chunk(text: str, max_tokens: int = 256) -> list[str]:
+    """Split text into chunks at sentence boundaries, respecting max_tokens."""
+    # Split on sentence-ending punctuation followed by whitespace
+    sentences = re.split(r'(?<=[.!?])\s+', text.strip())
+
+    chunks = []
+    current_sentences = []
+    current_tokens = 0
+
+    for sentence in sentences:
+        sentence_tokens = count_tokens_approx(sentence)
+
+        if current_tokens + sentence_tokens > max_tokens and current_sentences:
+            # Save current chunk, start new one
+            chunks.append(" ".join(current_sentences))
+            current_sentences = []
+            current_tokens = 0
+
+        current_sentences.append(sentence)
+        current_tokens += sentence_tokens
+
+    # Don't forget the last chunk
+    if current_sentences:
+        chunks.append(" ".join(current_sentences))
+
+    return chunks
+
+# Usage
+text = (
+    "The contract was signed on January 1st. "
+    "The termination clause states that either party may exit with 30 days notice. "
+    "Payment terms are net-30. "
+    "Disputes shall be resolved in the jurisdiction of New York State."
+)
+chunks = sentence_chunk(text, max_tokens=30)
+for i, chunk in enumerate(chunks):
+    print(f"Chunk {i}: {chunk}")
+```
+
+**When to use:** When you want sentence-aware splitting without installing NLTK or spaCy. Works well for English prose.
+
+**Limitation:** The regex `(?<=[.!?])\s+` won't handle all edge cases (e.g., "Dr. Smith" or "U.S.A." will create false splits). For production use on complex text, consider NLTK's `sent_tokenize`.
+
+---
+
+## Pattern 4: Chunk with Metadata
+
+Every chunk should carry metadata that tells the LLM where the information came from. This enables source citation and improves debugging.
+
+```python
+def chunk_with_metadata(
+    text: str,
+    source: str,
+    chunk_size: int = 512,
+    overlap: int = 50
+) -> list[dict]:
+    """
+    Chunk text and attach metadata to each chunk.
+    Returns list of dicts: {text, source, chunk_index, token_count}
+    """
+    chunks = fixed_size_chunk(text, chunk_size=chunk_size, overlap=overlap)
+    return [
+        {
+            "text": chunk,
+            "source": source,
+            "chunk_index": i,
+            "token_count": len(chunk) // 4,  # approximate
+        }
+        for i, chunk in enumerate(chunks)
+    ]
+
+# Usage
+chunks = chunk_with_metadata(
+    text="Annual report content...",
+    source="annual_report_2024.pdf",
+    chunk_size=512,
+    overlap=50
+)
+print(chunks[0])
+# {
+#   "text": "Annual report content...",
+#   "source": "annual_report_2024.pdf",
+#   "chunk_index": 0,
+#   "token_count": 6
+# }
+```
+
+**When to use:** Always. Metadata is essential in production RAG. Without it you cannot tell the user where an answer came from, and you cannot debug retrieval failures.
+
+**Extend with:** Page numbers, section headings, document type, creation date, author — any metadata that helps filter or rank retrieved chunks.
+
+---
+
+## Anti-Patterns
+
+<div className="antipattern">
+
+**No overlap — context lost at boundaries**
+
+```python
+# Bad — sentence spanning the boundary is split
+chunks = fixed_size_chunk(text, chunk_size=512, overlap=0)
+
+# Good — overlap ensures boundary content appears in both chunks
+chunks = fixed_size_chunk(text, chunk_size=512, overlap=50)
+```
+
+**Chunk size larger than embedding model context limit**
+
+```python
+# Bad — OpenAI text-embedding-3-small has 8191 token limit
+# text-embedding-ada-002 has 8191 token limit
+# But a "chunk" of 10,000 tokens will be silently truncated
+chunks = fixed_size_chunk(text, chunk_size=10000)
+
+# Good — check your model's limit; stay well below it
+chunks = fixed_size_chunk(text, chunk_size=512)
+```
+
+**Chunking without cleaning first**
+
+```python
+# Bad — footers and headers pollute every chunk
+raw_pdf_text = extract_pdf(path)
+chunks = fixed_size_chunk(raw_pdf_text)
+
+# Good — remove noise before chunking
+import re
+clean_text = re.sub(r'Page \d+ of \d+', '', raw_pdf_text)
+clean_text = re.sub(r'\s+', ' ', clean_text).strip()
+chunks = fixed_size_chunk(clean_text)
+```
+
+**Storing only text without metadata**
+
+```python
+# Bad — you can't tell users where the answer came from
+vector_db.upsert(embeddings=[...], texts=[chunk["text"] for chunk in chunks])
+
+# Good — store metadata alongside text
+vector_db.upsert(
+    embeddings=[...],
+    documents=[chunk["text"] for chunk in chunks],
+    metadatas=[{"source": chunk["source"], "chunk_index": chunk["chunk_index"]} for chunk in chunks]
+)
+```
+
+</div>
