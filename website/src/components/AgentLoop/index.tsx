@@ -23,18 +23,22 @@ export default function AgentLoop({
 }: AgentLoopProps): ReactNode {
   const [active, setActive] = useState(0);
   const [running, setRunning] = useState(animated);
+  const [isMounted, setIsMounted] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    if (running) {
-      intervalRef.current = setInterval(() => {
-        setActive((prev) => (prev + 1) % steps.length);
-      }, intervalMs);
-    }
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isMounted || !running) return;
+    intervalRef.current = setInterval(() => {
+      setActive((prev) => (prev + 1) % steps.length);
+    }, intervalMs);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [running, steps.length, intervalMs]);
+  }, [running, isMounted, steps.length, intervalMs]);
 
   function pause() {
     setRunning(false);

@@ -31,9 +31,11 @@ function loadResult(chapterId: string): QuizResult | null {
 const TIER_LABELS = { 1: '🧱 Foundations', 2: '🔧 Builder', 3: '🚀 Advanced', 4: '🏗️ Architect' };
 
 export default function ProgressTracker({ chapters }: ProgressTrackerProps): ReactNode {
+  const [isClient, setIsClient] = useState(false);
   const [results, setResults] = useState<Record<string, QuizResult | null>>({});
 
   useEffect(() => {
+    setIsClient(true);
     const loaded: Record<string, QuizResult | null> = {};
     for (const ch of chapters) {
       loaded[ch.id] = loadResult(ch.id);
@@ -41,7 +43,7 @@ export default function ProgressTracker({ chapters }: ProgressTrackerProps): Rea
     setResults(loaded);
   }, [chapters]);
 
-  const passed = chapters.filter((ch) => results[ch.id]?.passed).length;
+  const passed = isClient ? chapters.filter((ch) => results[ch.id]?.passed).length : 0;
   const pct = chapters.length > 0 ? Math.round((passed / chapters.length) * 100) : 0;
 
   const byTier = [1, 2, 3, 4] as const;
