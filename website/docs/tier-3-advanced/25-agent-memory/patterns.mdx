@@ -255,6 +255,87 @@ print(f"After consolidation: {len(conversation)} messages")
 
 ---
 
+## Pattern 5: Defensive Memory — Handling Corruption and Concurrent Access
+
+Memory stores can be corrupted (bad JSON), stale (out-of-date facts), or hit by concurrent writes (two agent threads writing at the same time). Build these defences in from the start.
+
+```python
+import json
+import fcntl  # file locking (Unix)
+import os
+from pathlib import Path
+from datetime import datetime, timedelta
+
+MEMORY_FILE = Path("agent_memory.json")
+MEMORY_TTL_DAYS = 30  # facts older than this are auto-expired
+
+
+def load_memories_safe(path: Path = MEMORY_FILE) -> dict:
+    """Load memories with corruption recovery and TTL expiry."""
+    if not path.exists():
+        return {}
+
+    try:
+        with open(path) as f:
+            raw = json.load(f)
+    except json.JSONDecodeError:
+        # File is corrupt — back it up and start fresh
+        backup = path.with_suffix(".corrupt.json")
+        path.rename(backup)
+        print(f"Warning: memory file corrupted, backed up to {backup}")
+        return {}
+
+    # Apply TTL — remove expired memories
+    cutoff = datetime.now() - timedelta(days=MEMORY_TTL_DAYS)
+    valid = {}
+    for key, entry in raw.items():
+        ts = entry.get("saved_at")
+        if ts is None or datetime.fromisoformat(ts) > cutoff:
+            valid[key] = entry
+    return valid
+
+
+def save_memory_safe(key: str, value: str, path: Path = MEMORY_FILE) -> None:
+    """Save a memory with file locking to prevent concurrent-write corruption."""
+    lock_path = path.with_suffix(".lock")
+    with open(lock_path, "w") as lock_file:
+        fcntl.flock(lock_file, fcntl.LOCK_EX)  # exclusive lock
+        try:
+            memories = load_memories_safe(path)
+            memories[key] = {"value": value, "saved_at": datetime.now().isoformat()}
+            tmp = path.with_suffix(".tmp")
+            with open(tmp, "w") as f:
+                json.dump(memories, f, indent=2)
+            os.replace(tmp, path)  # atomic write
+        finally:
+            fcntl.flock(lock_file, fcntl.LOCK_UN)
+
+
+def get_memory_safe(key: str, default: str = "", path: Path = MEMORY_FILE) -> str:
+    """Read a single memory with safe fallback."""
+    memories = load_memories_safe(path)
+    entry = memories.get(key)
+    if entry is None:
+        return default
+    return entry.get("value", default)
+
+
+# Usage
+save_memory_safe("user_name", "Alice")
+save_memory_safe("preferred_language", "Python")
+
+name = get_memory_safe("user_name", default="User")
+print(f"Hello, {name}")  # Hello, Alice
+```
+
+**Key techniques:**
+- **Atomic write** (`os.replace`) ensures memory file is never half-written
+- **File lock** (`fcntl.LOCK_EX`) prevents two concurrent agents from corrupting the store
+- **JSON corruption recovery** backs up the broken file and starts clean
+- **TTL expiry** prevents stale facts from persisting indefinitely
+
+---
+
 ## Anti-Patterns
 
 <div className="antipattern">
