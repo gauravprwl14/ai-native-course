@@ -4,6 +4,8 @@ sidebar_position: 7
 description: "Understand how text becomes tokens, what this means for costs and limits, and how to count tokens in Python."
 ---
 
+import ConceptMap from '@site/src/components/ConceptMap';
+
 # Chapter 02 — Tokens & Tokenization
 
 ## What You'll Learn
@@ -25,6 +27,12 @@ description: "Understand how text becomes tokens, what this means for costs and 
 | **Total** | **~65 min** |
 
 ## How This Connects
-Token counting is used in every chapter from here forward. Chapter 03 (Context Window), Chapter 39 (Cost Estimation), and Chapter 51 all depend on understanding tokens deeply.
+
+<ConceptMap
+  current="Tokens"
+  related={["llms", "context-window", "embeddings", "temperature", "llm-apis"]}
+/>
+
+Token counting is used in every chapter from here forward. Chapter 03 (Context Window) and Chapter 39 (LLM APIs) both depend on understanding tokens deeply.
 
 ➡️ Next: [Chapter 03 — Context Window](../03-context-window/index.mdx)

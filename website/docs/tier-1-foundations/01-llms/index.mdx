@@ -4,6 +4,8 @@ sidebar_position: 2
 description: "Understand what large language models are, how they generate text, and how to call them via API."
 ---
 
+import ConceptMap from '@site/src/components/ConceptMap';
+
 # Chapter 01 — LLMs & How They Work
 
 ## What You'll Learn
@@ -27,6 +29,12 @@ description: "Understand what large language models are, how they generate text,
 | **Total** | **~80 min** |
 
 ## How This Connects
+
+<ConceptMap
+  current="LLMs"
+  related={["tokens", "temperature", "context-window", "embeddings", "inference-vs-training", "foundation-models"]}
+/>
+
 This chapter is the foundation for everything. Every concept in this course — RAG, agents, fine-tuning, evals — builds on understanding what an LLM is.
 
 ➡️ Next: [Chapter 02 — Tokens & Tokenization](../02-tokens/index.mdx)
