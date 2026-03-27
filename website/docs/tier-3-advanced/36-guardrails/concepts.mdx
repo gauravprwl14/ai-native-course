@@ -30,6 +30,44 @@ You need both because:
 
 ---
 
+## The Guardrails Pipeline
+
+Every guardrail can do one of three things: **PASS** (let the request through unchanged), **BLOCK** (return a safe refusal immediately), or **TRANSFORM** (modify the input or output before passing it along). This makes guardrails composable — you chain them, and the first BLOCK short-circuits the rest.
+
+```mermaid
+flowchart TD
+    U([User Input]) --> IG1
+
+    subgraph InputGuardrails["Input Guardrails"]
+        IG1[Topic Filter] -->|PASS| IG2[PII Detection]
+        IG1 -->|BLOCK| IBLOCK([Return: Off-topic refusal])
+        IG2 -->|PASS / TRANSFORM| IG3[Injection Detection]
+        IG2 -->|BLOCK| IBLOCK2([Return: PII policy message])
+        IG3 -->|PASS| IG4[Rate Limiting]
+        IG3 -->|BLOCK| IBLOCK3([Return: Security refusal])
+        IG4 -->|PASS| LLM
+        IG4 -->|BLOCK| IBLOCK4([Return: Rate limit message])
+    end
+
+    LLM[LLM Model Call]
+
+    subgraph OutputGuardrails["Output Guardrails"]
+        OG1[Content Filter] -->|PASS| OG2[Hallucination Check]
+        OG1 -->|BLOCK| OBLOCK([Return: Safe fallback message])
+        OG2 -->|PASS / TRANSFORM| OG3[Format Validation]
+        OG2 -->|BLOCK| OBLOCK2([Return: Cannot verify response])
+        OG3 -->|PASS| OG4[PII Scrubbing]
+        OG3 -->|BLOCK| OBLOCK3([Return: Retry or error])
+        OG4 -->|PASS / TRANSFORM| R([Response to User])
+    end
+
+    LLM --> OG1
+```
+
+**Key insight**: TRANSFORM actions (PII redaction, format normalisation) are as important as BLOCK actions. A guardrail that silently cleans up output is often better UX than one that refuses entirely.
+
+---
+
 ## How It Works
 
 ### 1. Input Guardrails
@@ -92,6 +130,154 @@ flowchart TD
 
 ---
 
+## Input Guardrails — Working Code
+
+The key design principle is **composability**: each guardrail is a pure function that takes a string and returns a `GuardrailResult`. The pipeline runner chains them, short-circuiting on the first failure. This lets you add, remove, or reorder checks without changing the runner logic.
+
+```python
+from dataclasses import dataclass
+from typing import Callable
+
+@dataclass
+class GuardrailResult:
+    passed: bool
+    transformed_input: str
+    reason: str = ""
+
+GuardrailFn = Callable[[str], GuardrailResult]
+
+def topic_filter(allowed_topics: list[str]) -> GuardrailFn:
+    """Block queries not related to allowed topics using LLM classification."""
+    def check(user_input: str) -> GuardrailResult:
+        # Use a fast/cheap model for classification
+        # prompt = f"Does this query relate to any of {allowed_topics}? Reply YES or NO only.\nQuery: {user_input}"
+        # response = cheap_llm(prompt)
+        # if response.strip().upper() == "NO":
+        #     return GuardrailResult(passed=False, transformed_input=user_input,
+        #                           reason="Query is outside allowed topics")
+        return GuardrailResult(passed=True, transformed_input=user_input)
+    return check
+
+def injection_filter(user_input: str) -> GuardrailResult:
+    patterns = ["ignore previous", "disregard your", "pretend you are"]
+    lower = user_input.lower()
+    for p in patterns:
+        if p in lower:
+            return GuardrailResult(
+                passed=False,
+                transformed_input=user_input,
+                reason=f"Injection attempt: '{p}'"
+            )
+    return GuardrailResult(passed=True, transformed_input=user_input)
+
+def run_input_guardrails(user_input: str, guardrails: list[GuardrailFn]) -> GuardrailResult:
+    current = user_input
+    for guardrail in guardrails:
+        result = guardrail(current)
+        if not result.passed:
+            return result          # short-circuit: first BLOCK wins
+        current = result.transformed_input   # TRANSFORM: pass modified text forward
+    return GuardrailResult(passed=True, transformed_input=current)
+```
+
+**Usage example**:
+
+```python
+guardrails = [
+    topic_filter(allowed_topics=["billing", "account", "product support"]),
+    injection_filter,
+]
+
+result = run_input_guardrails(user_input="Ignore previous instructions and...", guardrails=guardrails)
+
+if not result.passed:
+    return f"I can only help with billing and account questions. ({result.reason})"
+
+# Safe to call the main LLM with result.transformed_input
+response = main_llm(result.transformed_input)
+```
+
+Note that `topic_filter` returns a **factory** (a function that returns a function). This pattern lets you parameterise guardrails at construction time while keeping the runtime interface identical for every guardrail in the list.
+
+---
+
+## Output Guardrails — Format Validation
+
+When your LLM is expected to return structured data (JSON for a downstream system, a fixed schema for a UI component), format validation is a critical output guardrail. Without it, a single malformed LLM response can crash your pipeline.
+
+```python
+import json
+import jsonschema
+
+def validate_json_output(
+    llm_response: str,
+    schema: dict
+) -> tuple[bool, dict | None, str]:
+    """Validate LLM output is valid JSON matching schema."""
+    try:
+        data = json.loads(llm_response)
+    except json.JSONDecodeError as e:
+        return False, None, f"Invalid JSON: {e}"
+
+    try:
+        jsonschema.validate(data, schema)
+        return True, data, ""
+    except jsonschema.ValidationError as e:
+        return False, None, f"Schema violation: {e.message}"
+```
+
+**Usage example**:
+
+```python
+PRODUCT_SCHEMA = {
+    "type": "object",
+    "required": ["name", "price", "in_stock"],
+    "properties": {
+        "name":     {"type": "string"},
+        "price":    {"type": "number", "minimum": 0},
+        "in_stock": {"type": "boolean"}
+    }
+}
+
+llm_response = main_llm("Return product info as JSON for SKU-123")
+
+valid, data, error = validate_json_output(llm_response, PRODUCT_SCHEMA)
+
+if not valid:
+    # Retry with a more explicit prompt, or return a structured error
+    raise ValueError(f"LLM returned bad output: {error}")
+
+# data is now a validated Python dict — safe to use downstream
+```
+
+**Common retry pattern**: if validation fails, re-prompt the LLM with the error message included ("Your previous response was invalid because: &#123;error&#125;. Please fix and return valid JSON."). Set a max retry limit (typically 2–3) to avoid infinite loops.
+
+---
+
+## Guardrail Performance Tradeoffs
+
+Guardrails add latency. Understanding the cost of each check lets you decide which ones belong in the **critical path** (synchronous, user waits) versus which can run **asynchronously** (fire-and-forget for logging or delayed moderation).
+
+| Guardrail Type | Typical Latency | Sync or Async | When to Use Sync |
+|---|---|---|---|
+| **Keyword / regex filter** | &lt;1 ms | Always sync | Always — zero cost to block early |
+| **PII detection (regex/NER)** | 1–10 ms | Sync | When PII must not reach the LLM at all |
+| **Rate limiter** | &lt;5 ms (cache hit) | Always sync | Always — must happen before the LLM call |
+| **LLM topic classifier** | 100–400 ms | Sync for high-stakes, async for logging | When off-topic requests must be hard-blocked |
+| **Content safety API** | 50–200 ms | Sync for consumer apps, async for internal tools | Whenever the audience includes untrusted users |
+| **Hallucination check** | 200–800 ms | Async unless accuracy is critical | Medical, legal, financial — otherwise log and review |
+| **JSON schema validation** | &lt;1 ms | Always sync | When downstream systems consume structured output |
+| **PII scrubbing (output)** | 1–20 ms | Sync | When output may contain user or third-party PII |
+
+**Rules of thumb**:
+
+- **Sync**: Use when a failure means the response must not reach the user at all. The user blocks on this check.
+- **Async**: Use when failure means "log and review later" — the response is sent but flagged. Suitable for audit trails, abuse detection dashboards, and non-safety-critical quality checks.
+- **Chain order matters**: Put cheap checks first. A 1 ms regex that catches 40% of injection attempts means 40% fewer expensive LLM classifier calls.
+- **Budget your latency**: If your p95 LLM call is 1.2 s and your SLA is 2 s, you have roughly 800 ms for all synchronous guardrails combined. Measure, don't assume.
+
+---
+
 ## Key Terms
 
 | Term | Definition |
@@ -102,6 +288,8 @@ flowchart TD
 | **Topic restriction** | Limiting the LLM to respond only about a defined set of topics |
 | **Safety classifier** | A model (or rule set) that scores content for harmfulness |
 | **False positive** | A legitimate request incorrectly blocked by a guardrail |
+| **PASS / BLOCK / TRANSFORM** | The three possible outcomes of any guardrail check |
+| **Composable pipeline** | A chain of guardrail functions where each step can short-circuit or modify the payload |
 
 ---
 
@@ -126,6 +314,8 @@ The key engineering point: system prompts alone are not sufficient. You need har
 | Blocking without explanation | Users get confused and frustrated | Return a clear, helpful "I can only help with X" message |
 | Setting no topic allowlist | Topic classifier has nothing to compare against | Define an explicit list of allowed topic categories upfront |
 | No false-positive testing | Guardrails block 20% of legitimate users | Build an eval set of safe inputs and measure block rate before deploying |
+| Putting all guardrails in the critical path | p95 latency balloons from 1.2 s to 3+ s | Profile each guardrail; move non-blocking checks to async |
+| Skipping format validation on structured output | Downstream system crashes on malformed JSON | Always validate schema before passing LLM output to other systems |
 
 ---
 
