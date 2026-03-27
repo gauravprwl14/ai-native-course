@@ -204,6 +204,160 @@ MCP uses JSON-RPC 2.0 as its wire format. You rarely write this by hand (the SDK
 
 ---
 
+## MCP Architecture — What Actually Happens
+
+The diagram below shows the complete protocol flow from the moment Claude receives a user message to the point where it incorporates the tool result into its final response. Each arrow represents a real network or process call.
+
+```mermaid
+sequenceDiagram
+    participant CD as Claude Desktop / Claude API
+    participant LLM as LLM (Claude)
+    participant MC as MCP Client
+    participant MS as MCP Server
+    participant BE as Backend (file / DB / API)
+
+    CD->>LLM: User message + MCP tool definitions (translated to native tool format)
+    LLM-->>CD: Tool call decision: {name: "read_file", arguments: {path: "/src/main.py"}}
+    CD->>MC: Forward tool call request
+    MC->>MS: JSON-RPC 2.0 request\n{"jsonrpc":"2.0","id":1,"method":"tools/call",\n"params":{"name":"read_file","arguments":{"path":"/src/main.py"}}}
+    MS->>BE: Execute tool (open("/src/main.py").read())
+    BE-->>MS: Raw result (file contents string)
+    MS-->>MC: JSON-RPC 2.0 response\n{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"..."}],"isError":false}}
+    MC-->>CD: Tool result forwarded to host
+    CD->>LLM: Append tool result to conversation, continue generation
+    LLM-->>CD: Final response incorporating file contents
+```
+
+**Key observations:**
+
+- The LLM never calls the MCP server directly. The host translates between the LLM's native tool call format and the JSON-RPC wire protocol.
+- `id` on every JSON-RPC message allows the client to match responses to outstanding requests, enabling concurrent tool calls.
+- `isError: false` in the result is an MCP-level flag — distinct from an HTTP status code or a Python exception. Always set it correctly so the host can handle errors gracefully.
+
+---
+
+## Building a Minimal MCP Server
+
+The official Python MCP SDK (`pip install mcp`) handles all JSON-RPC serialisation, the initialize handshake, and the stdio transport. You only implement two handlers: `list_tools` (what tools exist) and `call_tool` (what to do when one is invoked).
+
+```python
+from mcp.server import Server
+from mcp.server.stdio import stdio_server
+from mcp.types import Tool, TextContent
+import mcp.types as types
+
+server = Server("my-tools")
+
+@server.list_tools()
+async def list_tools() -> list[Tool]:
+    return [
+        Tool(
+            name="read_file",
+            description="Read a file from the local filesystem",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string", "description": "File path to read"}
+                },
+                "required": ["path"]
+            }
+        )
+    ]
+
+@server.call_tool()
+async def call_tool(name: str, arguments: dict) -> list[TextContent]:
+    if name == "read_file":
+        path = arguments["path"]
+        with open(path) as f:
+            content = f.read()
+        return [TextContent(type="text", text=content)]
+    raise ValueError(f"Unknown tool: {name}")
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(stdio_server(server))
+```
+
+**What each part does:**
+
+- `Server("my-tools")` — creates the server instance with a name Claude will see during the initialize handshake.
+- `@server.list_tools()` — registers the handler called when a host sends `tools/list`. Return one `Tool` object per capability.
+- `inputSchema` — a JSON Schema object. Claude uses this to populate tool call arguments; the host validates against it before forwarding to the server.
+- `@server.call_tool()` — registers the handler for `tools/call`. Must return a list of `TextContent` (or `ImageContent`, `EmbeddedResource`) objects.
+- `stdio_server(server)` — starts the transport loop, reading JSON-RPC from stdin and writing responses to stdout. Claude Desktop spawns this script as a subprocess.
+
+**To wire this into Claude Desktop**, add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "my-tools": {
+      "command": "python",
+      "args": ["/absolute/path/to/server.py"]
+    }
+  }
+}
+```
+
+---
+
+## MCP vs. Function Calling — When to Use Which
+
+MCP and function calling are complementary, not competing. MCP **uses** function calling under the hood — the host translates MCP tool definitions into the LLM's native tool call format. The distinction is at the infrastructure layer.
+
+| Aspect | Function Calling | MCP |
+|--------|-----------------|-----|
+| **Scope** | Per-request tools | Persistent server with many tools |
+| **Transport** | JSON in API payload | stdio or HTTP (JSON-RPC) |
+| **Reuse** | Redefined each call | Register once, used across sessions |
+| **State** | Stateless | Can be stateful (DB connections, etc.) |
+| **Best for** | Dynamic, per-request tools | Shared infrastructure tools |
+
+**Choose function calling when** the tool is specific to one application, you need to construct the tool definition dynamically at runtime, or you are calling the Claude API directly without a host layer.
+
+**Choose MCP when** the same tools need to be available across multiple applications (Claude Desktop, Cursor, your own app), you want to share tool implementations with your team, or the tools require persistent state such as a database connection pool or an authenticated session.
+
+---
+
+## Security Model
+
+MCP servers run with the **process permissions of the host that spawns them**. If Claude Desktop runs as your user account, every MCP server it starts has full read/write access to your home directory, environment variables, and network. This is intentional for local development convenience — and a serious risk if overlooked in production.
+
+**Principles to follow:**
+
+- **Sandbox MCP servers that access sensitive resources.** Use Docker, a dedicated low-privilege OS user, or a network namespace to confine what the server process can reach. A filesystem MCP server should not be able to open a database socket.
+
+- **Validate all inputs before executing.** Treat every `arguments` value as untrusted user input. Path arguments are especially dangerous — always resolve to a canonical path and assert it falls within the expected root before opening:
+
+  ```python
+  import os
+
+  def safe_path(base: str, user_input: str) -> str:
+      resolved = os.path.realpath(os.path.join(base, user_input))
+      if not resolved.startswith(os.path.realpath(base)):
+          raise ValueError("Path traversal attempt blocked")
+      return resolved
+  ```
+
+- **Use resource limits to prevent runaway tools.** A tool that reads a file with no size cap can exhaust RAM; a tool that writes without a quota can fill disk. Set limits explicitly:
+
+  ```python
+  MAX_FILE_SIZE = 1 * 1024 * 1024  # 1 MB
+
+  def read_file_safe(path: str) -> str:
+      size = os.path.getsize(path)
+      if size > MAX_FILE_SIZE:
+          raise ValueError(f"File too large: {size} bytes (max {MAX_FILE_SIZE})")
+      with open(path) as f:
+          return f.read()
+  ```
+
+- **Never return secrets in tool results.** If a tool reads a config file or environment, filter sensitive keys before returning the result. The tool result goes directly into the LLM context window and may appear in logs.
+
+- **Log tool invocations for audit.** Record the tool name, arguments, and calling session. Anomalous patterns (unexpected paths, high call frequency) are your first signal of a prompt injection attack trying to abuse an MCP server.
+
+---
+
 ## Key Terms
 
 | Term | Definition |
@@ -258,6 +412,7 @@ For agent development specifically, MCP provides a clean boundary between "the a
 | **Putting business logic in the transport** | Embedding auth, caching, and data transformation in JSON-RPC handlers | Keep handlers thin; delegate to proper service classes |
 | **Leaking secrets in resource content** | A resource returns a config file that includes API keys | Filter sensitive fields before returning resource content |
 | **Not validating tool inputs** | Accepting arbitrary file paths enables directory traversal attacks | Validate and sanitise all inputs; use `os.path.realpath` to prevent path traversal |
+| **Running MCP servers with excess permissions** | A compromised or misbehaving server can access any file the host user owns | Sandbox servers with Docker or a dedicated OS user; apply least-privilege principles |
 
 ---
 
