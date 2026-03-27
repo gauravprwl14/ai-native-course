@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  ai-native-course:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: ai-native-course:local
+    container_name: ai-native-course
+    ports:
+      - "3000:80"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
