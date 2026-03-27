@@ -199,4 +199,57 @@ async def stream_endpoint(body: dict):
 
 ---
 
-➡️ Next: [Lab — Stream Responses to Terminal](./lab.mdx)
+## Where This Fits in Production
+
+Streaming is the standard delivery mechanism for any user-facing LLM response:
+
+```mermaid
+sequenceDiagram
+  participant Browser
+  participant Server
+  participant LLM
+
+  Browser->>Server: POST /chat (SSE or WebSocket)
+  Server->>LLM: stream=True request
+  loop each text_delta event
+    LLM-->>Server: chunk
+    Server-->>Browser: data: {"token": "..."}\n\n
+  end
+  LLM-->>Server: message_stop
+  Server-->>Browser: data: [DONE]\n\n
+```
+
+**Perceived latency vs. actual latency:**
+
+| Metric | Without streaming | With streaming |
+|--------|-----------------|----------------|
+| Time-to-first-token (TTFT) | N/A (user waits) | 300–800 ms |
+| Time-to-complete | 3–8 s | 3–8 s (unchanged) |
+| Perceived wait | 3–8 s | 0.3–0.8 s |
+
+Streaming doesn't make generation faster — it makes it *feel* faster. TTFT is the metric that matters for UX.
+
+**Server-Sent Events (SSE) vs. WebSockets:**
+
+| | SSE | WebSocket |
+|---|-----|-----------|
+| Direction | Server → client only | Bidirectional |
+| Browser support | Native `EventSource` | Native `WebSocket` |
+| Best for | Streaming LLM output | Chat apps with user interrupts |
+| Reconnection | Built-in auto-reconnect | Manual |
+
+**Error handling in streaming — the tricky part:** if the stream fails mid-response, the client has already rendered partial text. You need a structured error event:
+
+```python
+# Server-side: always send an error event on failure
+try:
+    with client.messages.stream(...) as stream:
+        for text in stream.text_stream:
+            yield f"data: {json.dumps({'token': text})}\n\n"
+except anthropic.APIError as e:
+    yield f"data: {json.dumps({'error': str(e)})}\n\n"
+finally:
+    yield "data: [DONE]\n\n"
+```
+
+**Where to go next:** Ch45 (Latency Optimization) covers reducing TTFT further; Ch22 lab wires this into a real FastAPI endpoint with SSE.

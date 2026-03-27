@@ -323,3 +323,35 @@ return "Max iterations reached"
 ```
 
 </div>
+
+---
+
+## Where This Fits in Production
+
+Tool use is the bridge between language models and the real world. In production it sits inside an execution layer with strong safety boundaries:
+
+```mermaid
+graph LR
+  LLM["LLM\n(tool_use request)"] --> Router["Tool Router\n(name → handler lookup)"]
+  Router --> Safe["Read-only tools\n(search, get, query)"]
+  Router --> Guarded["Write tools\n(create, update, delete)\n+ confirmation gate"]
+  Router --> Sandboxed["Code execution\n(Docker / E2B)"]
+  Safe --> Results["Tool results\n→ back to LLM"]
+  Guarded --> Results
+  Sandboxed --> Results
+
+  style Guarded fill:#fef3c7,stroke:#f59e0b
+  style Sandboxed fill:#fee2e2,stroke:#ef4444
+```
+
+**Security rules for production tool use:**
+
+| Rule | Why |
+|------|-----|
+| Validate all tool inputs against a schema before executing | LLMs occasionally hallucinate argument names or types |
+| Treat write tools (DB writes, file writes, emails) as privileged — require explicit user approval | Prevents agent from taking irreversible actions autonomously |
+| Run code execution tools in an isolated sandbox (Docker, E2B) | Arbitrary code execution is a critical security boundary |
+| Log every tool call with its exact inputs and outputs | Required for debugging and compliance auditing |
+| Set timeouts on every tool (5–30 s) | A hung tool blocks the whole agent loop |
+
+**Where to go next:** Ch20 (Agentic Loop) composes multiple tool calls into a full ReAct loop; Ch28 (HITL) adds human approval gates for write tools; Ch37 (Prompt Injection) covers attacks that try to hijack tool calls.

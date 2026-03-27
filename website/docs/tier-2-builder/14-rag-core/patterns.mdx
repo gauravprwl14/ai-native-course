@@ -381,3 +381,43 @@ context = "\n\n".join(
 Without source labels, the model synthesises an answer but cannot tell the user where it came from. This breaks trust and makes verification impossible.
 
 </div>
+
+---
+
+## Where This Fits in Production
+
+RAG is rarely a standalone service — it sits in a larger inference pipeline:
+
+```mermaid
+graph LR
+  Client["Client App"] --> Gateway["API Gateway\n(auth, rate limit)"]
+  Gateway --> RAGService["RAG Service"]
+  RAGService --> Retriever["Retriever\n(vector DB + BM25)"]
+  RAGService --> LLM["LLM Provider\n(Claude / GPT-4o)"]
+  RAGService --> Cache["Prompt Cache\n(Redis, 1h TTL)"]
+  RAGService --> Telemetry["Tracing\n(Langfuse / Phoenix)"]
+
+  style RAGService fill:#d1fae5,stroke:#10b981
+```
+
+**Typical cost breakdown** for a 1,000-token RAG query (GPT-4o pricing):
+
+| Step | Tokens | Cost |
+|------|--------|------|
+| System prompt + retrieved context | ~700 | $0.0035 |
+| User question | ~50 | $0.00025 |
+| LLM answer generation | ~250 | $0.005 |
+| **Total per query** | ~1,000 | **~$0.009** |
+
+At 10,000 queries/day that's ~$90/day — prompt caching and response caching cut this by 40–60%.
+
+**Failure modes to plan for:**
+
+| Failure | Symptom | Mitigation |
+|---------|---------|------------|
+| Empty retrieval | LLM hallucinates or says "I don't know" | Return "no relevant documents found" before calling LLM |
+| Stale index | Answers reference outdated information | Re-index on document update events, not on a fixed schedule |
+| Context overflow | Request exceeds model context limit | Truncate or summarise retrieved chunks; check token count before calling |
+| Latency spike | p99 &gt; 5s hurts UX | Cache embeddings for common queries; use smaller retrieval models |
+
+**Where to go next:** Ch15 (Vector Databases) covers choosing and scaling the retrieval layer; Ch17 (Hybrid Search) improves recall; Ch44 (LLM Caching) cuts cost.

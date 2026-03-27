@@ -189,4 +189,37 @@ for source, summary in summaries.items():
 
 ---
 
-Next: [Lab — Two-Agent Pipeline](./lab.mdx)
+## Where This Fits in Production
+
+Multi-agent systems show up in every serious AI product that handles complex, multi-step tasks. The pattern is always some variation of:
+
+```mermaid
+graph TD
+  User["User request"] --> Orch["Orchestrator\n(Claude Opus — reasoning)"]
+  Orch --> R["ResearchAgent\n(Claude Haiku — cheap + fast)"]
+  Orch --> W["WriterAgent\n(Claude Sonnet — quality)"]
+  Orch --> V["ValidatorAgent\n(Claude Haiku — cheap + fast)"]
+  R --> State["Shared State\n(dict / Redis)"]
+  W --> State
+  V --> State
+  State --> Orch
+  Orch --> Response["Final response\nto user"]
+
+  style Orch fill:#e0e7ff,stroke:#6366f1
+  style State fill:#fef3c7,stroke:#f59e0b
+```
+
+**Model selection by agent role** — the biggest cost lever in multi-agent systems:
+
+| Role | Recommended model | Why |
+|------|------------------|-----|
+| Orchestrator (planning, routing) | Claude Sonnet / Opus | Needs strong reasoning to make routing decisions |
+| Research / retrieval | Claude Haiku | High volume, speed matters, low reasoning load |
+| Content generation | Claude Sonnet | Quality output, moderate cost |
+| Validation / QA | Claude Haiku | Structured yes/no checks; cheap at scale |
+
+A 5-step pipeline using Haiku workers + Sonnet orchestrator costs ~5× less than running Sonnet everywhere.
+
+**Failure budget:** with 5 agents each at 99% reliability, the system-level reliability is 0.99⁵ = 95%. Design for partial failures: agents that fail should return structured error objects, not raise exceptions that crash the orchestrator.
+
+**Where to go next:** Ch27 (Agent Handoff) covers the inter-agent communication protocol; Ch35 (Tracing) shows how to trace execution across agent boundaries; Ch46 (AI Gateway) centralises model selection and retry logic.

@@ -289,4 +289,38 @@ for event in stream_agent_events("Calculate 15 factorial", tools, tool_functions
 
 ---
 
-➡️ Next: [Lab — Build a ReAct Agent](./lab.mdx)
+## Where This Fits in Production
+
+A single agentic loop is the inner engine of almost every AI product:
+
+```mermaid
+graph TD
+  Request["Incoming task"] --> Loop["Agentic Loop\n(ReAct)"]
+  Loop --> Tools["Tool Executor\n(sandboxed)"]
+  Loop --> Memory["Short-term Memory\n(messages list)"]
+  Loop --> Guard["Guardrails\n(content + cost check)"]
+  Guard -->|"iteration limit hit\nor unsafe output"| Stop["Hard stop\nreturn partial result"]
+  Tools --> ExternalAPI["External APIs\n(search, DB, code runner)"]
+  Loop -->|"FINAL_ANSWER"| Response["Response to user"]
+
+  style Loop fill:#d1fae5,stroke:#10b981
+  style Guard fill:#fee2e2,stroke:#ef4444
+```
+
+**Cost and latency profile** for a 5-step ReAct agent (Claude Sonnet):
+
+| What | Rough numbers |
+|------|---------------|
+| Tokens per step (context grows) | 500 → 2,000 by step 5 |
+| Cost for a 5-step run | ~$0.03–$0.08 |
+| Latency per step | 1–3 s |
+| Total wall-clock time | 5–15 s |
+
+**Key production considerations:**
+
+- **Timeouts** — set a per-step timeout (5–10 s) and a total task timeout (60 s) to protect against runaway agents
+- **Tool sandboxing** — never run agent-generated code directly; use Docker or E2B for code execution tools
+- **Idempotency** — if a tool is called twice (e.g., on retry), it should produce the same result; design tools to be idempotent
+- **Async** — wrap the loop in an async background job (Celery, RQ) so the HTTP response isn't held open for 15 s
+
+**Where to go next:** Ch23 (Planning) covers pre-generating tool call sequences; Ch24 (Multi-Agent) splits the loop across specialised agents; Ch28 (HITL) adds human approval gates.
