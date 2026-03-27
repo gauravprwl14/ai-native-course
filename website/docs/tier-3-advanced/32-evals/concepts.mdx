@@ -102,6 +102,127 @@ The baseline is the score from the last known-good version (e.g., the current pr
 
 ---
 
+## The Eval Pipeline
+
+Evals are not a one-time manual check. They are an automated pipeline that runs every time you change anything — the prompt, the model, the retrieval logic. Here is the full shape of that pipeline:
+
+```mermaid
+flowchart TD
+    A([Test Cases\ninput + expected + metadata]) --> B[Run Model\non each input]
+    B --> C([Raw Outputs])
+    C --> D1[Scorer: Exact Match]
+    C --> D2[Scorer: Regex]
+    C --> D3[Scorer: Semantic Similarity]
+    C --> D4[Scorer: LLM-as-Judge]
+    D1 --> E[Aggregate Metrics\nmean · pass rate · P90]
+    D2 --> E
+    D3 --> E
+    D4 --> E
+    E --> F{Compare to Baseline}
+    F -->|Score &gt;= threshold| G([Pass — ship it])
+    F -->|Score &lt; threshold| H([Fail — block the change])
+```
+
+Key points this diagram makes concrete:
+
+- **Multiple scorers run in parallel** against the same outputs. You rarely rely on a single metric.
+- **Aggregation happens after scoring** — you compute pass rate, mean, or P90 across all test cases, not per-example.
+- **Comparison to baseline is the gate** — the pipeline produces a binary pass/fail, not just a number.
+
+---
+
+## Types of Scorers
+
+Different tasks need different scorers. Picking the right scorer is as important as writing good test cases.
+
+| Scorer type | How it works | When to use | Cost |
+|-------------|-------------|-------------|------|
+| Exact match | `output == expected` | Classification, structured output, entity extraction | Free |
+| Regex | `re.search(pattern, output)` | Checking format (e.g. JSON shape), presence of required keywords | Free |
+| Semantic similarity | `cosine_sim(embed(output), embed(expected)) > threshold` | Paraphrase answers, summaries where wording varies | Embedding cost |
+| LLM-as-Judge | Ask another LLM to score on a rubric | Open-ended quality — helpfulness, tone, reasoning correctness | LLM cost |
+| Human | Human rates output on a rubric | Gold standard; use to calibrate automated scorers | Expensive |
+
+**Practical rule:** start with free scorers (exact match, regex) for any structured part of your output. Add semantic similarity or LLM-as-Judge only for the parts where exact match fails to capture real quality differences.
+
+---
+
+## Writing Good Test Cases
+
+A test case is more than just an input/output pair. A well-formed test case has three parts:
+
+1. **Input** — the prompt or query the model will receive.
+2. **Expected output (or rubric)** — either the exact expected answer, or a rubric that a scorer can use to judge correctness.
+3. **Metadata** — tags that let you slice results. Useful tags: `"edge_case"`, `"adversarial"`, `"core_behavior"`, `"language:es"`, `"topic:billing"`.
+
+### Minimal test case structure
+
+```json
+{
+  "id": "tc-001",
+  "input": "What is the refund policy for digital products?",
+  "expected_output": "Digital products are non-refundable unless they are defective.",
+  "rubric": "Response must mention non-refundable and include the defect exception.",
+  "tags": ["core_behavior", "topic:refunds"]
+}
+```
+
+The `rubric` field is used when the expected output is too rigid — an LLM-as-Judge scorer reads both the `expected_output` and the `rubric` to decide if the actual output passes.
+
+### Coverage requirements
+
+Evals only catch what they cover. A useful rule of thumb:
+
+- **At least 5 examples per behavior you care about.** If you care about refund questions, have at least 5 different refund-related inputs. One example can be fooled by luck; five expose a real pattern.
+- **At least 3 adversarial examples per behavior.** Adversarial examples test the boundary: negations ("I do NOT want a refund, I want an exchange"), unusual phrasing, multi-part questions, or inputs that should trigger a refusal. Tag these `"adversarial"` so you can track them separately.
+
+| Behavior | Min examples | Min adversarial |
+|----------|-------------|-----------------|
+| Billing questions | 5 | 3 |
+| Refusal (policy violations) | 5 | 3 |
+| Structured output format | 5 | 3 |
+| Multilingual inputs | 5 per language | 3 per language |
+
+---
+
+## Connecting Evals to CI
+
+An eval that only runs manually will drift out of use. The right home for evals is your CI pipeline. Every pull request that touches the prompt, model config, or retrieval logic should trigger the eval suite and block merging if the pass rate drops below the threshold.
+
+### Minimal GitHub Actions step
+
+```yaml
+- name: Run evals
+  run: python evals/run_evals.py --threshold 0.80
+  env:
+    ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+`run_evals.py` should exit with code `0` when pass rate is at or above the threshold, and exit `1` (or any non-zero code) when it falls below. GitHub Actions treats a non-zero exit code as a failed step and blocks the merge.
+
+### What `run_evals.py` needs to do
+
+1. Load the eval dataset from a versioned file (e.g., `evals/dataset.jsonl`).
+2. Run each input through the model (using the same config as production).
+3. Score each output with the configured scorers.
+4. Compute pass rate = `(number of passing examples) / (total examples)`.
+5. Print a summary table per tag so failures are easy to diagnose.
+6. Exit `1` if pass rate &lt; threshold, `0` otherwise.
+
+A minimal exit-code pattern in Python:
+
+```python
+import sys
+
+pass_rate = compute_pass_rate(results)
+print(f"Pass rate: {pass_rate:.2%}")
+if pass_rate < args.threshold:
+    print(f"FAIL: pass rate {pass_rate:.2%} is below threshold {args.threshold:.2%}")
+    sys.exit(1)
+```
+
+---
+
 ## Diagram
 
 ```mermaid
@@ -151,6 +272,8 @@ The important follow-up: you need an eval dataset that covers the kinds of quest
 | Evaluating on training data | Scores look great but reflect memorization, not generalization | Always hold out eval data; never use it for training |
 | Single metric | ROUGE can be high even for unhelpful responses; exact match misses paraphrases | Use at least two metrics; add an LLM judge for quality |
 | Not tracking baselines | You don't know if you regressed | Store eval results in a file or database; compare each run to the last |
+| No adversarial test cases | System looks robust on easy examples but fails at edges | Add at least 3 adversarial examples per behavior; tag them separately |
+| Evals not in CI | Evals drift out of use when run manually | Wire evals into GitHub Actions; block merges on regression |
 
 ---
 

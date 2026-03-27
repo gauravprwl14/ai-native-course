@@ -132,6 +132,145 @@ This filters to only HR policy documents *before* the vector comparison — fast
 
 ---
 
+## How HNSW Index Works
+
+Think of HNSW as **a set of highway maps at different zoom levels**: the coarse top layer lets you find the right neighbourhood quickly (like motorway junctions on a national map), while the fine bottom layer gives you the exact nearest neighbours (like street-level detail).
+
+When you run a query:
+
+1. **Enter at the top layer** — only a handful of nodes exist here. Greedily hop toward the query vector in large jumps.
+2. **Drop one layer** — the same region is now represented with more nodes. Continue greedy navigation with finer hops.
+3. **Repeat until Layer 0** — the densest layer. Exhaustively explore the local neighbourhood to return the final top-k results.
+
+The key insight: you spend almost no time on the wrong part of the space. The upper layers act as a coarse filter so the expensive fine-grained search is confined to a tiny fraction of all vectors.
+
+```mermaid
+graph TB
+  subgraph "Layer 2 — national highway map"
+    L2A(["Node A"]) -->|"long hop"| L2B(["Node B"])
+    L2B -->|"long hop"| L2C(["Near region"])
+  end
+  subgraph "Layer 1 — city road map"
+    L1C(["Near region"]) --> L1D(["Closer"])
+    L1D --> L1E(["Even closer"])
+  end
+  subgraph "Layer 0 — street map  (exact neighbours)"
+    L0E(["Even closer"]) --> L0F(["NN 1 ✓"])
+    L0E --> L0G(["NN 2 ✓"])
+    L0E --> L0H(["NN 3 ✓"])
+  end
+  L2C -.->|"zoom in"| L1C
+  L1E -.->|"zoom in"| L0E
+```
+
+**Tuning knobs:**
+
+| Parameter | What it controls | Higher value → |
+|-----------|-----------------|---------------|
+| `M` | Edges per node in the graph | Better recall, more RAM |
+| `ef_construction` | Beam width during index build | Better recall, slower build |
+| `ef` (query) | Beam width during search | Better recall, slower query |
+
+---
+
+## Choosing a Vector Database
+
+Use this table as a first-pass filter. Every option can be made to work at most scales — the question is what fits your team's constraints and existing stack.
+
+| DB | Deployment | Filtering | Scale | Best for |
+|----|-----------|-----------|-------|---------|
+| **Chroma** | Local / embedded | Metadata filters | Small–medium | Dev / prototyping |
+| **Qdrant** | Self-hosted / cloud | Rich filtering | Large | Production |
+| **Pinecone** | Managed SaaS | Metadata filters | Very large | Managed production |
+| **pgvector** | Postgres extension | Full SQL | Medium | Already on Postgres |
+| **Weaviate** | Self-hosted / cloud | GraphQL | Large | Multi-modal |
+
+**Decision heuristic:**
+
+- Starting a new project or building a prototype → **Chroma**
+- Already running Postgres in production → **pgvector**
+- Need managed, zero-ops, scales to hundreds of millions → **Pinecone**
+- Need rich boolean + range filtering or self-hosted with production SLAs → **Qdrant**
+- Working with images, audio, or mixed modalities alongside text → **Weaviate**
+
+---
+
+## From Embedding to Query — End to End
+
+The full lifecycle of a document through a vector database, from raw text to a retrieved chunk inside a RAG prompt:
+
+```mermaid
+sequenceDiagram
+  participant D as Document
+  participant C as Chunker
+  participant E as Embedder
+  participant DB as Vector DB
+  participant Q as Query
+  participant R as RAG Prompt
+
+  D->>C: Raw text
+  C->>E: Chunks (e.g. 512 tokens each)
+  E->>DB: Embedding vectors + metadata
+  Note over DB: Upsert: store vector,<br/>document text, metadata
+
+  Q->>E: User query string
+  E->>DB: Query embedding
+  DB->>DB: ANN search (HNSW)<br/>returns top-k candidates
+  DB->>Q: top-k chunks + metadata + scores
+  Q->>Q: Filter by similarity threshold<br/>(e.g. score &gt; 0.75)
+  Q->>R: Filtered chunks injected<br/>into RAG prompt
+```
+
+Key points from the diagram:
+
+- **Indexing** (top half) happens once per document — it is slow and happens offline.
+- **Querying** (bottom half) happens on every user request — it must be fast (sub-100 ms).
+- The **threshold filter** after ANN search prevents low-quality matches from polluting the prompt. A score of 0.75+ on cosine similarity is a common starting threshold.
+
+---
+
+## Index vs. Query Performance
+
+### Indexing is slow; querying is fast
+
+Building an HNSW index touches every vector and establishes graph connections between them. This is a one-time cost that scales roughly as O(n log n). Querying navigates that graph in O(log n) — typically **1–10 ms** at millions of vectors.
+
+| Operation | Typical time | When it happens |
+|-----------|-------------|-----------------|
+| Build index (1M vectors) | Minutes to hours | Once, at ingest time |
+| Single ANN query | 1–10 ms | Every user request |
+| Metadata-filtered query | 2–20 ms | Every user request |
+
+### Memory footprint
+
+Raw vector storage grows linearly:
+
+```
+memory ≈ num_vectors × dimensions × bytes_per_float
+```
+
+At 1M vectors, 1536 dimensions, and 4 bytes per float (float32):
+
+```
+1,000,000 × 1,536 × 4 = 6,144,000,000 bytes ≈ 6 GB RAM
+```
+
+The HNSW graph structure adds roughly 10–20 % on top of that.
+
+### When to use quantization
+
+If 6 GB RAM is too large for your deployment, **scalar quantization (int8)** compresses each float32 (4 bytes) to an int8 (1 byte) — a **4× reduction in memory** at a small recall penalty (typically &lt; 1–2 %).
+
+| Strategy | Memory | Recall impact | When to use |
+|----------|--------|--------------|-------------|
+| float32 (default) | Baseline | None | Development, small corpora |
+| int8 quantization | 4× smaller | &lt; 1–2 % | Large corpora, memory-constrained |
+| Binary quantization | 32× smaller | 3–5 % | Extreme scale, re-ranking pipeline |
+
+Most production vector databases (Qdrant, Pinecone, Weaviate) support int8 quantization natively. For Chroma, apply quantization at the embedding model level before upsert.
+
+---
+
 ## Key Terms
 
 | Term | Definition |
@@ -146,6 +285,9 @@ This filters to only HR policy documents *before* the vector comparison — fast
 | **Cosine distance** | Measures the angle between two vectors — standard for semantic similarity |
 | **L2 distance** | Euclidean distance — suitable when vector magnitude matters |
 | **IP distance** | Inner product — often used with pre-normalised vectors |
+| **Quantization** | Compressing float32 vectors to lower-precision integers to reduce memory |
+| **ef_construction** | HNSW build-time beam width — higher improves recall, slows indexing |
+| **top-k** | The k most similar vectors returned by an ANN search |
 
 ---
 
@@ -177,6 +319,10 @@ The follow-up often probes persistence: "What happens if you forget to persist C
 
 **Using L2 distance when cosine is appropriate** — For semantic text embeddings, cosine similarity is almost always the right metric. L2 distance is sensitive to vector magnitude, which is usually not meaningful for normalised embeddings. Pass `metadata={"hnsw:space": "cosine"}` when creating a Chroma collection.
 
+**Ignoring memory at scale** — A 1M-vector, 1536-dim index needs ~6 GB RAM. Budget for the HNSW graph overhead (~15 %) on top. If that exceeds your deployment limits, enable int8 quantization before you hit production.
+
+**Skipping the similarity threshold** — Returning all top-k results regardless of their score can inject irrelevant context into your RAG prompt. Always apply a minimum score threshold (e.g. cosine similarity &gt; 0.75) before passing chunks to the LLM.
+
 </div>
 
 ---
@@ -186,3 +332,5 @@ The follow-up often probes persistence: "What happens if you forget to persist C
 - [Chroma Documentation](https://docs.trychroma.com/) — full API reference and guides
 - [pgvector GitHub](https://github.com/pgvector/pgvector) — installation, index types, and SQL examples
 - [Pinecone Learning Center](https://www.pinecone.io/learn/) — ANN algorithms, HNSW deep-dive, production patterns
+- [Qdrant Documentation](https://qdrant.tech/documentation/) — filtering, quantization, and deployment guides
+- [HNSW paper (Malkov & Yashunin, 2018)](https://arxiv.org/abs/1603.09320) — the original algorithm paper

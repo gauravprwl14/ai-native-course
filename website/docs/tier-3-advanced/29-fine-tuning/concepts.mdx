@@ -84,6 +84,152 @@ Step 5: Deploy             →  Use fine_tuned_model ID in chat.completions.crea
 
 ---
 
+## The Fine-tuning Decision Tree
+
+Before spending time and money on fine-tuning, run through this flowchart. Most problems have a cheaper solution.
+
+```mermaid
+flowchart TD
+    A([Is the base model failing\nto do what you need?]) --> B{Failing?}
+    B -->|No| C([Use the base model as-is])
+    B -->|Yes| D{Can prompt engineering fix it?}
+    D -->|Yes| E([Use system prompt + few-shot])
+    D -->|No| F{Is the training data dynamic\nor changes frequently?}
+    F -->|Yes| G([Use RAG instead])
+    F -->|No| H{Do you need style, format,\nor task-specific behavior?}
+    H -->|Yes| I([Fine-tune])
+    H -->|No| J([Re-examine requirements])
+```
+
+**Quick heuristic:** if you can describe the behaviour you want in a paragraph and show three examples, try a system prompt first. Only escalate to fine-tuning when the system prompt consistently fails in production.
+
+---
+
+## What Fine-tuning Actually Changes
+
+Understanding what happens under the hood prevents expensive mistakes.
+
+### Full Fine-tuning
+
+Full fine-tuning updates **every weight** in the model. For a 7B-parameter model that is roughly 14 GB of numbers — all of them are candidates for change. This is:
+
+- **Expensive**: requires significant GPU memory and compute time
+- **Risky**: susceptible to catastrophic forgetting (see below)
+- **Powerful**: can reshape the model's behaviour substantially
+
+### LoRA (Low-Rank Adaptation)
+
+LoRA, covered in depth in Chapter 30, inserts small **adapter matrices** alongside the original weight matrices. Only the adapter weights are updated during training — the original model weights are frozen.
+
+The result: 10–100× fewer trainable parameters compared to full fine-tuning. A model with 7 billion parameters might only update 10–50 million with LoRA. This makes training feasible on a single consumer GPU and reduces the risk of forgetting.
+
+### Catastrophic Forgetting
+
+When you fine-tune on a narrow dataset, the model gets better at your specific task but can lose capability on unrelated tasks. Examples:
+
+- Fine-tune on medical Q&A → the model may start formatting all answers in clinical style, even when asked to write a poem
+- Fine-tune heavily on Portuguese → English responses may degrade
+
+**Mitigation strategies:**
+
+- Use LoRA instead of full fine-tuning (frozen base weights cannot forget)
+- Mix in general-purpose examples alongside your task-specific ones
+- Use the smallest number of epochs that achieves your target validation loss
+
+### Why You Always Fine-tune from a Base Model
+
+Never fine-tune on top of a model that has already been fine-tuned (unless you have a specific, well-understood reason). Each successive fine-tuning pass:
+
+1. Compounds the risk of catastrophic forgetting
+2. Makes it harder to reproduce results (two layers of custom training)
+3. Can amplify biases from both training runs
+
+Always start from the official base or instruction-tuned checkpoint published by the model provider.
+
+---
+
+## Data Quality vs. Quantity
+
+**100 perfect examples beat 10,000 mediocre ones.** This is the most consistently validated principle in applied fine-tuning, and the one most often ignored.
+
+### What a Good Training Example Looks Like
+
+```jsonl
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": "My order #48291 hasn't arrived after 14 days. What should I do?"
+    },
+    {
+      "role": "assistant",
+      "content": "We sincerely apologise for the delay with your order #48291. Please allow us to investigate immediately. Could you confirm the delivery address on the order? We will contact the courier within 24 hours and provide you with a resolution — either a replacement shipment or a full refund, whichever you prefer."
+    }
+  ]
+}
+```
+
+Why this is good:
+- **Specific input**: includes an order number, a concrete timeframe, a clear question
+- **Consistent output**: formal tone, empathetic opening, clear action, no contractions, defined resolution path
+- **No ambiguity**: any reviewer would agree this is the correct response style
+
+### What a Bad Training Example Looks Like
+
+```jsonl
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": "Where's my stuff?"
+    },
+    {
+      "role": "assistant",
+      "content": "Hey! Sorry about that, let me check. It might be delayed, you know how shipping is sometimes. Try checking the tracking link we sent you or contact us if you need more help!"
+    }
+  ]
+}
+```
+
+Why this is bad:
+- **Vague input**: "Where's my stuff?" could mean anything — no order number, no timeframe
+- **Inconsistent style**: uses contractions ("let me", "you know"), casual tone ("Hey!"), contradicts brand voice
+- **Weak resolution**: "contact us if you need help" — the user *is* contacting you
+- **LLM-generated feel**: reads like a generic chatbot response, not a trained brand voice
+
+If your dataset is full of examples like this second one, fine-tuning will make your model consistently mediocre.
+
+### Minimum Example Counts by Task
+
+| Task type | Minimum viable | Recommended | Notes |
+|-----------|---------------|-------------|-------|
+| Style / tone / format | 50 | 200–500 | Humans must review every example |
+| Complex reasoning tasks | 200+ | 500–1000 | Include diverse edge cases |
+| Domain knowledge | 1000+ | 2000–5000 | Pair with RAG for dynamic facts |
+
+Below these minimums, the model will partially learn your pattern but revert to base behaviour on inputs that differ even slightly from your training examples.
+
+---
+
+## Cost and Time Estimates
+
+These are rough estimates as of early 2025. Prices change — always check the provider's current pricing page before budgeting a project.
+
+| Model | Training cost (100 examples) | Training time | Inference cost vs base |
+|-------|------------------------------|---------------|------------------------|
+| GPT-3.5-turbo | ~$0.50 | ~5 min | Same |
+| GPT-4o mini | ~$2.00 | ~10 min | Same |
+| Llama 3 8B (LoRA, A100) | ~$1–5 | ~30 min | Self-hosted |
+
+**Notes on the table:**
+
+- OpenAI costs scale roughly linearly with the number of tokens in your training file, not just the number of examples. Longer conversations cost more.
+- "Inference cost vs base" being "Same" for OpenAI models means your fine-tuned model is priced at the same per-token rate as the base model — there is no fine-tuned model surcharge on inference.
+- Self-hosted Llama costs depend entirely on your GPU hourly rate. An A100 on a cloud provider runs ~$2–4/hour; 30 minutes of training costs ~$1–2 in compute, plus any storage or orchestration overhead.
+- For production use, budget for **multiple training runs** — the first run is rarely the one you deploy.
+
+---
+
 ## Diagrams
 
 ### Fine-tuning Pipeline
@@ -129,6 +275,8 @@ xychart-beta
 | **Overfitting** | Training loss decreasing while validation loss stagnates or increases |
 | **Catastrophic forgetting** | Fine-tuning on narrow data can degrade the model's general capabilities |
 | **Epochs** | Number of times the model iterates over the full training dataset |
+| **LoRA** | Low-Rank Adaptation — adds small trainable adapter matrices, freezes base weights |
+| **Full fine-tuning** | Updates every weight in the model; powerful but expensive and prone to forgetting |
 
 ---
 
@@ -136,7 +284,7 @@ xychart-beta
 
 **"How many examples do you need to fine-tune effectively?"**
 
-Quality over quantity — always. The minimum is roughly 100 examples for style/format tasks, 500–1000 for consistent domain-specific behaviour. But 200 high-quality, human-reviewed examples will outperform 2,000 LLM-generated ones.
+Quality over quantity — always. The minimum is roughly 50–100 examples for style/format tasks, 200+ for complex reasoning, 1000+ for domain knowledge. But 200 high-quality, human-reviewed examples will outperform 2,000 LLM-generated ones.
 
 The more important question is: "Do you need to fine-tune at all?" If the task can be solved with a clear system prompt and few-shot examples in context, that's faster, cheaper, and easier to iterate. Reserve fine-tuning for cases where consistency, latency, or cost at scale justify the investment.
 
@@ -151,6 +299,8 @@ The more important question is: "Do you need to fine-tune at all?" If the task c
 | Fine-tuning when prompting works | Unnecessary complexity, harder to update | Try prompt engineering first; fine-tune only when it reliably fails |
 | Too many epochs | Overfitting — model memorises training data | Monitor validation loss; stop when it stops improving |
 | Biased training data | Model learns to reflect biases in examples | Audit dataset for representation and accuracy |
+| Fine-tuning on top of a fine-tuned model | Compounded forgetting, hard to reproduce | Always start from the official base checkpoint |
+| Skipping the decision tree | Time and money spent on fine-tuning a problem that RAG or prompting could solve | Run through the decision flowchart before starting |
 
 ---
 
