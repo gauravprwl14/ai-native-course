@@ -16,6 +16,17 @@ const config: Config = {
   onBrokenLinks: 'warn', // ConceptMap uses slug-only hrefs; would need a full slug→tier lookup to generate correct paths
   onBrokenMarkdownLinks: 'warn',
 
+  // Prevent flash-of-wrong-theme + preconnect for Google Fonts performance.
+  headTags: [
+    {
+      tagName: 'script',
+      attributes: {},
+      innerHTML: `(function(){try{var t=localStorage.getItem('theme');document.documentElement.setAttribute('data-theme',t&&(t==='light'||t==='dark')?t:'dark')}catch(e){}})();`,
+    },
+    { tagName: 'link', attributes: { rel: 'preconnect', href: 'https://fonts.googleapis.com' } },
+    { tagName: 'link', attributes: { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: 'anonymous' } },
+  ],
+
   i18n: {
     defaultLocale: 'en',
     locales: ['en'],
@@ -46,6 +57,13 @@ const config: Config = {
   ],
 
   themeConfig: {
+    // Default to dark; user can still toggle.
+    colorMode: {
+      defaultMode: 'dark',
+      disableSwitch: false,
+      respectPrefersColorScheme: false,
+    },
+
     image: 'img/social-card.png',
     navbar: {
       title: 'AI-Native Course',
@@ -93,8 +111,27 @@ const config: Config = {
       darkTheme: prismThemes.dracula,
       additionalLanguages: ['python', 'bash', 'json', 'yaml', 'typescript'],
     },
+    // Switch from 'neutral' (grey) to 'base' (coloured) for light mode.
+    // Dark mode keeps the built-in 'dark' theme.
     mermaid: {
-      theme: { light: 'neutral', dark: 'dark' },
+      theme: { light: 'base', dark: 'dark' },
+      options: {
+        themeVariables: {
+          primaryColor: '#0891b2',
+          primaryTextColor: '#ffffff',
+          primaryBorderColor: '#0e7490',
+          lineColor: '#8b949e',
+          secondaryColor: '#cffafe',
+          tertiaryColor: '#ecfeff',
+          background: '#ffffff',
+          mainBkg: '#0891b2',
+          nodeBorder: '#0e7490',
+          clusterBkg: '#ecfeff',
+          titleColor: '#0d1117',
+          edgeLabelBackground: '#ffffff',
+          fontFamily: 'Inter, system-ui, sans-serif',
+        },
+      },
     },
   } satisfies Preset.ThemeConfig,
 };

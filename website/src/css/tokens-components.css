@@ -1,0 +1,165 @@
+/**
+ * Tier 3 — Component tokens
+ * Maps semantic tokens → Docusaurus --ifm-* variables.
+ * Also owns structural/layout styles that have no semantic parallel.
+ */
+
+/* ── Docusaurus core overrides ── */
+:root {
+  /* Colour system */
+  --ifm-color-primary:          var(--color-accent);
+  --ifm-color-primary-dark:     var(--color-accent-dark);
+  --ifm-color-primary-darker:   var(--primitive-brand-700);
+  --ifm-color-primary-darkest:  var(--primitive-brand-800);
+  --ifm-color-primary-light:    var(--color-accent-light);
+  --ifm-color-primary-lighter:  var(--primitive-brand-300);
+  --ifm-color-primary-lightest: var(--primitive-brand-200);
+
+  /* Backgrounds */
+  --ifm-background-color:         var(--color-bg-base);
+  --ifm-background-surface-color: var(--color-bg-surface);
+
+  /* Navbar — transparent so blur glass works */
+  --ifm-navbar-background-color: transparent;
+  --ifm-navbar-shadow: none;
+
+  /* TOC / dividers */
+  --ifm-toc-border-color:    var(--color-border-subtle);
+  --ifm-hr-border-color:     var(--color-border-default);
+  --ifm-color-emphasis-300:  var(--color-border-default);
+
+  /* Sidebar */
+  --ifm-menu-color:                      var(--color-text-muted);
+  --ifm-menu-color-active:               var(--color-accent);
+  --ifm-menu-color-background-active:    var(--color-accent-muted);
+  --ifm-menu-color-background-hover:     var(--color-bg-overlay);
+  --ifm-sidebar-category-font-weight:    700;  /* tier headers bold */
+  --ifm-menu-link-font-weight:           400;  /* chapter links regular */
+  --ifm-menu-link-sublist-icon-filter:   none; /* chevron color handled by CSS below */
+
+  /* Code */
+  --ifm-pre-background:  var(--color-bg-code);
+  --ifm-code-background: var(--color-bg-elevated);
+  --docusaurus-highlighted-code-line-bg: var(--color-accent-muted);
+
+  /* Footer */
+  --ifm-footer-background-color: var(--color-bg-surface);
+  --ifm-footer-color:            var(--color-text-muted);
+
+  /* Fonts */
+  --ifm-font-family-base:      'Inter', system-ui, -apple-system, sans-serif;
+  --ifm-font-family-monospace: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+  --font-display:              'Bricolage Grotesque', 'Inter', system-ui, sans-serif;
+  --ifm-heading-font-weight:   700;
+  --ifm-code-font-size:        90%;
+  --ifm-navbar-height:         60px;
+
+  /* Fluid type scale — clamp(min, preferred, max) */
+  --text-display-xl: clamp(2.5rem, 7vw, 5.5rem);
+  --text-display-lg: clamp(2rem, 5vw, 3.5rem);
+  --text-display-md: clamp(1.5rem, 3.5vw, 2.25rem);
+  --text-body-lg:    clamp(1rem, 2vw, 1.25rem);
+
+  /* Gradient text — single hue, subtle not garish */
+  --gradient-brand: linear-gradient(135deg, #06b6d4 0%, #22d3ee 60%, #67e8f9 100%);
+}
+
+/* ── Global typography polish ── */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  letter-spacing: -0.02em;
+}
+
+/* ── Blur-glass navbar (dark mode) ── */
+[data-theme='dark'] .navbar {
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  background-color: rgba(9, 9, 11, 0.80) !important;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+/* Light-mode navbar: subtle border only */
+[data-theme='light'] .navbar {
+  background-color: var(--color-bg-base) !important;
+  border-bottom: 1px solid var(--color-border-default);
+}
+
+/* ── Sidebar chevron fix (dark) ── */
+[data-theme='dark'] .menu__caret::before,
+[data-theme='dark'] .menu__link--sublist-caret::after {
+  filter: invert(1) opacity(0.6);
+}
+
+/* ── Gemini-style tabbed code blocks ── */
+/* Tab bar */
+.tabs-container .tabs {
+  border-bottom: 1px solid var(--color-border-default);
+  background: var(--color-bg-surface);
+}
+
+.tabs-container .tabs__item {
+  color: var(--color-text-muted);
+  border-bottom: 2px solid transparent;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  padding: 0.5rem 1rem;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.tabs-container .tabs__item:hover {
+  color: var(--color-text-primary);
+  border-bottom-color: var(--color-border-default);
+  background: transparent;
+}
+
+.tabs-container .tabs__item--active {
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
+  background: transparent !important;
+}
+
+/* Code block under tabs: square top corners */
+.tabs-container pre {
+  border-radius: 0 0 var(--radius-md) var(--radius-md) !important;
+  border-top: none !important;
+  margin-top: 0 !important;
+}
+
+/* ── Hover-reveal copy button (Gemini-style) ── */
+div[class*='codeBlockContainer'] {
+  position: relative;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-subtle);
+}
+
+div[class*='codeBlockContainer'] button[aria-label='Copy'] {
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+div[class*='codeBlockContainer']:hover button[aria-label='Copy'] {
+  opacity: 1;
+}
+
+/* ── Sidebar category (tier) header visual weight ── */
+.menu__list-item-collapsible {
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-subtle) !important;
+  padding: 0.5rem 0.75rem 0.25rem;
+}
+
+.menu__list-item-collapsible:hover {
+  background: var(--color-bg-overlay);
+}
+
+/* Active sidebar link: left accent bar */
+.menu__link--active:not(.menu__link--sublist) {
+  border-left: 2px solid var(--color-accent);
+  padding-left: calc(0.75rem - 2px);
+}

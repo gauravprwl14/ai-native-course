@@ -1,0 +1,109 @@
+/**
+ * Tier 2 — Semantic tokens
+ * This is the ONLY file with [data-theme] pairs.
+ * Maps primitive values to roles: bg, text, border, accent, status.
+ */
+
+/* ── Light mode (default) ── */
+:root {
+  /* Backgrounds */
+  --color-bg-base:     #ffffff;
+  --color-bg-surface:  #f7f9fa;
+  --color-bg-elevated: #eef1f3;
+  --color-bg-code:     #f1f5f7;
+  --color-bg-overlay:  rgba(0, 0, 0, 0.04);
+
+  /* Text */
+  --color-text-primary:   #0d1117;
+  --color-text-secondary: #24292e;
+  --color-text-muted:     #57606a;
+  --color-text-subtle:    #8c959f;
+  --color-text-on-accent: #ffffff;
+
+  /* Borders */
+  --color-border-subtle:  rgba(0, 0, 0, 0.06);
+  --color-border-default: rgba(0, 0, 0, 0.09);
+  --color-border-strong:  rgba(0, 0, 0, 0.16);
+
+  /* Accent — driven by brand scale */
+  --color-accent:             var(--primitive-brand-600);
+  --color-accent-dark:        var(--primitive-brand-700);
+  --color-accent-light:       var(--primitive-brand-500);
+  /* cyan RGB: 8, 145, 178 */
+  --color-accent-muted:       rgba(8, 145, 178, 0.08);
+  --color-accent-muted-hover: rgba(8, 145, 178, 0.14);
+  --color-accent-glow-start:  rgba(8, 145, 178, 0.30);
+  --color-accent-glow-end:    rgba(8, 145, 178, 0);
+
+  /* Status — success */
+  --color-success:        var(--primitive-success);
+  --color-success-bg:     rgba(16, 185, 129, 0.08);
+  --color-success-border: rgba(16, 185, 129, 0.28);
+
+  /* Status — error */
+  --color-error:        var(--primitive-error);
+  --color-error-bg:     rgba(239, 68, 68, 0.08);
+  --color-error-border: rgba(239, 68, 68, 0.20);
+
+  /* Status — warning */
+  --color-warning:        var(--primitive-warning);
+  --color-warning-bg:     rgba(245, 158, 11, 0.08);
+  --color-warning-border: rgba(245, 158, 11, 0.28);
+
+  /* Status — info */
+  --color-info:        var(--primitive-info);
+  --color-info-bg:     rgba(59, 130, 246, 0.08);
+  --color-info-border: rgba(59, 130, 246, 0.22);
+}
+
+/* ── Dark mode ── */
+[data-theme='dark'] {
+  /* Backgrounds — pure, no colour tint */
+  --color-bg-base:     #050505;
+  --color-bg-surface:  #0e0e0e;
+  --color-bg-elevated: #1a1a1a;
+  --color-bg-code:     #0a0a0a;
+  --color-bg-overlay:  rgba(255, 255, 255, 0.04);
+
+  /* Text */
+  --color-text-primary:   #f0f6fc;
+  --color-text-secondary: #c9d1d9;
+  --color-text-muted:     #8b949e;
+  --color-text-subtle:    #484f58;
+  --color-text-on-accent: #050505;
+
+  /* Borders */
+  --color-border-subtle:  rgba(255, 255, 255, 0.06);
+  --color-border-default: rgba(255, 255, 255, 0.09);
+  --color-border-strong:  rgba(255, 255, 255, 0.16);
+
+  /* Accent — brighter on dark for contrast */
+  --color-accent:             var(--primitive-brand-400);
+  --color-accent-dark:        var(--primitive-brand-500);
+  --color-accent-light:       var(--primitive-brand-300);
+  /* cyan-400 RGB: 34, 211, 238 */
+  --color-accent-muted:       rgba(34, 211, 238, 0.08);
+  --color-accent-muted-hover: rgba(34, 211, 238, 0.14);
+  --color-accent-glow-start:  rgba(34, 211, 238, 0.25);
+  --color-accent-glow-end:    rgba(34, 211, 238, 0);
+
+  /* Status — success */
+  --color-success:        var(--primitive-success-light);
+  --color-success-bg:     rgba(52, 211, 153, 0.08);
+  --color-success-border: rgba(52, 211, 153, 0.22);
+
+  /* Status — error */
+  --color-error:        var(--primitive-error-light);
+  --color-error-bg:     rgba(248, 113, 113, 0.08);
+  --color-error-border: rgba(248, 113, 113, 0.22);
+
+  /* Status — warning */
+  --color-warning:        var(--primitive-warning-light);
+  --color-warning-bg:     rgba(251, 191, 36, 0.08);
+  --color-warning-border: rgba(251, 191, 36, 0.22);
+
+  /* Status — info */
+  --color-info:        var(--primitive-info-light);
+  --color-info-bg:     rgba(96, 165, 250, 0.08);
+  --color-info-border: rgba(96, 165, 250, 0.22);
+}

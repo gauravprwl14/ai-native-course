@@ -1,9 +1,9 @@
 .container {
-  border: 1px solid var(--ifm-toc-border-color);
-  border-radius: 12px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
   padding: 1rem;
   margin: 1.5rem 0;
-  background: var(--ifm-background-surface-color);
+  background: var(--color-bg-surface);
 }
 
 .svg {
@@ -24,10 +24,10 @@
   width: 100%;
   height: 100%;
   font-size: 0.65rem;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   text-align: center;
   text-decoration: none !important;
-  line-height: 1.2;
+  line-height: var(--line-height-tight);
 }
 
 .centerLabel {
@@ -37,10 +37,10 @@
   width: 100%;
   height: 100%;
   font-size: 0.72rem;
-  font-weight: 700;
-  color: #6366f1;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-accent);
   text-align: center;
-  line-height: 1.2;
+  line-height: var(--line-height-tight);
 }
 
 .legend {
@@ -49,7 +49,7 @@
   gap: 0.5rem;
   margin-top: 0.75rem;
   padding-top: 0.75rem;
-  border-top: 1px solid var(--ifm-toc-border-color);
+  border-top: 1px solid var(--color-border-subtle);
   justify-content: center;
 }
 
@@ -57,17 +57,17 @@
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  font-size: 0.8rem;
+  font-size: var(--font-size-xs);
   text-decoration: none !important;
   color: inherit;
   padding: 2px 8px;
-  border-radius: 9999px;
-  border: 1px solid var(--ifm-toc-border-color);
-  transition: border-color 0.15s;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border-default);
+  transition: border-color var(--transition-fast);
 }
 
 .legendItem:hover {
-  border-color: var(--ifm-color-primary);
+  border-color: var(--color-accent);
 }
 
 .legendDot {

@@ -1,39 +1,27 @@
 /**
- * AI-Native Course — Custom Docusaurus Theme
+ * AI-Native Course — Design System
+ *
+ * Import order matters: each layer depends on the one above.
+ *   0. Google Fonts        — Inter (variable) + JetBrains Mono
+ *   1. tokens-primitives  — raw values (neutrals, spacing, radius, …)
+ *   2. tokens-brand       — brand color scale (swap this per professor)
+ *   3. tokens-semantic    — role-based tokens + dark-mode pairs
+ *   4. tokens-components  — --ifm-* mappings + structural styles
  */
 
-:root {
-  --ifm-color-primary: #6366f1;
-  --ifm-color-primary-dark: #4f52e8;
-  --ifm-color-primary-darker: #4347e4;
-  --ifm-color-primary-darkest: #2d30d4;
-  --ifm-color-primary-light: #777af4;
-  --ifm-color-primary-lighter: #8385f5;
-  --ifm-color-primary-lightest: #a5a7f8;
+/* Fonts — must come first, before any other @import rules */
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,200..800&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
-  --ifm-code-font-size: 90%;
-  --ifm-font-family-base: 'Inter', system-ui, -apple-system, sans-serif;
-  --ifm-heading-font-weight: 700;
-  --ifm-navbar-height: 60px;
-  --ifm-toc-border-color: var(--ifm-color-primary-lightest);
+@import './tokens-primitives.css';
+@import './tokens-brand.css';
+@import './tokens-semantic.css';
+@import './tokens-components.css';
 
-  --docusaurus-highlighted-code-line-bg: rgba(99, 102, 241, 0.1);
-}
+/* ─────────────────────────────────────────────
+   Content callout boxes
+   ───────────────────────────────────────────── */
 
-[data-theme='dark'] {
-  --ifm-color-primary: #818cf8;
-  --ifm-color-primary-dark: #6872f6;
-  --ifm-color-primary-darker: #5d67f5;
-  --ifm-color-primary-darkest: #3d43f2;
-  --ifm-color-primary-light: #9aa2fa;
-  --ifm-color-primary-lighter: #a5adfb;
-  --ifm-color-primary-lightest: #bfc3fc;
-  --ifm-background-color: #0f0f1a;
-  --ifm-background-surface-color: #1a1a2e;
-  --docusaurus-highlighted-code-line-bg: rgba(129, 140, 248, 0.15);
-}
-
-/* Chapter cards on tier index pages */
+/* Chapter grid */
 .chapter-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -42,76 +30,71 @@
 }
 
 .chapter-card {
-  border: 1px solid var(--ifm-toc-border-color);
-  border-radius: 8px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
   padding: 1.25rem;
-  transition: box-shadow 0.2s, border-color 0.2s;
+  transition: box-shadow var(--transition-base), border-color var(--transition-base);
 }
 
 .chapter-card:hover {
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
-  border-color: var(--ifm-color-primary);
+  box-shadow: var(--shadow-md);
+  border-color: var(--color-accent);
 }
 
 .chapter-card .badge-passed {
-  background: #10b981;
-  color: white;
-  font-size: 0.7rem;
+  background: var(--color-success);
+  color: var(--color-text-on-accent);
+  font-size: var(--font-size-xs);
   padding: 2px 8px;
-  border-radius: 9999px;
+  border-radius: var(--radius-full);
   float: right;
 }
 
-/* Concept callout boxes */
+/* Concept intuition box */
 .concept-intuition {
-  background: var(--ifm-color-primary-lightest);
-  border-left: 4px solid var(--ifm-color-primary);
+  background: var(--color-accent-muted);
+  border-left: 4px solid var(--color-accent);
   padding: 1rem 1.25rem;
-  border-radius: 0 8px 8px 0;
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
   margin: 1.5rem 0;
 }
 
-[data-theme='dark'] .concept-intuition {
-  background: rgba(129, 140, 248, 0.1);
-}
-
+/* Interview angle box */
 .interview-angle {
-  background: #fef3c7;
-  border-left: 4px solid #f59e0b;
+  background: var(--color-warning-bg);
+  border-left: 4px solid var(--color-warning);
   padding: 1rem 1.25rem;
-  border-radius: 0 8px 8px 0;
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
   margin: 1.5rem 0;
 }
 
-[data-theme='dark'] .interview-angle {
-  background: rgba(245, 158, 11, 0.1);
-}
-
+/* Anti-pattern box */
 .antipattern {
-  background: #fee2e2;
-  border-left: 4px solid #ef4444;
+  background: var(--color-error-bg);
+  border-left: 4px solid var(--color-error);
   padding: 1rem 1.25rem;
-  border-radius: 0 8px 8px 0;
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
   margin: 1.5rem 0;
 }
 
-[data-theme='dark'] .antipattern {
-  background: rgba(239, 68, 68, 0.1);
-}
-
-/* Mermaid diagram container */
+/* ─────────────────────────────────────────────
+   Mermaid diagram wrapper
+   ───────────────────────────────────────────── */
 .mermaid-wrapper {
   overflow-x: auto;
-  border: 1px solid var(--ifm-toc-border-color);
-  border-radius: 8px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
   padding: 1rem;
   margin: 1.5rem 0;
 }
 
-/* Quiz component */
+/* ─────────────────────────────────────────────
+   Quiz component (global — CSS Modules handles
+   the scoped variants in Quiz/styles.module.css)
+   ───────────────────────────────────────────── */
 .quiz-container {
-  border: 1px solid var(--ifm-toc-border-color);
-  border-radius: 12px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
   padding: 1.5rem;
   margin: 2rem 0;
 }
@@ -119,7 +102,7 @@
 .quiz-question {
   margin-bottom: 1.5rem;
   padding-bottom: 1.5rem;
-  border-bottom: 1px solid var(--ifm-toc-border-color);
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 
 .quiz-question:last-child {
@@ -132,49 +115,51 @@
   align-items: flex-start;
   gap: 0.75rem;
   padding: 0.75rem 1rem;
-  border: 1px solid var(--ifm-toc-border-color);
-  border-radius: 6px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
   margin: 0.4rem 0;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
 }
 
 .quiz-option:hover {
-  border-color: var(--ifm-color-primary);
-  background: rgba(99, 102, 241, 0.05);
+  border-color: var(--color-accent);
+  background: var(--color-accent-muted);
 }
 
 .quiz-option.correct {
-  border-color: #10b981;
-  background: rgba(16, 185, 129, 0.08);
+  border-color: var(--color-success);
+  background: var(--color-success-bg);
 }
 
 .quiz-option.incorrect {
-  border-color: #ef4444;
-  background: rgba(239, 68, 68, 0.08);
+  border-color: var(--color-error);
+  background: var(--color-error-bg);
 }
 
 .quiz-explanation {
-  font-size: 0.875rem;
+  font-size: var(--font-size-sm);
   margin-top: 0.75rem;
   padding: 0.75rem;
-  border-radius: 6px;
-  background: var(--ifm-background-surface-color);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-surface);
 }
 
 .quiz-score {
   text-align: center;
-  font-size: 1.5rem;
-  font-weight: 700;
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
   padding: 1.5rem;
 }
 
-/* Token visualizer */
+/* ─────────────────────────────────────────────
+   Token visualizer chips
+   ───────────────────────────────────────────── */
 .token-chip {
   display: inline-block;
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   margin: 1px;
-  font-family: monospace;
-  font-size: 0.85rem;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: var(--font-size-sm);
 }

@@ -1,22 +1,23 @@
 .wrapper {
-  border: 1px solid var(--ifm-toc-border-color);
-  border-radius: 8px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
   padding: 1rem;
   margin: 1.5rem 0;
   position: relative;
   overflow-x: auto;
+  background: var(--color-bg-surface);
 }
 
 .title {
-  font-weight: 700;
-  font-size: 0.9rem;
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-sm);
   margin-bottom: 0.25rem;
-  color: var(--ifm-color-emphasis-800);
+  color: var(--color-text-primary);
 }
 
 .description {
-  font-size: 0.8rem;
-  color: var(--ifm-color-emphasis-600);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
   margin-bottom: 0.75rem;
 }
 
@@ -29,14 +30,14 @@
   top: 0.5rem;
   right: 0.5rem;
   padding: 3px 8px;
-  border: 1px solid var(--ifm-toc-border-color);
-  border-radius: 4px;
-  background: var(--ifm-background-color);
-  color: var(--ifm-color-emphasis-600);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-base);
+  color: var(--color-text-muted);
   cursor: pointer;
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   opacity: 0;
-  transition: opacity 0.2s;
+  transition: opacity var(--transition-base);
 }
 
 .wrapper:hover .zoomBtn {
@@ -46,17 +47,18 @@
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.75);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9999;
+  z-index: var(--z-modal);
   padding: 2rem;
 }
 
 .modal {
-  background: var(--ifm-background-color);
-  border-radius: 12px;
+  background: var(--color-bg-base);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-default);
   padding: 1.5rem;
   max-width: 90vw;
   max-height: 90vh;
@@ -65,8 +67,8 @@
 }
 
 .modalTitle {
-  font-weight: 700;
-  font-size: 1rem;
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-base);
   margin-bottom: 1rem;
 }
 
@@ -79,9 +81,15 @@
   top: 0.75rem;
   right: 0.75rem;
   padding: 4px 10px;
-  border: 1px solid var(--ifm-toc-border-color);
-  border-radius: 6px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
   background: transparent;
+  color: var(--color-text-muted);
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: var(--font-size-sm);
+  transition: border-color var(--transition-fast);
+}
+
+.closeBtn:hover {
+  border-color: var(--color-accent);
 }

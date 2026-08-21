@@ -1,14 +1,15 @@
 .quizContainer {
-  border: 1px solid var(--ifm-toc-border-color);
-  border-radius: 12px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
   padding: 1.5rem;
   margin: 2rem 0;
+  background: var(--color-bg-surface);
 }
 
 .question {
   margin-bottom: 1.75rem;
   padding-bottom: 1.75rem;
-  border-bottom: 1px solid var(--ifm-toc-border-color);
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 
 .question:last-of-type {
@@ -16,9 +17,9 @@
 }
 
 .questionText {
-  font-size: 1rem;
+  font-size: var(--font-size-base);
   margin-bottom: 0.75rem;
-  line-height: 1.5;
+  line-height: var(--line-height-normal);
 }
 
 .options {
@@ -32,100 +33,101 @@
   width: 100%;
   text-align: left;
   padding: 0.7rem 1rem;
-  border: 1px solid var(--ifm-toc-border-color);
-  border-radius: 6px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
   background: transparent;
   color: inherit;
   cursor: pointer;
-  font-size: 0.95rem;
-  transition: border-color 0.15s, background 0.15s;
+  font-size: var(--font-size-base);
+  transition: border-color var(--transition-fast), background var(--transition-fast);
 }
 
 .option:hover:not(:disabled) {
-  border-color: var(--ifm-color-primary);
-  background: rgba(99, 102, 241, 0.05);
+  border-color: var(--color-accent);
+  background: var(--color-accent-muted);
 }
 
 .selected {
   composes: option;
-  border-color: var(--ifm-color-primary);
-  background: rgba(99, 102, 241, 0.08);
+  border-color: var(--color-accent);
+  background: var(--color-accent-muted);
 }
 
 .correct {
   composes: option;
-  border-color: #10b981;
-  background: rgba(16, 185, 129, 0.08);
+  border-color: var(--color-success);
+  background: var(--color-success-bg);
   cursor: default;
 }
 
 .incorrect {
   composes: option;
-  border-color: #ef4444;
-  background: rgba(239, 68, 68, 0.08);
+  border-color: var(--color-error);
+  background: var(--color-error-bg);
   cursor: default;
 }
 
 .explanation {
   margin-top: 0.75rem;
   padding: 0.75rem 1rem;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  line-height: 1.5;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-normal);
 }
 
 .explanationCorrect {
   composes: explanation;
-  background: rgba(16, 185, 129, 0.06);
-  border-left: 3px solid #10b981;
+  background: var(--color-success-bg);
+  border-left: 3px solid var(--color-success);
 }
 
 .explanationIncorrect {
   composes: explanation;
-  background: rgba(239, 68, 68, 0.06);
-  border-left: 3px solid #ef4444;
+  background: var(--color-error-bg);
+  border-left: 3px solid var(--color-error);
 }
 
 .scoreBox {
   text-align: center;
   padding: 1.5rem;
-  border-top: 1px solid var(--ifm-toc-border-color);
+  border-top: 1px solid var(--color-border-subtle);
   margin-top: 1rem;
 }
 
 .scoreNumber {
-  font-size: 2rem;
-  font-weight: 800;
-  color: var(--ifm-color-primary);
+  font-size: var(--font-size-4xl);
+  font-weight: var(--font-weight-extrabold);
+  letter-spacing: -0.02em;
+  color: var(--color-accent);
   margin-bottom: 0.5rem;
 }
 
 .passed {
-  color: #10b981;
-  font-weight: 600;
-  font-size: 1.1rem;
+  color: var(--color-success);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-lg);
   margin-bottom: 1rem;
 }
 
 .failed {
-  color: #ef4444;
-  font-weight: 600;
-  font-size: 1.1rem;
+  color: var(--color-error);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-lg);
   margin-bottom: 1rem;
 }
 
 .retakeBtn {
   padding: 0.6rem 1.5rem;
-  border: 2px solid var(--ifm-color-primary);
-  border-radius: 6px;
+  border: 2px solid var(--color-accent);
+  border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--ifm-color-primary);
+  color: var(--color-accent);
   cursor: pointer;
-  font-weight: 600;
-  transition: background 0.15s, color 0.15s;
+  font-weight: var(--font-weight-semibold);
+  transition: background var(--transition-fast), color var(--transition-fast);
 }
 
 .retakeBtn:hover {
-  background: var(--ifm-color-primary);
-  color: white;
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
 }

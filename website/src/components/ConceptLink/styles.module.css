@@ -3,27 +3,27 @@
   align-items: center;
   gap: 0.3rem;
   padding: 3px 10px 3px 8px;
-  border: 1px solid var(--ifm-color-primary-lightest);
-  border-radius: 9999px;
-  background: rgba(99, 102, 241, 0.06);
-  color: var(--ifm-color-primary) !important;
-  font-size: 0.85rem;
-  font-weight: 500;
+  border: 1px solid var(--color-accent-light);
+  border-radius: var(--radius-full);
+  background: var(--color-accent-muted);
+  color: var(--color-accent) !important;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
   text-decoration: none !important;
-  transition: background 0.15s, border-color 0.15s;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
   white-space: nowrap;
 }
 
 .link:hover {
-  background: rgba(99, 102, 241, 0.12);
-  border-color: var(--ifm-color-primary);
+  background: var(--color-accent-muted-hover);
+  border-color: var(--color-accent);
 }
 
 .tier {
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
 }
 
 .arrow {
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   opacity: 0.7;
 }
